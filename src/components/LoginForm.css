@@ -1,0 +1,24 @@
+/* Error Message */
+.error-message {
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid #FF6B6B;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  color: #FF6B6B;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Disabled Button */
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.submit-btn:disabled:hover {
+  transform: none;
+  box-shadow: 0px 0px 15.2712px #925ED5, 0px 0px 7.6356px #FFF8FF, 0px 0px 2.1816px #FFF8FF, 0px 0px 1.0908px #FFF8FF;
+}
