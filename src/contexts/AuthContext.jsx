@@ -2,6 +2,9 @@ import React, { createContext, useContext, useState, useEffect } from 'react'
 
 const AuthContext = createContext()
 
+// API Base URL - Update this to match your backend URL
+const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth`
+
 export const useAuth = () => {
   const context = useContext(AuthContext)
   if (!context) {
@@ -17,47 +20,294 @@ export const AuthProvider = ({ children }) => {
   // Check if user is logged in on app start
   useEffect(() => {
     const savedUser = localStorage.getItem('user')
-    if (savedUser) {
-      setUser(JSON.parse(savedUser))
-    }
-    setIsLoading(false)
-  }, [])
-
-  const login = async (email, password) => {
-    setIsLoading(true)
+    const savedToken = localStorage.getItem('token')
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // Check credentials
-    if ((email === 'admin' || email === 'admin@decipher.com') && password === 'admin') {
-      const userData = {
-        id: 1,
-        name: 'Admin User',
-        email: 'admin@decipher.com',
-        avatar: './author-avatar-7942f7.png'
+    if (savedUser && savedToken && savedUser !== 'undefined' && savedToken !== 'undefined') {
+      try {
+        const parsedUser = JSON.parse(savedUser)
+        setUser(parsedUser)
+        // Optionally verify token with backend
+        verifyToken(savedToken)
+      } catch (error) {
+        console.error('Error parsing saved user:', error)
+        // Clear invalid data
+        localStorage.removeItem('user')
+        localStorage.removeItem('token')
+        setIsLoading(false)
       }
-      
-      setUser(userData)
-      localStorage.setItem('user', JSON.stringify(userData))
-      setIsLoading(false)
-      return { success: true, user: userData }
     } else {
       setIsLoading(false)
-      return { success: false, error: 'Invalid credentials' }
+    }
+  }, [])
+
+  // Verify token with backend
+  const verifyToken = async (token) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/profile`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setUser(data.data.user)
+          localStorage.setItem('user', JSON.stringify(data.data.user))
+        } else {
+          // Token is invalid, clear storage
+          localStorage.removeItem('user')
+          localStorage.removeItem('token')
+          setUser(null)
+        }
+      } else {
+        // Token is invalid, clear storage
+        localStorage.removeItem('user')
+        localStorage.removeItem('token')
+        setUser(null)
+      }
+    } catch (error) {
+      console.error('Token verification failed:', error)
+      localStorage.removeItem('user')
+      localStorage.removeItem('token')
+      setUser(null)
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const logout = () => {
-    setUser(null)
-    localStorage.removeItem('user')
+  // Register new user
+  const register = async (name, email, password, confirmPassword) => {
+    // Don't set isLoading here - let the component handle its own loading state
+    // This prevents unwanted re-renders that can reset component state
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          confirmPassword
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Don't store user data or token - user needs to verify email first
+        return { 
+          success: true, 
+          message: data.message,
+          requiresVerification: data.requiresVerification,
+          email: data.email
+        }
+      } else {
+        return { success: false, error: data.message }
+      }
+    } catch (error) {
+      return { success: false, error: 'Network error. Please try again.' }
+    }
+  }
+
+  // Login user
+  const login = async (email, password, rememberMe = false) => {
+    setIsLoading(true)
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          rememberMe
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Store user data and token
+        setUser(data.data.user)
+        localStorage.setItem('user', JSON.stringify(data.data.user))
+        localStorage.setItem('token', data.data.token)
+        
+        setIsLoading(false)
+        return { success: true, user: data.data.user }
+      } else {
+        setIsLoading(false)
+        return { 
+          success: false, 
+          error: data.message,
+          requiresVerification: data.requiresVerification,
+          email: data.email
+        }
+      }
+    } catch (error) {
+      setIsLoading(false)
+      return { success: false, error: 'Network error. Please try again.' }
+    }
+  }
+
+  // Verify OTP
+  const verifyOTP = async (email, otp) => {
+    setIsLoading(true)
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/verify-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email,
+          otp
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Update user data and token
+        setUser(data.data.user)
+        localStorage.setItem('user', JSON.stringify(data.data.user))
+        localStorage.setItem('token', data.data.token)
+        
+        setIsLoading(false)
+        return { success: true, user: data.data.user, message: data.message }
+      } else {
+        setIsLoading(false)
+        return { success: false, error: data.message }
+      }
+    } catch (error) {
+      setIsLoading(false)
+      return { success: false, error: 'Network error. Please try again.' }
+    }
+  }
+
+  // Resend verification OTP
+  const resendVerification = async (email) => {
+    setIsLoading(true)
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/resend-verification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email })
+      })
+
+      const data = await response.json()
+      setIsLoading(false)
+      
+      return { success: data.success, message: data.message }
+    } catch (error) {
+      setIsLoading(false)
+      return { success: false, error: 'Network error. Please try again.' }
+    }
+  }
+
+  // Forgot password
+  const forgotPassword = async (email) => {
+    setIsLoading(true)
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/forgot-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email })
+      })
+
+      const data = await response.json()
+      setIsLoading(false)
+      
+      return { success: data.success, message: data.message }
+    } catch (error) {
+      setIsLoading(false)
+      return { success: false, error: 'Network error. Please try again.' }
+    }
+  }
+
+  // Reset password
+  const resetPassword = async (token, password, confirmPassword) => {
+    setIsLoading(true)
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          token,
+          password,
+          confirmPassword
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Store user data and token
+        setUser(data.data.user)
+        localStorage.setItem('user', JSON.stringify(data.data.user))
+        localStorage.setItem('token', data.data.token)
+        
+        setIsLoading(false)
+        return { success: true, user: data.data.user, message: data.message }
+      } else {
+        setIsLoading(false)
+        return { success: false, error: data.message }
+      }
+    } catch (error) {
+      setIsLoading(false)
+      return { success: false, error: 'Network error. Please try again.' }
+    }
+  }
+
+  // Logout user
+  const logout = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (token) {
+        await fetch(`${API_BASE_URL}/logout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+      }
+    } catch (error) {
+      console.error('Logout error:', error)
+    } finally {
+      // Clear local storage regardless of API call result
+      setUser(null)
+      localStorage.removeItem('user')
+      localStorage.removeItem('token')
+    }
   }
 
   const value = {
     user,
     isAuthenticated: !!user,
     isLoading,
+    register,
     login,
+    verifyOTP,
+    resendVerification,
+    forgotPassword,
+    resetPassword,
     logout
   }
 

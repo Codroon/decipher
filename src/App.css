@@ -25,6 +25,11 @@
   margin-left: 0;
 }
 
+/* Auth pages should be centered with no sidebar margin */
+.main-content.auth-page {
+  margin-left: 0;
+}
+
 /* Navigation Bar */
 .navbar {
   position: fixed;
