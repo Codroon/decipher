@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react'
 const AuthContext = createContext()
 
 // API Base URL - Update this to match your backend URL
-const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth`
+const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'https://decipher-backend-92mi.onrender.com'}/api/auth`
 
 export const useAuth = () => {
   const context = useContext(AuthContext)

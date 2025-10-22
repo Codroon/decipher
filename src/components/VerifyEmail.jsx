@@ -28,7 +28,7 @@ function VerifyEmail() {
       }
 
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/verify-email?token=${token}`)
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://decipher-backend-92mi.onrender.com'}/api/auth/verify-email?token=${token}`)
         const data = await response.json()
 
         if (data.success) {
