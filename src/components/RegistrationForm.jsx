@@ -15,16 +15,92 @@ function RegistrationForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [showVerificationPopup, setShowVerificationPopup] = useState(false)
   const [userEmail, setUserEmail] = useState('')
+  const [passwordStrength, setPasswordStrength] = useState({ score: 0, feedback: [] })
+  const [passwordMatch, setPasswordMatch] = useState(true)
   const isSubmitting = useRef(false)
   
   const { register } = useAuth()
   const navigate = useNavigate()
 
+  // Password strength validation function
+  const checkPasswordStrength = (password) => {
+    const feedback = []
+    let score = 0
+
+    // Length check
+    if (password.length >= 8) {
+      score += 1
+    } else {
+      feedback.push('At least 8 characters')
+    }
+
+    // Lowercase check
+    if (/[a-z]/.test(password)) {
+      score += 1
+    } else {
+      feedback.push('One lowercase letter')
+    }
+
+    // Uppercase check
+    if (/[A-Z]/.test(password)) {
+      score += 1
+    } else {
+      feedback.push('One uppercase letter')
+    }
+
+    // Number check
+    if (/\d/.test(password)) {
+      score += 1
+    } else {
+      feedback.push('One number')
+    }
+
+    // Special character check
+    if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      score += 1
+    } else {
+      feedback.push('One special character')
+    }
+
+    return { score, feedback }
+  }
+
+  // Check password match
+  const checkPasswordMatch = (password, confirmPassword) => {
+    return password === confirmPassword && confirmPassword.length > 0
+  }
+
+  // Handle password change
+  const handlePasswordChange = (e) => {
+    const newPassword = e.target.value
+    setPassword(newPassword)
+    setPasswordStrength(checkPasswordStrength(newPassword))
+    setPasswordMatch(checkPasswordMatch(newPassword, confirmPassword))
+  }
+
+  // Handle confirm password change
+  const handleConfirmPasswordChange = (e) => {
+    const newConfirmPassword = e.target.value
+    setConfirmPassword(newConfirmPassword)
+    setPasswordMatch(checkPasswordMatch(password, newConfirmPassword))
+  }
 
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault()
     
     if (isSubmitting.current) {
+      return
+    }
+    
+    // Validate password strength
+    if (passwordStrength.score < 3) {
+      setError('Password is too weak. Please ensure it meets the requirements.')
+      return
+    }
+
+    // Validate password match
+    if (!passwordMatch) {
+      setError('Passwords do not match.')
       return
     }
     
@@ -144,7 +220,7 @@ function RegistrationForm() {
                   type={showPassword ? "text" : "password"} 
                   placeholder="Password" 
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={handlePasswordChange}
                   required
                 />
                 <button 
@@ -167,6 +243,41 @@ function RegistrationForm() {
                   </svg>
                 </button>
               </div>
+              
+              {/* Password Strength Indicator */}
+              {password && (
+                <div className="password-strength">
+                  <div className="strength-bar">
+                    <div 
+                      className={`strength-fill strength-${passwordStrength.score}`}
+                      style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
+                    ></div>
+                  </div>
+                  <div className="strength-text">
+                    <span className={`strength-label strength-${passwordStrength.score}`}>
+                      {passwordStrength.score === 0 && 'Very Weak'}
+                      {passwordStrength.score === 1 && 'Weak'}
+                      {passwordStrength.score === 2 && 'Fair'}
+                      {passwordStrength.score === 3 && 'Good'}
+                      {passwordStrength.score === 4 && 'Strong'}
+                      {passwordStrength.score === 5 && 'Very Strong'}
+                    </span>
+                  </div>
+                  {passwordStrength.feedback.length > 0 && (
+                    <div className="strength-requirements">
+                      <p>Password must contain:</p>
+                      <ul>
+                        {passwordStrength.feedback.map((req, index) => (
+                          <li key={index} className="requirement-item">
+                            <span className="requirement-icon">✗</span>
+                            {req}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="input-group">
@@ -176,7 +287,7 @@ function RegistrationForm() {
                   type={showConfirmPassword ? "text" : "password"} 
                   placeholder="Confirm your Password" 
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={handleConfirmPasswordChange}
                   required
                 />
                 <button 
@@ -199,6 +310,15 @@ function RegistrationForm() {
                   </svg>
                 </button>
               </div>
+              
+              {/* Password Match Indicator */}
+              {confirmPassword && (
+                <div className="password-match">
+                  <span className={`match-indicator ${passwordMatch ? 'match-success' : 'match-error'}`}>
+                    {passwordMatch ? '✓ Passwords match' : '✗ Passwords do not match'}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

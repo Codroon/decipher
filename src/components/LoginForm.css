@@ -159,3 +159,123 @@
 .popup-btn:active {
   transform: translateY(0);
 }
+
+/* Password Strength Indicator */
+.password-strength {
+  margin-top: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.strength-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.strength-fill {
+  height: 100%;
+  transition: all 0.3s ease;
+  border-radius: 3px;
+}
+
+.strength-0 { background: #ff4444; }
+.strength-1 { background: #ff8800; }
+.strength-2 { background: #ffbb00; }
+.strength-3 { background: #88cc00; }
+.strength-4 { background: #44bb44; }
+.strength-5 { background: #00aa00; }
+
+.strength-text {
+  margin-bottom: 8px;
+}
+
+.strength-label {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.strength-label.strength-0 { color: #ff4444; }
+.strength-label.strength-1 { color: #ff8800; }
+.strength-label.strength-2 { color: #ffbb00; }
+.strength-label.strength-3 { color: #88cc00; }
+.strength-label.strength-4 { color: #44bb44; }
+.strength-label.strength-5 { color: #00aa00; }
+
+.strength-requirements {
+  margin-top: 8px;
+}
+
+.strength-requirements p {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  color: #999;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.strength-requirements ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.requirement-item {
+  display: flex;
+  align-items: center;
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  color: #ff6b6b;
+  margin-bottom: 4px;
+}
+
+.requirement-icon {
+  margin-right: 6px;
+  font-size: 10px;
+  color: #ff6b6b;
+}
+
+/* Password Match Indicator */
+.password-match {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.match-indicator {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+}
+
+.match-success {
+  color: #4CAF50;
+}
+
+.match-success::before {
+  content: "✓";
+  margin-right: 6px;
+  color: #4CAF50;
+}
+
+.match-error {
+  color: #ff6b6b;
+}
+
+.match-error::before {
+  content: "✗";
+  margin-right: 6px;
+  color: #ff6b6b;
+}

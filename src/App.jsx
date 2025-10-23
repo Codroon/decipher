@@ -11,6 +11,7 @@ import LoginForm from './components/LoginForm'
 import RegistrationForm from './components/RegistrationForm'
 import OTPVerificationForm from './components/OTPVerificationForm'
 import ForgotPasswordForm from './components/ForgotPasswordForm'
+import ResetPassword from './components/ResetPassword'
 import VerifyEmail from './components/VerifyEmail'
 import Profile from './components/Profile'
 
@@ -28,7 +29,7 @@ function AppContent() {
   const currentPage = location.pathname.substring(1) || 'home'
   
   // Check if current page is an authentication page
-  const isAuthPage = ['login', 'signup', 'verify-otp', 'forgot-password', 'verify-email'].includes(currentPage)
+  const isAuthPage = ['login', 'signup', 'verify-otp', 'forgot-password', 'reset-password', 'verify-email'].includes(currentPage)
 
   // Close dropdown when clicking outside
   const handleClickOutside = (e) => {
@@ -52,7 +53,7 @@ function AppContent() {
 
   // Redirect to login if not authenticated and trying to access protected routes
   useEffect(() => {
-    const authPages = ['/login', '/signup', '/verify-otp', '/forgot-password', '/verify-email']
+    const authPages = ['/login', '/signup', '/verify-otp', '/forgot-password', '/reset-password', '/verify-email']
     
     if (!isLoading) {
       // If not authenticated and trying to access protected route → redirect to login
@@ -224,6 +225,7 @@ function AppContent() {
           <Route path="/verify-otp" element={<OTPVerificationForm />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/forgot-password" element={<ForgotPasswordForm />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/login" element={<LoginForm />} />
         </Routes>
       </div>
