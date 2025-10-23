@@ -118,7 +118,8 @@ export const AuthProvider = ({ children }) => {
 
   // Login user
   const login = async (email, password, rememberMe = false) => {
-    setIsLoading(true)
+    // Don't set isLoading here - let the component handle its own loading state
+    // Setting isLoading causes App.jsx useEffect to trigger and remount components
     
     try {
       const response = await fetch(`${API_BASE_URL}/login`, {
@@ -142,10 +143,8 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('user', JSON.stringify(data.data.user))
         localStorage.setItem('token', data.data.token)
         
-        setIsLoading(false)
         return { success: true, user: data.data.user }
       } else {
-        setIsLoading(false)
         return { 
           success: false, 
           error: data.message,
@@ -154,8 +153,18 @@ export const AuthProvider = ({ children }) => {
         }
       }
     } catch (error) {
-      setIsLoading(false)
-      return { success: false, error: 'Network error. Please try again.' }
+      // Provide more specific error messages
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        return { 
+          success: false, 
+          error: 'Cannot connect to server. Please check if the backend is running and the URL is correct.' 
+        }
+      }
+      
+      return { 
+        success: false, 
+        error: `Network error: ${error.message}. Please check your connection and try again.` 
+      }
     }
   }
 
