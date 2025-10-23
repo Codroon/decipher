@@ -46,7 +46,8 @@ export const AuthProvider = ({ children }) => {
       const response = await fetch(`${API_BASE_URL}/profile`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
         }
       })
 
@@ -86,7 +87,8 @@ export const AuthProvider = ({ children }) => {
       const response = await fetch(`${API_BASE_URL}/register`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
         },
         body: JSON.stringify({
           name,
@@ -122,7 +124,8 @@ export const AuthProvider = ({ children }) => {
       const response = await fetch(`${API_BASE_URL}/login`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
         },
         body: JSON.stringify({
           email,
@@ -164,7 +167,8 @@ export const AuthProvider = ({ children }) => {
       const response = await fetch(`${API_BASE_URL}/verify-otp`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
         },
         body: JSON.stringify({
           email,
@@ -200,7 +204,8 @@ export const AuthProvider = ({ children }) => {
       const response = await fetch(`${API_BASE_URL}/resend-verification`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
         },
         body: JSON.stringify({ email })
       })
@@ -223,7 +228,8 @@ export const AuthProvider = ({ children }) => {
       const response = await fetch(`${API_BASE_URL}/forgot-password`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
         },
         body: JSON.stringify({ email })
       })
@@ -246,7 +252,8 @@ export const AuthProvider = ({ children }) => {
       const response = await fetch(`${API_BASE_URL}/reset-password`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
         },
         body: JSON.stringify({
           token,
@@ -284,7 +291,8 @@ export const AuthProvider = ({ children }) => {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true'
           }
         })
       }
