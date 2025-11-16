@@ -1,9 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
+import * as authService from '../services/authService'
 
 const AuthContext = createContext()
-
-// API Base URL - Update this to match your backend URL
-const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'https://decipher-backend-92mi.onrender.com'}/api/auth`
 
 export const useAuth = () => {
   const context = useContext(AuthContext)
@@ -43,25 +41,11 @@ export const AuthProvider = ({ children }) => {
   // Verify token with backend
   const verifyToken = async (token) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/profile`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        if (data.success) {
-          setUser(data.data.user)
-          localStorage.setItem('user', JSON.stringify(data.data.user))
-        } else {
-          // Token is invalid, clear storage
-          localStorage.removeItem('user')
-          localStorage.removeItem('token')
-          setUser(null)
-        }
+      const result = await authService.verifyToken(token)
+      
+      if (result.success) {
+        setUser(result.user)
+        localStorage.setItem('user', JSON.stringify(result.user))
       } else {
         // Token is invalid, clear storage
         localStorage.removeItem('user')
@@ -83,37 +67,7 @@ export const AuthProvider = ({ children }) => {
     // Don't set isLoading here - let the component handle its own loading state
     // This prevents unwanted re-renders that can reset component state
     
-    try {
-      const response = await fetch(`${API_BASE_URL}/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
-        },
-        body: JSON.stringify({
-          name,
-          email,
-          password,
-          confirmPassword
-        })
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        // Don't store user data or token - user needs to verify email first
-        return { 
-          success: true, 
-          message: data.message,
-          requiresVerification: data.requiresVerification,
-          email: data.email
-        }
-      } else {
-        return { success: false, error: data.message }
-      }
-    } catch (error) {
-      return { success: false, error: 'Network error. Please try again.' }
-    }
+    return await authService.registerUser(name, email, password, confirmPassword)
   }
 
   // Login user
@@ -121,174 +75,70 @@ export const AuthProvider = ({ children }) => {
     // Don't set isLoading here - let the component handle its own loading state
     // Setting isLoading causes App.jsx useEffect to trigger and remount components
     
-    try {
-      const response = await fetch(`${API_BASE_URL}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          rememberMe
-        })
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        // Store user data and token
-        setUser(data.data.user)
-        localStorage.setItem('user', JSON.stringify(data.data.user))
-        localStorage.setItem('token', data.data.token)
-        
-        return { success: true, user: data.data.user }
-      } else {
-        return { 
-          success: false, 
-          error: data.message,
-          requiresVerification: data.requiresVerification,
-          email: data.email
-        }
-      }
-    } catch (error) {
-      // Provide more specific error messages
-      if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        return { 
-          success: false, 
-          error: 'Cannot connect to server. Please check if the backend is running and the URL is correct.' 
-        }
-      }
-      
-      return { 
-        success: false, 
-        error: `Network error: ${error.message}. Please check your connection and try again.` 
-      }
+    const result = await authService.loginUser(email, password, rememberMe)
+    
+    if (result.success) {
+      // Store user data and token
+      setUser(result.user)
+      localStorage.setItem('user', JSON.stringify(result.user))
+      localStorage.setItem('token', result.token)
     }
+    
+    return result
   }
 
   // Verify OTP
   const verifyOTP = async (email, otp) => {
     setIsLoading(true)
     
-    try {
-      const response = await fetch(`${API_BASE_URL}/verify-otp`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
-        },
-        body: JSON.stringify({
-          email,
-          otp
-        })
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        // Update user data and token
-        setUser(data.data.user)
-        localStorage.setItem('user', JSON.stringify(data.data.user))
-        localStorage.setItem('token', data.data.token)
-        
-        setIsLoading(false)
-        return { success: true, user: data.data.user, message: data.message }
-      } else {
-        setIsLoading(false)
-        return { success: false, error: data.message }
-      }
-    } catch (error) {
-      setIsLoading(false)
-      return { success: false, error: 'Network error. Please try again.' }
+    const result = await authService.verifyOTP(email, otp)
+    
+    if (result.success) {
+      // Update user data and token
+      setUser(result.user)
+      localStorage.setItem('user', JSON.stringify(result.user))
+      localStorage.setItem('token', result.token)
     }
+    
+    setIsLoading(false)
+    return result
   }
 
   // Resend verification OTP
   const resendVerification = async (email) => {
     setIsLoading(true)
     
-    try {
-      const response = await fetch(`${API_BASE_URL}/resend-verification`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
-        },
-        body: JSON.stringify({ email })
-      })
-
-      const data = await response.json()
-      setIsLoading(false)
-      
-      return { success: data.success, message: data.message }
-    } catch (error) {
-      setIsLoading(false)
-      return { success: false, error: 'Network error. Please try again.' }
-    }
+    const result = await authService.resendVerificationOTP(email)
+    
+    setIsLoading(false)
+    return result
   }
 
   // Forgot password
   const forgotPassword = async (email) => {
     setIsLoading(true)
     
-    try {
-      const response = await fetch(`${API_BASE_URL}/forgot-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
-        },
-        body: JSON.stringify({ email })
-      })
-
-      const data = await response.json()
-      setIsLoading(false)
-      
-      return { success: data.success, message: data.message }
-    } catch (error) {
-      setIsLoading(false)
-      return { success: false, error: 'Network error. Please try again.' }
-    }
+    const result = await authService.forgotPassword(email)
+    
+    setIsLoading(false)
+    return result
   }
 
   // Reset password
   const resetPassword = async (token, password, confirmPassword) => {
     setIsLoading(true)
     
-    try {
-      const response = await fetch(`${API_BASE_URL}/reset-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
-        },
-        body: JSON.stringify({
-          token,
-          password,
-          confirmPassword
-        })
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        // Store user data and token
-        setUser(data.data.user)
-        localStorage.setItem('user', JSON.stringify(data.data.user))
-        localStorage.setItem('token', data.data.token)
-        
-        setIsLoading(false)
-        return { success: true, user: data.data.user, message: data.message }
-      } else {
-        setIsLoading(false)
-        return { success: false, error: data.message }
-      }
-    } catch (error) {
-      setIsLoading(false)
-      return { success: false, error: 'Network error. Please try again.' }
+    const result = await authService.resetPassword(token, password, confirmPassword)
+    
+    if (result.success) {
+      // Store user data and token
+      setUser(result.user)
+      localStorage.setItem('user', JSON.stringify(result.user))
+      localStorage.setItem('token', result.token)
     }
+    
+    setIsLoading(false)
+    return result
   }
 
   // Logout user
@@ -296,14 +146,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const token = localStorage.getItem('token')
       if (token) {
-        await fetch(`${API_BASE_URL}/logout`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'ngrok-skip-browser-warning': 'true'
-          }
-        })
+        await authService.logoutUser(token)
       }
     } catch (error) {
       console.error('Logout error:', error)
