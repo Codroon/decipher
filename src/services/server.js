@@ -2,7 +2,7 @@
 // This file centralizes all backend API configuration
 
 // Get API base URL from environment variable or use default
-const BASE_URL = import.meta.env.VITE_API_URL || 'https://25ca19e4fc4c.ngrok-free.app'
+const BASE_URL = import.meta.env.VITE_API_URL || 'https://d5e7b680845c.ngrok-free.app'
 
 // API endpoints organized by domain
 export const API_ENDPOINTS = {
@@ -22,7 +22,7 @@ export const API_ENDPOINTS = {
   STORY: {
     BASE: `${BASE_URL}/api/story`,
     CREATE: `${BASE_URL}/api/story/create`,
-    GET_ALL: `${BASE_URL}/api/story/all`,
+    GET_ALL: `${BASE_URL}/api/story/`,
     GET_BY_ID: (id) => `${BASE_URL}/api/story/${id}`,
     UPDATE: (id) => `${BASE_URL}/api/story/${id}`,
     DELETE: (id) => `${BASE_URL}/api/story/${id}`,

@@ -41,7 +41,7 @@ function Settings() {
       <div className="settings-header">
         <div className="header-content">
           <button className="back-button" onClick={() => window.history.back()}>
-            <img src="./settings-back-arrow.png" alt="Back" style={{transform: 'rotate(0deg)'}} />
+            <img src="/settings-back-arrow.png" alt="Back" style={{transform: 'rotate(0deg)'}} />
           </button>
           
           <div className="header-text">
@@ -51,11 +51,11 @@ function Settings() {
 
           <div className="header-actions">
             <button className="reset-btn">
-              <img src="./reset-icon.png" alt="Reset" />
+              <img src="/reset-icon.png" alt="Reset" />
               <span>Reset</span>
             </button>
             <button className="save-all-btn">
-              <img src="./save-icon.png" alt="Save" />
+              <img src="/save-icon.png" alt="Save" />
               <span>Save All</span>
             </button>
           </div>
@@ -65,7 +65,7 @@ function Settings() {
       {/* General Section Header */}
       <div className="general-section-header">
         <div className="general-content">
-          <img src="./settings-icon.png" alt="General" className="general-icon" />
+          <img src="/settings-icon.png" alt="General" className="general-icon" />
           <h2 className="general-title">General</h2>
         </div>
         <div className="general-divider"></div>
@@ -112,7 +112,7 @@ function Settings() {
                   onChange={(e) => setAnimations(e.target.checked)}
                 />
                 <label htmlFor="animations" className="toggle-label">
-                  <img src="./toggle-on.png" alt="Toggle" className="toggle-icon" />
+                  <img src="/toggle-on.png" alt="Toggle" className="toggle-icon" />
                 </label>
               </div>
             </div>
@@ -130,7 +130,7 @@ function Settings() {
                   onChange={(e) => setParticles(e.target.checked)}
                 />
                 <label htmlFor="particles" className="toggle-label">
-                  <img src="./toggle-on.png" alt="Toggle" className="toggle-icon" />
+                  <img src="/toggle-on.png" alt="Toggle" className="toggle-icon" />
                 </label>
               </div>
             </div>
@@ -148,7 +148,7 @@ function Settings() {
                   onChange={(e) => setSoundEffects(e.target.checked)}
                 />
                 <label htmlFor="sound-effects" className="toggle-label">
-                  <img src="./toggle-on.png" alt="Toggle" className="toggle-icon" />
+                  <img src="/toggle-on.png" alt="Toggle" className="toggle-icon" />
                 </label>
               </div>
             </div>
@@ -164,7 +164,7 @@ function Settings() {
               <label className="dropdown-label">Language</label>
               <div className="dropdown-field">
                 <span className="dropdown-value">{language}</span>
-                <img src="./dropdown-arrow.png" alt="Dropdown" className="dropdown-arrow" />
+                <img src="/dropdown-arrow.png" alt="Dropdown" className="dropdown-arrow" />
               </div>
             </div>
 
@@ -172,7 +172,7 @@ function Settings() {
               <label className="dropdown-label">Time zone</label>
               <div className="dropdown-field">
                 <span className="dropdown-value">{timezone}</span>
-                <img src="./dropdown-arrow.png" alt="Dropdown" className="dropdown-arrow" />
+                <img src="/dropdown-arrow.png" alt="Dropdown" className="dropdown-arrow" />
               </div>
             </div>
 
@@ -180,7 +180,7 @@ function Settings() {
               <label className="dropdown-label">Date Format</label>
               <div className="dropdown-field">
                 <span className="dropdown-value">{dateFormat}</span>
-                <img src="./dropdown-arrow.png" alt="Dropdown" className="dropdown-arrow" />
+                <img src="/dropdown-arrow.png" alt="Dropdown" className="dropdown-arrow" />
               </div>
             </div>
           </div>

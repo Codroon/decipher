@@ -8,44 +8,44 @@ function ImageStudio() {
   const [prompt, setPrompt] = useState('')
 
   const tabs = [
-    { id: 'creatures', label: 'creatures', icon: './spaghetti-monster-icon.png' },
-    { id: 'character', label: 'Character', icon: './user-icon.png' },
-    { id: 'location', label: 'Location', icon: './location-icon.png' },
-    { id: 'references', label: 'References', icon: './references-icon.png' },
-    { id: 'library', label: 'Library', icon: './library-icon.png' }
+    { id: 'creatures', label: 'creatures', icon: '/spaghetti-monster-icon.png' },
+    { id: 'character', label: 'Character', icon: '/user-icon.png' },
+    { id: 'location', label: 'Location', icon: '/location-icon.png' },
+    { id: 'references', label: 'References', icon: '/references-icon.png' },
+    { id: 'library', label: 'Library', icon: '/library-icon.png' }
   ]
 
   const artStyles = [
-    { id: 'fantasy', label: 'Fantasy', image: './fantasy-art-style.png' },
-    { id: 'realistic', label: 'Realistic', image: './realistic-art-style-52592d.png' },
-    { id: 'anime', label: 'Anime', image: './anime-art-style.png' },
-    { id: 'cartoon', label: 'Cartoon', image: './cartoon-art-style.png' }
+    { id: 'fantasy', label: 'Fantasy', image: '/fantasy-art-style.png' },
+    { id: 'realistic', label: 'Realistic', image: '/realistic-art-style-52592d.png' },
+    { id: 'anime', label: 'Anime', image: '/anime-art-style.png' },
+    { id: 'cartoon', label: 'Cartoon', image: '/cartoon-art-style.png' }
   ]
 
   const imageSizes = [
-    { id: 'square', label: 'Square', dimensions: '1024*1024', aspectRatio: '1:1', bg: './size-square-bg.svg' },
-    { id: 'landscape', label: 'Landscape', dimensions: '1536*1024', aspectRatio: '3:2', bg: './size-landscape-bg.svg' },
-    { id: 'portrait', label: 'Portrait', dimensions: '1024*1536', aspectRatio: '2:3', bg: './size-portrait-bg.svg' }
+    { id: 'square', label: 'Square', dimensions: '1024*1024', aspectRatio: '1:1', bg: '/size-square-bg.svg' },
+    { id: 'landscape', label: 'Landscape', dimensions: '1536*1024', aspectRatio: '3:2', bg: '/size-landscape-bg.svg' },
+    { id: 'portrait', label: 'Portrait', dimensions: '1024*1536', aspectRatio: '2:3', bg: '/size-portrait-bg.svg' }
   ]
 
   const recentImages = [
     {
       id: 1,
-      image: './recent-image-1-52dd4f.png',
+      image: '/recent-image-1-52dd4f.png',
       title: 'Mystical forest with glowing...',
       style: 'fantasy',
       time: 'just now'
     },
     {
       id: 2,
-      image: './recent-image-2.png',
+      image: '/recent-image-2.png',
       title: 'Cyberpunk city at night...',
       style: 'realistic',
       time: 'just now'
     },
     {
       id: 3,
-      image: './recent-image-3.png',
+      image: '/recent-image-3.png',
       title: 'Ancient dragon with crystal...',
       style: 'fantasy',
       time: 'just now'
@@ -58,7 +58,7 @@ function ImageStudio() {
       <div className="image-studio-header">
         <div className="header-content">
           <button className="back-button" onClick={() => window.history.back()}>
-            <img src="./up-arrow-icon.png" alt="Back" style={{transform: 'rotate(90deg)'}} />
+            <img src="/up-arrow-icon.png" alt="Back" style={{transform: 'rotate(90deg)'}} />
           </button>
           
           <div className="story-title-section">
@@ -67,7 +67,7 @@ function ImageStudio() {
           </div>
 
           <button className="generate-button">
-            <img src="./download-icon.png" alt="Generate" />
+            <img src="/download-icon.png" alt="Generate" />
             <span>generate</span>
           </button>
         </div>
@@ -109,7 +109,7 @@ function ImageStudio() {
               </div>
               <p className="prompt-hint">Be descriptive for better results</p>
               <button className="enhance-prompt-btn">
-                <img src="./enhance-icon.png" alt="Enhance" />
+                <img src="/enhance-icon.png" alt="Enhance" />
                 <span>Enhance Prompt</span>
               </button>
             </div>
@@ -165,7 +165,7 @@ function ImageStudio() {
 
             {/* Generate Button */}
             <button className="generate-image-btn">
-              <img src="./generate-icon.png" alt="Generate" />
+              <img src="/generate-icon.png" alt="Generate" />
               <span>generate Image</span>
             </button>
           </div>
@@ -175,7 +175,7 @@ function ImageStudio() {
         <div className="recent-images-panel">
           <div className="recent-images-card">
             <div className="card-header">
-              <img src="./chatbot-icon.png" alt="Recent" />
+              <img src="/chatbot-icon.png" alt="Recent" />
               <h3>Recent Images</h3>
             </div>
 

@@ -51,17 +51,24 @@ export const createStory = async (setting, character, characterName) => {
  */
 export const getAllStories = async () => {
   try {
+    console.log('Fetching stories from:', API_ENDPOINTS.STORY.GET_ALL)
+    const token = localStorage.getItem('token')
+    console.log('Token available:', !!token)
+    
     const response = await fetch(API_ENDPOINTS.STORY.GET_ALL, {
       method: 'GET',
       headers: getHeaders(true)
     })
 
+    console.log('Stories response status:', response.status)
     const data = await response.json()
+    console.log('Stories response data:', data)
 
     if (response.ok) {
       return {
         success: true,
-        stories: data.stories
+        stories: data.stories,
+        count: data.count
       }
     } else {
       return {
@@ -85,12 +92,18 @@ export const getAllStories = async () => {
  */
 export const getStoryById = async (storyId) => {
   try {
+    console.log('Fetching story:', storyId)
+    const token = localStorage.getItem('token')
+    console.log('Token available:', !!token)
+    
     const response = await fetch(API_ENDPOINTS.STORY.GET_BY_ID(storyId), {
       method: 'GET',
       headers: getHeaders(true)
     })
 
+    console.log('Story response status:', response.status)
     const data = await response.json()
+    console.log('Story response data:', data)
 
     if (response.ok) {
       return {
@@ -186,11 +199,13 @@ export const deleteStory = async (storyId) => {
 /**
  * Regenerate last chunk of story
  * @param {string} storyId - The story ID
+ * @param {string} model - The model to use (e.g., 'qwen3:8b')
  * @returns {Promise<Object>} Regeneration result
  */
-export const regenerateLastChunk = async (storyId) => {
+export const regenerateLastChunk = async (storyId, model = 'qwen3:8b') => {
   try {
-    const response = await fetch(API_ENDPOINTS.STORY.REGENERATE(storyId), {
+    const url = `${API_ENDPOINTS.STORY.REGENERATE(storyId)}?model=${encodeURIComponent(model)}`
+    const response = await fetch(url, {
       method: 'GET',
       headers: getHeaders(true)
     })
@@ -221,13 +236,15 @@ export const regenerateLastChunk = async (storyId) => {
 /**
  * Continue the story
  * @param {string} storyId - The story ID
+ * @param {string} model - The model to use (e.g., 'qwen3:8b')
  * @returns {Promise<Object>} Continue result
  */
-export const continueStory = async (storyId) => {
+export const continueStory = async (storyId, model = 'qwen3:8b') => {
   try {
     const response = await fetch(API_ENDPOINTS.STORY.CONTINUE(storyId), {
       method: 'POST',
-      headers: getHeaders(true)
+      headers: getHeaders(true),
+      body: JSON.stringify({ model })
     })
 
     const data = await response.json()
@@ -257,18 +274,20 @@ export const continueStory = async (storyId) => {
  * Edit last paragraph of story
  * @param {string} storyId - The story ID
  * @param {string} minorEditInstruction - Instruction for editing
+ * @param {string} model - The model to use (e.g., 'qwen3:8b')
  * @returns {Promise<Object>} Edit result
  */
-export const editLastParagraph = async (storyId, minorEditInstruction) => {
+export const editLastParagraph = async (storyId, minorEditInstruction, model = 'qwen3:8b') => {
   try {
     const url = API_ENDPOINTS.STORY.EDIT(storyId)
+    const payload = { minorEditInstruction, model }
     console.log('Edit URL:', url)
-    console.log('Edit payload:', { minorEditInstruction })
+    console.log('Edit payload:', payload)
     
     const response = await fetch(url, {
       method: 'PATCH',
       headers: getHeaders(true),
-      body: JSON.stringify({ minorEditInstruction })
+      body: JSON.stringify(payload)
     })
 
     console.log('Edit response status:', response.status)

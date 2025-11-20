@@ -1,20 +1,25 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import './Home.css'
+import * as storyService from '../services/storyService'
 
 function Home() {
+  const navigate = useNavigate()
   const [showBanner, setShowBanner] = useState(true)
   const [currentCarouselIndex, setCurrentCarouselIndex] = useState(2)
   const [currentPage, setCurrentPage] = useState(1)
+  const [userStories, setUserStories] = useState([])
+  const [loadingStories, setLoadingStories] = useState(true)
 
-  // Sample story data
+  // Sample story data for explore section
   const storyImages = [
-    "./Frame 18588.png",
-    "./image 7 (1).png",
-    "./image 7.png",
-    "./image 9.png"
+    "/Frame 18588.png",
+    "/image 7 (1).png",
+    "/image 7.png",
+    "/image 9.png"
   ]
 
-  const stories = [
+  const exploreStories = [
     {
       id: 1,
       title: "Beneath the Obsidian Moon",
@@ -48,13 +53,29 @@ function Home() {
       image: storyImages[0] // Frame 18588.png
     }
   ]
+  
+  // Fetch user's stories on component mount
+  useEffect(() => {
+    const fetchUserStories = async () => {
+      setLoadingStories(true)
+      const result = await storyService.getAllStories()
+      if (result.success) {
+        setUserStories(result.stories)
+      } else {
+        console.error('Failed to fetch stories:', result.error)
+      }
+      setLoadingStories(false)
+    }
+    
+    fetchUserStories()
+  }, [])
 
   const carouselImages = [
-    "./ai_storytelling_platform_balanced 1.png",
-    "./Group 7.png",
-    "./ai_storytelling_platform_balanced 5.png",
-    "./ai_storytelling_platform_balanced 1.png",
-    "./Group 7.png"
+    "/ai_storytelling_platform_balanced 1.png",
+    "/Group 7.png",
+    "/ai_storytelling_platform_balanced 5.png",
+    "/ai_storytelling_platform_balanced 1.png",
+    "/Group 7.png"
   ]
 
   const handleCarouselPrev = () => {
@@ -63,6 +84,10 @@ function Home() {
 
   const handleCarouselNext = () => {
     setCurrentCarouselIndex((prev) => (prev < carouselImages.length - 1 ? prev + 1 : 0))
+  }
+  
+  const handlePlayStory = (storyId) => {
+    navigate(`/story-creator/${storyId}`)
   }
 
   return (
@@ -142,21 +167,35 @@ function Home() {
       {/* Previously Played Stories */}
       <section className="stories-section">
         <h2 className="section-title">Previously Played Stories</h2>
-        <div className="stories-grid">
-          {stories.map((story) => (
-            <div key={story.id} className="story-card">
-              <div className="card-overlay"></div>
-              <div className="card-content">
-                <img src={story.image} alt={story.title} className="story-image" />
-                <div className="story-info">
-                  <h3>{story.title}</h3>
-                  <p>{story.description}</p>
-                  <button className="play-btn">Play Now</button>
+        {loadingStories ? (
+          <div className="loading-stories">
+            <div className="loading-spinner"></div>
+            <p>Loading your stories...</p>
+          </div>
+        ) : userStories.length > 0 ? (
+          <div className="stories-grid">
+            {userStories.map((story) => (
+              <div key={story._id} className="story-card" onClick={() => handlePlayStory(story._id)}>
+                <div className="card-overlay"></div>
+                <div className="card-content">
+                  <img src={storyImages[Math.floor(Math.random() * storyImages.length)]} alt={story.title} className="story-image" />
+                  <div className="story-info">
+                    <h3>{story.title}</h3>
+                    <p>{story.description || 'Continue your adventure...'}</p>
+                    <button className="play-btn">Continue Story</button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-stories">
+            <p>No stories yet. Start creating your first adventure!</p>
+            <button className="start-adventure-btn" onClick={() => navigate('/story-creator')}>
+              Create Story
+            </button>
+          </div>
+        )}
       </section>
 
       {/* Explore Shared Stories */}
@@ -167,7 +206,7 @@ function Home() {
         </div>
         
         <div className="stories-grid">
-          {stories.map((story) => (
+          {exploreStories.map((story) => (
             <div key={story.id} className="story-card shared-card">
               <div className="card-overlay"></div>
               <div className="card-content">
@@ -190,7 +229,7 @@ function Home() {
         </div>
 
         <div className="stories-grid" style={{ marginTop: '70px' }}>
-          {stories.map((story) => (
+          {exploreStories.map((story) => (
             <div key={`second-${story.id}`} className="story-card shared-card">
               <div className="card-overlay"></div>
               <div className="card-content">

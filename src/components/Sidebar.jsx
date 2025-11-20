@@ -25,22 +25,22 @@ function Sidebar({ isOpen, onClose, onNavigate }) {
     {
       id: 'dashboard',
       label: 'Dashboard',
-      icon: './Dashboard.png'
+      icon: '/Dashboard.png'
     },
     {
       id: 'story-creator',
       label: 'Story Creator',
-      icon: './StoryCreator.png'
+      icon: '/StoryCreator.png'
     },
     {
       id: 'image-studio',
       label: 'Image Studio',
-      icon: './imagestudio.png'
+      icon: '/imagestudio.png'
     },
     {
       id: 'settings',
       label: 'Settings',
-      icon: './setting.png'
+      icon: '/setting.png'
     }
   ]
 

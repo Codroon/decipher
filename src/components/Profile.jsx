@@ -45,7 +45,7 @@ function Profile() {
         {/* Profile Avatar Section */}
         <div className="profile-avatar-section">
           <div className="profile-avatar-large">
-            <img src={user?.avatar || "./author-avatar-7942f7.png"} alt="Profile" />
+            <img src={user?.avatar || "/author-avatar-7942f7.png"} alt="Profile" />
           </div>
           <button className="change-avatar-btn">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

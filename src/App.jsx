@@ -25,8 +25,8 @@ function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
 
-  // Get current page from URL
-  const currentPage = location.pathname.substring(1) || 'home'
+  // Get current page from URL (handle routes with parameters)
+  const currentPage = location.pathname.split('/')[1] || 'home'
   
   // Check if current page is an authentication page
   const isAuthPage = ['login', 'signup', 'verify-otp', 'forgot-password', 'reset-password', 'verify-email'].includes(currentPage)
@@ -56,8 +56,11 @@ function AppContent() {
     const authPages = ['/login', '/signup', '/verify-otp', '/forgot-password', '/reset-password', '/verify-email']
     
     if (!isLoading) {
+      // Check if current path is an auth page
+      const isOnAuthPage = authPages.some(page => location.pathname.startsWith(page))
+      
       // If not authenticated and trying to access protected route → redirect to login
-      if (!isAuthenticated && !authPages.includes(location.pathname)) {
+      if (!isAuthenticated && !isOnAuthPage) {
         navigate('/login')
       }
       
@@ -110,7 +113,7 @@ function AppContent() {
           {/* Hide search bar on authentication pages */}
           {!isAuthPage && (
             <div className="search-bar">
-              <img src="./search-icon.png" alt="Search" className="search-icon" />
+              <img src="/search-icon.png" alt="Search" className="search-icon" />
               <input type="text" placeholder="Search stories, authors, or genres..." />
             </div>
           )}
@@ -140,7 +143,7 @@ function AppContent() {
                 className="profile-avatar"
                 onClick={() => setShowProfileDropdown(!showProfileDropdown)}
               >
-                <img src={user?.avatar || "./author-avatar-7942f7.png"} alt="Profile" />
+                <img src={user?.avatar || "/author-avatar-7942f7.png"} alt="Profile" />
               </div>
               
               {/* Profile Dropdown */}
@@ -149,7 +152,7 @@ function AppContent() {
                   <div className="dropdown-header">
                     <div className="user-info">
                       <div className="user-avatar-small">
-                        <img src={user?.avatar || "./author-avatar-7942f7.png"} alt="Profile" />
+                        <img src={user?.avatar || "/author-avatar-7942f7.png"} alt="Profile" />
                       </div>
                       <div className="user-details">
                         <h4 className="user-name">{user?.name || 'Admin User'}</h4>
@@ -218,6 +221,7 @@ function AppContent() {
           <Route path="/" element={<Home />} />
           <Route path="/home" element={<Home />} />
           <Route path="/story-creator" element={<StoryCreator />} />
+          <Route path="/story-creator/:storyId" element={<StoryCreator />} />
           <Route path="/image-studio" element={<ImageStudio />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />
