@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './Home.css'
 import * as storyService from '../services/storyService'
+import * as scenarioService from '../services/scenarioService'
 
 function Home() {
   const navigate = useNavigate()
@@ -9,7 +10,9 @@ function Home() {
   const [currentCarouselIndex, setCurrentCarouselIndex] = useState(2)
   const [currentPage, setCurrentPage] = useState(1)
   const [userStories, setUserStories] = useState([])
+  const [userScenarios, setUserScenarios] = useState([])
   const [loadingStories, setLoadingStories] = useState(true)
+  const [loadingScenarios, setLoadingScenarios] = useState(true)
 
   // Sample story data for explore section
   const storyImages = [
@@ -54,7 +57,7 @@ function Home() {
     }
   ]
   
-  // Fetch user's stories on component mount
+  // Fetch user's stories and scenarios on component mount
   useEffect(() => {
     const fetchUserStories = async () => {
       setLoadingStories(true)
@@ -67,7 +70,19 @@ function Home() {
       setLoadingStories(false)
     }
     
+    const fetchUserScenarios = async () => {
+      setLoadingScenarios(true)
+      const result = await scenarioService.getAllScenarios()
+      if (result.success) {
+        setUserScenarios(result.scenarios)
+      } else {
+        console.error('Failed to fetch scenarios:', result.error)
+      }
+      setLoadingScenarios(false)
+    }
+    
     fetchUserStories()
+    fetchUserScenarios()
   }, [])
 
   const carouselImages = [
@@ -88,6 +103,10 @@ function Home() {
   
   const handlePlayStory = (storyId) => {
     navigate(`/story-creator/${storyId}`)
+  }
+
+  const handleViewScenario = (scenarioId) => {
+    navigate(`/scenario-creator/${scenarioId}`)
   }
 
   return (
@@ -178,10 +197,10 @@ function Home() {
               <div key={story._id} className="story-card" onClick={() => handlePlayStory(story._id)}>
                 <div className="card-overlay"></div>
                 <div className="card-content">
-                  <img src={storyImages[Math.floor(Math.random() * storyImages.length)]} alt={story.title} className="story-image" />
+                  <img src={storyImages[Math.floor(Math.random() * storyImages.length)]} alt={story.title || story.characterName + "'s Adventure"} className="story-image" />
                   <div className="story-info">
-                    <h3>{story.title}</h3>
-                    <p>{story.description || 'Continue your adventure...'}</p>
+                    <h3>{story.title || (story.characterName ? story.characterName + "'s Adventure" : 'Untitled Story')}</h3>
+                    <p>{story.setting || 'Continue your adventure...'}</p>
                     <button className="play-btn">Continue Story</button>
                   </div>
                 </div>
@@ -193,6 +212,40 @@ function Home() {
             <p>No stories yet. Start creating your first adventure!</p>
             <button className="start-adventure-btn" onClick={() => navigate('/story-creator')}>
               Create Story
+            </button>
+          </div>
+        )}
+      </section>
+
+      {/* My Scenarios */}
+      <section className="stories-section">
+        <h2 className="section-title">My Scenarios</h2>
+        {loadingScenarios ? (
+          <div className="loading-stories">
+            <div className="loading-spinner"></div>
+            <p>Loading your scenarios...</p>
+          </div>
+        ) : userScenarios.length > 0 ? (
+          <div className="stories-grid">
+            {userScenarios.map((scenario) => (
+              <div key={scenario._id} className="story-card scenario-card" onClick={() => handleViewScenario(scenario._id)}>
+                <div className="card-overlay"></div>
+                <div className="card-content">
+                  <img src={storyImages[Math.floor(Math.random() * storyImages.length)]} alt={scenario.title} className="story-image" />
+                  <div className="story-info">
+                    <h3>{scenario.title || 'Untitled Scenario'}</h3>
+                    <p>{scenario.description || 'Explore this scenario...'}</p>
+                    <button className="play-btn">View Scenario</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-stories">
+            <p>No scenarios yet. Create your first scenario!</p>
+            <button className="start-adventure-btn" onClick={() => navigate('/scenario-creator')}>
+              Create Scenario
             </button>
           </div>
         )}

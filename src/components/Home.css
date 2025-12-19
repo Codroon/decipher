@@ -508,6 +508,64 @@
   color: #FFFFFF;
 }
 
+/* Scenario Card Styling */
+.scenario-card {
+  border: 1px solid rgba(77, 112, 255, 0.3);
+  position: relative;
+}
+
+.scenario-card::before {
+  content: '📋';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 16px;
+  z-index: 3;
+  background: rgba(77, 112, 255, 0.2);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scenario-card .card-overlay {
+  background: rgba(77, 112, 255, 0.1);
+}
+
+.scenario-card .card-content {
+  position: relative;
+}
+
+.scenario-tags {
+  display: flex;
+  gap: 6px;
+  padding: 0 10px 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: auto;
+}
+
+.scenario-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  background: rgba(77, 112, 255, 0.3);
+  border: 1px solid rgba(77, 112, 255, 0.5);
+  border-radius: 10px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 500;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1;
+}
+
+.scenario-card .story-info {
+  max-height: 90px;
+  padding-bottom: 4px;
+}
+
 /* Pagination */
 .pagination {
   display: flex;

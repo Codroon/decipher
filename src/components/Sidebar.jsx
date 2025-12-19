@@ -12,6 +12,8 @@ function Sidebar({ isOpen, onClose, onNavigate }) {
       onNavigate('home')
     } else if (itemId === 'image-studio') {
       onNavigate('image-studio')
+    } else if (itemId === 'scenario-creator') {
+      onNavigate('scenario-creator')
     } else if (itemId === 'settings') {
       onNavigate('settings')
     }
@@ -31,6 +33,11 @@ function Sidebar({ isOpen, onClose, onNavigate }) {
       id: 'story-creator',
       label: 'Story Creator',
       icon: '/StoryCreator.png'
+    },
+    {
+      id: 'scenario-creator',
+      label: 'Scenario Builder',
+      icon: '/script-icon.png'
     },
     {
       id: 'image-studio',

@@ -31,6 +31,15 @@ export const API_ENDPOINTS = {
     EDIT: (id) => `${BASE_URL}/api/story/edit/${id}`,
     EDIT_CHUNK: (id) => `${BASE_URL}/api/story/edit-chunk/${id}`,
   },
+  // Scenario endpoints
+  SCENARIO: {
+    BASE: `${BASE_URL}/api/scenario`,
+    CREATE: `${BASE_URL}/api/scenario/create`,
+    GET_ALL: `${BASE_URL}/api/scenario/`,
+    GET_BY_ID: (id) => `${BASE_URL}/api/scenario/${id}`,
+    UPDATE: (id) => `${BASE_URL}/api/scenario/${id}`,
+    DELETE: (id) => `${BASE_URL}/api/scenario/${id}`,
+  },
   // Add more endpoint categories as needed
   // IMAGES: {
   //   BASE: `${BASE_URL}/api/images`,

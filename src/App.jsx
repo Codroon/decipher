@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Home from './components/Home'
 import Sidebar from './components/Sidebar'
 import StoryCreator from './components/StoryCreator'
+import ScenarioCreator from './components/ScenarioCreator'
 import ImageStudio from './components/ImageStudio'
 import Settings from './components/Settings'
 import LoginForm from './components/LoginForm'
@@ -222,6 +223,8 @@ function AppContent() {
           <Route path="/home" element={<Home />} />
           <Route path="/story-creator" element={<StoryCreator />} />
           <Route path="/story-creator/:storyId" element={<StoryCreator />} />
+          <Route path="/scenario-creator" element={<ScenarioCreator />} />
+          <Route path="/scenario-creator/:scenarioId" element={<ScenarioCreator />} />
           <Route path="/image-studio" element={<ImageStudio />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />
