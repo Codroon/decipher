@@ -9,7 +9,7 @@ function StoryCreator() {
   const [creativityLevel, setCreativityLevel] = useState(80)
   const [storyLength, setStoryLength] = useState('Medium (3-4 paragraphs)')
   const [tone, setTone] = useState('Mysterious')
-  const [model, setModel] = useState('qwen3:8b')
+  const [model, setModel] = useState('llama3.2:3b')
   
   // Story creation states
   const [isCreating, setIsCreating] = useState(!storyId)
@@ -33,6 +33,10 @@ function StoryCreator() {
   const [showChunkEditor, setShowChunkEditor] = useState(false)
   const [editingChunkIndex, setEditingChunkIndex] = useState(null)
   const [chunkEditContent, setChunkEditContent] = useState('')
+  
+  // Inline editing states (for clicking on chunks in display)
+  const [inlineEditingChunkIndex, setInlineEditingChunkIndex] = useState(null)
+  const [inlineEditContent, setInlineEditContent] = useState('')
   
   // Load existing story if storyId is provided
   useEffect(() => {
@@ -198,6 +202,37 @@ function StoryCreator() {
   const handleCancelChunkEdit = () => {
     setEditingChunkIndex(null)
     setChunkEditContent('')
+  }
+  
+  // Handle inline chunk editing (click on chunk to edit)
+  const handleInlineEditChunk = (chunkIndex, currentContent) => {
+    setInlineEditingChunkIndex(chunkIndex)
+    setInlineEditContent(currentContent)
+  }
+  
+  const handleSaveInlineChunk = async () => {
+    if (!generatedStory?._id || inlineEditingChunkIndex === null) return
+    
+    setActionLoading('editChunk')
+    const result = await storyService.editChunk(
+      generatedStory._id,
+      inlineEditingChunkIndex,
+      inlineEditContent.trim()
+    )
+    setActionLoading(null)
+    
+    if (result.success) {
+      setGeneratedStory(result.story)
+      setInlineEditingChunkIndex(null)
+      setInlineEditContent('')
+    } else {
+      alert(result.error || 'Failed to edit chunk')
+    }
+  }
+  
+  const handleCancelInlineEdit = () => {
+    setInlineEditingChunkIndex(null)
+    setInlineEditContent('')
   }
   
   // Handle setting selection
@@ -497,12 +532,59 @@ function StoryCreator() {
                   {generatedStory?.MainStory && generatedStory.MainStory.length > 0 ? (
                     // Show all story chunks combined, with paragraph breaks
                     generatedStory.MainStory.map((chunk, chunkIndex) => {
-                      const paragraphs = chunk.content.split('\n\n')
-                      return paragraphs.map((paragraph, paraIndex) => (
-                        <p key={`${chunkIndex}-${paraIndex}`} className="story-paragraph">
-                          {paragraph.trim()}
-                        </p>
-                      ))
+                      // Check if this chunk is being edited inline
+                      const isEditing = inlineEditingChunkIndex === chunk.index
+                      
+                      if (isEditing) {
+                        // Show editable textarea with save button
+                        return (
+                          <div key={`chunk-edit-${chunk.index}`} className="inline-edit-container">
+                            <textarea
+                              className="inline-edit-textarea"
+                              value={inlineEditContent}
+                              onChange={(e) => setInlineEditContent(e.target.value)}
+                              autoFocus
+                              rows={Math.max(5, inlineEditContent.split('\n').length + 2)}
+                            />
+                            <div className="inline-edit-actions">
+                              <button
+                                className="inline-save-btn"
+                                onClick={handleSaveInlineChunk}
+                                disabled={actionLoading !== null || !inlineEditContent.trim()}
+                              >
+                                {actionLoading === 'editChunk' ? 'Saving...' : 'Save'}
+                              </button>
+                              <button
+                                className="inline-cancel-btn"
+                                onClick={handleCancelInlineEdit}
+                                disabled={actionLoading !== null}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      } else {
+                        // Show normal paragraph(s) - clickable to edit
+                        const paragraphs = chunk.content.split('\n\n').filter(p => p.trim())
+                        return (
+                          <div 
+                            key={`chunk-${chunk.index}`}
+                            className="chunk-display-wrapper"
+                            onClick={() => handleInlineEditChunk(chunk.index, chunk.content)}
+                            title="Click to edit this chunk"
+                          >
+                            {paragraphs.map((paragraph, paraIndex) => (
+                              <p 
+                                key={`${chunkIndex}-${paraIndex}`} 
+                                className="story-paragraph editable-paragraph"
+                              >
+                                {paragraph.trim()}
+                              </p>
+                            ))}
+                          </div>
+                        )
+                      }
                     })
                   ) : (
                     <p className="story-paragraph">Your story will appear here...</p>
@@ -541,18 +623,8 @@ function StoryCreator() {
                   ) : (
                     <>
                       <h3>Continue Story</h3>
-       
                     </>
                   )}
-                </button>
-                
-                <button 
-                  className="action-btn"
-                  onClick={handleOpenChunkEditor}
-                  disabled={actionLoading !== null}
-                >
-                  <h3>Edit Manual Chunk</h3>
-          
                 </button>
               </div>
               
@@ -841,9 +913,9 @@ function StoryCreator() {
               <label>Model</label>
               <div className="select-wrapper">
                 <select value={model} onChange={(e) => setModel(e.target.value)}>
-                  <option value="qwen3:8b">qwen3:8b</option>
+                  <option value="llama3.2:3b">llama3.2:3b (Lowest Resource)</option>
                   <option value="qwen3:4b">qwen3:4b</option>
-                  <option value="llama3.2:3b">llama3.2:3b</option>
+                  <option value="qwen3:8b">qwen3:8b</option>
                 </select>
               </div>
             </div>

@@ -2,7 +2,7 @@
 // This file centralizes all backend API configuration
 
 // Get API base URL from environment variable or use default
-const BASE_URL = import.meta.env.VITE_API_URL || 'https://d5e7b680845c.ngrok-free.app'
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001'
 
 // API endpoints organized by domain
 export const API_ENDPOINTS = {
