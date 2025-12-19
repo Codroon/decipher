@@ -3,6 +3,159 @@ import { useNavigate, useParams } from 'react-router-dom'
 import './ScenarioCreator.css'
 import * as scenarioService from '../services/scenarioService'
 
+// Modern SVG Icon Components
+const IconBack = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="19" y1="12" x2="5" y2="12"/>
+    <polyline points="12 5 5 12 12 19"/>
+  </svg>
+)
+
+const IconSave = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+    <polyline points="17 21 17 13 7 13 7 21"/>
+    <polyline points="7 3 7 8 15 8"/>
+  </svg>
+)
+
+const IconCreate = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19"/>
+    <line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+)
+
+const IconInfo = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <line x1="12" y1="16" x2="12" y2="12"/>
+    <line x1="12" y1="8" x2="12.01" y2="8"/>
+  </svg>
+)
+
+const IconStory = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+  </svg>
+)
+
+const IconUsers = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+    <circle cx="9" cy="7" r="4"/>
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+  </svg>
+)
+
+const IconMap = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+    <line x1="8" y1="2" x2="8" y2="18"/>
+    <line x1="16" y1="6" x2="16" y2="22"/>
+  </svg>
+)
+
+const IconDragon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+    <path d="M2 17l10 5 10-5"/>
+    <path d="M2 12l10 5 10-5"/>
+  </svg>
+)
+
+const IconEye = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>
+)
+
+const IconLightbulb = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="9" y1="18" x2="15" y2="18"/>
+    <line x1="10" y1="22" x2="14" y2="22"/>
+    <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/>
+  </svg>
+)
+
+const IconEdit = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+  </svg>
+)
+
+const IconTrash = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6"/>
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+  </svg>
+)
+
+const IconClose = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18"/>
+    <line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+)
+
+const IconWarning = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+    <line x1="12" y1="9" x2="12" y2="13"/>
+    <line x1="12" y1="17" x2="12.01" y2="17"/>
+  </svg>
+)
+
+const IconChevronDown = ({ expanded }) => (
+  <svg 
+    width="16" 
+    height="16" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+    className="chevron-icon"
+    style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s ease' }}
+  >
+    <polyline points="6 9 12 15 18 9"/>
+  </svg>
+)
+
+const IconPlus = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19"/>
+    <line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+)
+
+const IconLock = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+  </svg>
+)
+
+const IconLink = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+  </svg>
+)
+
+const IconGlobe = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <line x1="2" y1="12" x2="22" y2="12"/>
+    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+  </svg>
+)
+
 function ScenarioCreator() {
   const navigate = useNavigate()
   const { scenarioId } = useParams()
@@ -218,7 +371,7 @@ function ScenarioCreator() {
       <div className="scenario-creator-header">
         <div className="header-content">
           <button className="back-button" onClick={handleBack}>
-            <img src="/up-arrow-icon.png" alt="Back" style={{transform: 'rotate(90deg)'}} />
+            <IconBack />
           </button>
           
           <div className="title-section">
@@ -238,7 +391,7 @@ function ScenarioCreator() {
               </>
             ) : (
               <>
-                <span className="create-icon">{isEditMode ? '💾' : '✨'}</span>
+                {isEditMode ? <IconSave /> : <IconCreate />}
                 <span>{isEditMode ? 'Update Scenario' : 'Create Scenario'}</span>
               </>
             )}
@@ -249,15 +402,17 @@ function ScenarioCreator() {
       {/* Messages */}
       {error && (
         <div className="message-banner error-banner">
-          <span className="message-icon">⚠️</span>
+          <IconWarning />
           <span>{error}</span>
-          <button onClick={() => setError('')}>×</button>
+          <button onClick={() => setError('')} className="message-close">
+            <IconClose />
+          </button>
         </div>
       )}
       
       {success && (
         <div className="message-banner success-banner">
-          <svg className="message-icon" width="20" height="20" viewBox="0 0 24 24" fill="gold">
+          <svg className="message-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
           </svg>
           <span>{success}</span>
@@ -275,10 +430,12 @@ function ScenarioCreator() {
               onClick={() => setActiveSection(activeSection === 'basic' ? '' : 'basic')}
             >
               <div className="section-title-group">
-                <span className="section-icon">📋</span>
+                <div className="section-icon-wrapper">
+                  <IconInfo />
+                </div>
                 <h2>Basic Information</h2>
               </div>
-              <span className={`expand-icon ${activeSection === 'basic' ? 'expanded' : ''}`}>▼</span>
+              <IconChevronDown expanded={activeSection === 'basic'} />
             </div>
             
             {activeSection === 'basic' && (
@@ -308,15 +465,20 @@ function ScenarioCreator() {
                 <div className="form-row">
                   <div className="form-group half">
                     <label>Visibility</label>
-                    <select 
-                      value={visibility} 
-                      onChange={(e) => setVisibility(e.target.value)}
-                      className="form-select"
-                    >
-                      <option value="private">🔒 Private</option>
-                      <option value="unlisted">🔗 Unlisted</option>
-                      <option value="published">🌍 Published</option>
-                    </select>
+                    <div className="select-wrapper">
+                      <select 
+                        value={visibility} 
+                        onChange={(e) => setVisibility(e.target.value)}
+                        className="form-select"
+                      >
+                        <option value="private">Private</option>
+                        <option value="unlisted">Unlisted</option>
+                        <option value="published">Published</option>
+                      </select>
+                      <div className="select-icon">
+                        {visibility === 'private' ? <IconLock /> : visibility === 'unlisted' ? <IconLink /> : <IconGlobe />}
+                      </div>
+                    </div>
                   </div>
                   
                   <div className="form-group half">
@@ -326,10 +488,10 @@ function ScenarioCreator() {
                       onChange={(e) => setContentRating(e.target.value)}
                       className="form-select"
                     >
-                      <option value="unrated">⚪ Unrated</option>
-                      <option value="everyone">🟢 Everyone</option>
-                      <option value="teen">🟡 Teen</option>
-                      <option value="mature">🔴 Mature</option>
+                      <option value="unrated">Unrated</option>
+                      <option value="everyone">Everyone</option>
+                      <option value="teen">Teen</option>
+                      <option value="mature">Mature</option>
                     </select>
                   </div>
                 </div>
@@ -341,7 +503,9 @@ function ScenarioCreator() {
                       {tags.map((tag, index) => (
                         <span key={index} className="tag">
                           {tag}
-                          <button onClick={() => handleRemoveTag(tag)}>×</button>
+                          <button onClick={() => handleRemoveTag(tag)} className="tag-remove">
+                            <IconClose />
+                          </button>
                         </span>
                       ))}
                     </div>
@@ -354,7 +518,9 @@ function ScenarioCreator() {
                         onKeyPress={handleTagKeyPress}
                         className="tag-input"
                       />
-                      <button className="add-tag-btn" onClick={handleAddTag}>+</button>
+                      <button className="add-tag-btn" onClick={handleAddTag}>
+                        <IconPlus />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -369,10 +535,12 @@ function ScenarioCreator() {
               onClick={() => setActiveSection(activeSection === 'story' ? '' : 'story')}
             >
               <div className="section-title-group">
-                <span className="section-icon">📖</span>
+                <div className="section-icon-wrapper">
+                  <IconStory />
+                </div>
                 <h2>Story Setup</h2>
               </div>
-              <span className={`expand-icon ${activeSection === 'story' ? 'expanded' : ''}`}>▼</span>
+              <IconChevronDown expanded={activeSection === 'story'} />
             </div>
             
             {activeSection === 'story' && (
@@ -420,11 +588,13 @@ function ScenarioCreator() {
               onClick={() => setActiveSection(activeSection === 'characters' ? '' : 'characters')}
             >
               <div className="section-title-group">
-                <span className="section-icon">👥</span>
+                <div className="section-icon-wrapper">
+                  <IconUsers />
+                </div>
                 <h2>Characters</h2>
                 <span className="count-badge">{characters.length}</span>
               </div>
-              <span className={`expand-icon ${activeSection === 'characters' ? 'expanded' : ''}`}>▼</span>
+              <IconChevronDown expanded={activeSection === 'characters'} />
             </div>
             
             {activeSection === 'characters' && (
@@ -432,19 +602,27 @@ function ScenarioCreator() {
                 <div className="entity-grid">
                   {characters.map((char, index) => (
                     <div key={index} className="entity-card">
-                      <div className="entity-avatar">👤</div>
+                      <div className="entity-avatar">
+                        <IconUsers />
+                      </div>
                       <div className="entity-info">
                         <h4>{char.name}</h4>
                         <p>{char.description || 'No description'}</p>
                       </div>
                       <div className="entity-actions">
-                        <button className="edit-btn" onClick={() => openModal('character', index)}>✏️</button>
-                        <button className="delete-btn" onClick={() => handleDeleteEntity('character', index)}>🗑️</button>
+                        <button className="edit-btn" onClick={() => openModal('character', index)}>
+                          <IconEdit />
+                        </button>
+                        <button className="delete-btn" onClick={() => handleDeleteEntity('character', index)}>
+                          <IconTrash />
+                        </button>
                       </div>
                     </div>
                   ))}
                   <button className="add-entity-btn" onClick={() => openModal('character')}>
-                    <span className="add-icon">+</span>
+                    <div className="add-icon">
+                      <IconPlus />
+                    </div>
                     <span>Add Character</span>
                   </button>
                 </div>
@@ -459,11 +637,13 @@ function ScenarioCreator() {
               onClick={() => setActiveSection(activeSection === 'locations' ? '' : 'locations')}
             >
               <div className="section-title-group">
-                <span className="section-icon">🗺️</span>
+                <div className="section-icon-wrapper">
+                  <IconMap />
+                </div>
                 <h2>Locations</h2>
                 <span className="count-badge">{locations.length}</span>
               </div>
-              <span className={`expand-icon ${activeSection === 'locations' ? 'expanded' : ''}`}>▼</span>
+              <IconChevronDown expanded={activeSection === 'locations'} />
             </div>
             
             {activeSection === 'locations' && (
@@ -471,19 +651,27 @@ function ScenarioCreator() {
                 <div className="entity-grid">
                   {locations.map((loc, index) => (
                     <div key={index} className="entity-card location-card">
-                      <div className="entity-avatar">📍</div>
+                      <div className="entity-avatar">
+                        <IconMap />
+                      </div>
                       <div className="entity-info">
                         <h4>{loc.name}</h4>
                         <p>{loc.description || 'No description'}</p>
                       </div>
                       <div className="entity-actions">
-                        <button className="edit-btn" onClick={() => openModal('location', index)}>✏️</button>
-                        <button className="delete-btn" onClick={() => handleDeleteEntity('location', index)}>🗑️</button>
+                        <button className="edit-btn" onClick={() => openModal('location', index)}>
+                          <IconEdit />
+                        </button>
+                        <button className="delete-btn" onClick={() => handleDeleteEntity('location', index)}>
+                          <IconTrash />
+                        </button>
                       </div>
                     </div>
                   ))}
                   <button className="add-entity-btn" onClick={() => openModal('location')}>
-                    <span className="add-icon">+</span>
+                    <div className="add-icon">
+                      <IconPlus />
+                    </div>
                     <span>Add Location</span>
                   </button>
                 </div>
@@ -498,11 +686,13 @@ function ScenarioCreator() {
               onClick={() => setActiveSection(activeSection === 'creatures' ? '' : 'creatures')}
             >
               <div className="section-title-group">
-                <span className="section-icon">🐉</span>
+                <div className="section-icon-wrapper">
+                  <IconDragon />
+                </div>
                 <h2>Creatures</h2>
                 <span className="count-badge">{creatures.length}</span>
               </div>
-              <span className={`expand-icon ${activeSection === 'creatures' ? 'expanded' : ''}`}>▼</span>
+              <IconChevronDown expanded={activeSection === 'creatures'} />
             </div>
             
             {activeSection === 'creatures' && (
@@ -510,19 +700,27 @@ function ScenarioCreator() {
                 <div className="entity-grid">
                   {creatures.map((creature, index) => (
                     <div key={index} className="entity-card creature-card">
-                      <div className="entity-avatar">🦎</div>
+                      <div className="entity-avatar">
+                        <IconDragon />
+                      </div>
                       <div className="entity-info">
                         <h4>{creature.name}</h4>
                         <p>{creature.description || 'No description'}</p>
                       </div>
                       <div className="entity-actions">
-                        <button className="edit-btn" onClick={() => openModal('creature', index)}>✏️</button>
-                        <button className="delete-btn" onClick={() => handleDeleteEntity('creature', index)}>🗑️</button>
+                        <button className="edit-btn" onClick={() => openModal('creature', index)}>
+                          <IconEdit />
+                        </button>
+                        <button className="delete-btn" onClick={() => handleDeleteEntity('creature', index)}>
+                          <IconTrash />
+                        </button>
                       </div>
                     </div>
                   ))}
                   <button className="add-entity-btn" onClick={() => openModal('creature')}>
-                    <span className="add-icon">+</span>
+                    <div className="add-icon">
+                      <IconPlus />
+                    </div>
                     <span>Add Creature</span>
                   </button>
                 </div>
@@ -535,7 +733,9 @@ function ScenarioCreator() {
         <div className="preview-panel">
           <div className="preview-card">
             <div className="preview-header">
-              <span className="preview-icon">👁️</span>
+              <div className="preview-icon-wrapper">
+                <IconEye />
+              </div>
               <h3>Scenario Preview</h3>
             </div>
             
@@ -546,12 +746,12 @@ function ScenarioCreator() {
               
               <div className="preview-meta">
                 <span className="meta-item">
-                  {visibility === 'private' ? '🔒' : visibility === 'unlisted' ? '🔗' : '🌍'}
-                  {visibility.charAt(0).toUpperCase() + visibility.slice(1)}
+                  {visibility === 'private' ? <IconLock /> : visibility === 'unlisted' ? <IconLink /> : <IconGlobe />}
+                  <span>{visibility.charAt(0).toUpperCase() + visibility.slice(1)}</span>
                 </span>
                 <span className="meta-item">
-                  {contentRating === 'everyone' ? '🟢' : contentRating === 'teen' ? '🟡' : contentRating === 'mature' ? '🔴' : '⚪'}
-                  {contentRating.charAt(0).toUpperCase() + contentRating.slice(1)}
+                  <span className="rating-dot" data-rating={contentRating}></span>
+                  <span>{contentRating.charAt(0).toUpperCase() + contentRating.slice(1)}</span>
                 </span>
               </div>
               
@@ -571,17 +771,23 @@ function ScenarioCreator() {
               
               <div className="preview-stats">
                 <div className="stat-item">
-                  <span className="stat-icon">👥</span>
+                  <div className="stat-icon-wrapper">
+                    <IconUsers />
+                  </div>
                   <span className="stat-value">{characters.length}</span>
                   <span className="stat-label">Characters</span>
                 </div>
                 <div className="stat-item">
-                  <span className="stat-icon">🗺️</span>
+                  <div className="stat-icon-wrapper">
+                    <IconMap />
+                  </div>
                   <span className="stat-value">{locations.length}</span>
                   <span className="stat-label">Locations</span>
                 </div>
                 <div className="stat-item">
-                  <span className="stat-icon">🐉</span>
+                  <div className="stat-icon-wrapper">
+                    <IconDragon />
+                  </div>
                   <span className="stat-value">{creatures.length}</span>
                   <span className="stat-label">Creatures</span>
                 </div>
@@ -599,7 +805,9 @@ function ScenarioCreator() {
           {/* Quick Tips */}
           <div className="tips-card">
             <div className="tips-header">
-              <span className="tips-icon">💡</span>
+              <div className="tips-icon-wrapper">
+                <IconLightbulb />
+              </div>
               <h3>Quick Tips</h3>
             </div>
             <ul className="tips-list">
@@ -620,7 +828,9 @@ function ScenarioCreator() {
               <h2>
                 {editIndex !== null ? 'Edit' : 'Add'} {activeModal.charAt(0).toUpperCase() + activeModal.slice(1)}
               </h2>
-              <button className="close-modal" onClick={closeModal}>×</button>
+              <button className="close-modal" onClick={closeModal}>
+                <IconClose />
+              </button>
             </div>
             
             <div className="modal-content">
@@ -666,4 +876,3 @@ function ScenarioCreator() {
 }
 
 export default ScenarioCreator
-
