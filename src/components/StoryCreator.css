@@ -574,8 +574,8 @@
   box-shadow: 0px 0px 24px rgba(146, 94, 213, 0.3);
   border-radius: 14px;
   overflow: hidden;
-  min-height: 820px;
-  max-height: 820px;
+  min-height: 1000px;
+  max-height: 1000px;
   align-self: flex-start;
 }
 
@@ -1411,7 +1411,12 @@
   gap: 14px;
   flex-shrink: 0;
   align-self: flex-start;
-  max-height: 820px;
+  max-height: 1000px;
+  min-height: 1000px;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  position: relative;
 }
 
 .sidebar-card {
@@ -1420,6 +1425,8 @@
   box-shadow: 0px 0px 12px rgba(255, 248, 255, 0.1);
   border-radius: 14px;
   padding: 18px 16px;
+  overflow: visible;
+  box-sizing: border-box;
 }
 
 .card-header {
@@ -1528,6 +1535,8 @@
 
 .control-group {
   margin-bottom: 18px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .control-group:last-child {
@@ -1595,6 +1604,9 @@
 
 .select-wrapper {
   position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .select-wrapper select {
@@ -1603,7 +1615,7 @@
   background: rgba(79, 25, 125, 0.6);
   border: 1px solid rgba(77, 112, 255, 0.4);
   border-radius: 8px;
-  padding: 0 12px;
+  padding: 0 32px 0 12px;
   font-family: 'Inter', sans-serif;
   font-weight: 500;
   font-size: 13px;
@@ -1613,6 +1625,10 @@
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .select-wrapper::after {

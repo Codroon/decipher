@@ -37,6 +37,7 @@ export const API_ENDPOINTS = {
     CREATE: `${BASE_URL}/api/scenario/create`,
     GET_ALL: `${BASE_URL}/api/scenario/`,
     GET_BY_ID: (id) => `${BASE_URL}/api/scenario/${id}`,
+    GET_STORIES: (id) => `${BASE_URL}/api/scenario/stories/${id}`,
     UPDATE: (id) => `${BASE_URL}/api/scenario/${id}`,
     DELETE: (id) => `${BASE_URL}/api/scenario/${id}`,
   },

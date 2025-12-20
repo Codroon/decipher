@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import './ScenarioCreator.css'
 import * as scenarioService from '../services/scenarioService'
+import { createStoryFromScenario } from '../services/storyService'
 
 // Modern SVG Icon Components
 const IconBack = () => (
@@ -185,8 +186,13 @@ function ScenarioCreator() {
   // Loading and error states
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingScenario, setIsLoadingScenario] = useState(isEditMode)
+  const [isCreatingStory, setIsCreatingStory] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  
+  // Stories state
+  const [scenarioStories, setScenarioStories] = useState([])
+  const [loadingStories, setLoadingStories] = useState(false)
   
   // Active section for accordion
   const [activeSection, setActiveSection] = useState('basic')
@@ -218,6 +224,22 @@ function ScenarioCreator() {
     }
     
     loadScenario()
+  }, [scenarioId])
+
+  // Load stories for the scenario
+  useEffect(() => {
+    const loadStories = async () => {
+      if (scenarioId) {
+        setLoadingStories(true)
+        const result = await scenarioService.getScenarioStories(scenarioId)
+        if (result.success) {
+          setScenarioStories(result.stories || [])
+        }
+        setLoadingStories(false)
+      }
+    }
+    
+    loadStories()
   }, [scenarioId])
 
   // Handle tag input
@@ -353,6 +375,33 @@ function ScenarioCreator() {
     navigate(-1)
   }
 
+  // Handle create story from scenario
+  const handleCreateStory = async () => {
+    if (!scenarioId) return
+    
+    setIsCreatingStory(true)
+    setError('')
+    setSuccess('')
+    
+    const result = await createStoryFromScenario(scenarioId)
+    
+    setIsCreatingStory(false)
+    
+    if (result.success) {
+      setSuccess('Story created successfully! Redirecting...')
+      // Navigate to the story creator page with the new story ID
+      setTimeout(() => {
+        if (result.story && result.story._id) {
+          navigate(`/story-creator/${result.story._id}`)
+        } else {
+          navigate('/home')
+        }
+      }, 1500)
+    } else {
+      setError(result.error || 'Failed to create story from scenario')
+    }
+  }
+
   // Show loading state when fetching existing scenario
   if (isLoadingScenario) {
     return (
@@ -379,23 +428,44 @@ function ScenarioCreator() {
             <p className="page-subtitle">{isEditMode ? 'Update your scenario details' : 'Design your world, characters, and story foundation'}</p>
           </div>
 
-          <button 
-            className="create-button" 
-            onClick={handleSaveScenario}
-            disabled={isLoading || isLoadingScenario}
-          >
-            {isLoading ? (
-              <>
-                <span className="loading-spinner"></span>
-                <span>{isEditMode ? 'Updating...' : 'Creating...'}</span>
-              </>
-            ) : (
-              <>
-                {isEditMode ? <IconSave /> : <IconCreate />}
-                <span>{isEditMode ? 'Update Scenario' : 'Create Scenario'}</span>
-              </>
+          <div className="header-actions">
+            {isEditMode && (
+              <button 
+                className="create-story-button" 
+                onClick={handleCreateStory}
+                disabled={isCreatingStory || isLoading || isLoadingScenario}
+              >
+                {isCreatingStory ? (
+                  <>
+                    <span className="loading-spinner"></span>
+                    <span>Creating Story...</span>
+                  </>
+                ) : (
+                  <>
+                    <IconStory />
+                    <span>Create Story</span>
+                  </>
+                )}
+              </button>
             )}
-          </button>
+            <button 
+              className="create-button" 
+              onClick={handleSaveScenario}
+              disabled={isLoading || isLoadingScenario || isCreatingStory}
+            >
+              {isLoading ? (
+                <>
+                  <span className="loading-spinner"></span>
+                  <span>{isEditMode ? 'Updating...' : 'Creating...'}</span>
+                </>
+              ) : (
+                <>
+                  {isEditMode ? <IconSave /> : <IconCreate />}
+                  <span>{isEditMode ? 'Update Scenario' : 'Create Scenario'}</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -801,6 +871,58 @@ function ScenarioCreator() {
               )}
             </div>
           </div>
+
+          {/* Stories from Scenario */}
+          {isEditMode && (
+            <div className="stories-card">
+              <div className="stories-header">
+                <div className="stories-icon-wrapper">
+                  <IconStory />
+                </div>
+                <h3>Stories from This Scenario</h3>
+                <span className="stories-count">{scenarioStories.length}</span>
+              </div>
+              
+              {loadingStories ? (
+                <div className="stories-loading">
+                  <div className="loading-spinner-small"></div>
+                  <span>Loading stories...</span>
+                </div>
+              ) : scenarioStories.length > 0 ? (
+                <div className="stories-list">
+                  {scenarioStories.map((story) => (
+                    <div 
+                      key={story._id} 
+                      className="story-item"
+                      onClick={() => navigate(`/story-creator/${story._id}`)}
+                    >
+                      <div className="story-item-content">
+                        <h4>{story.title || (story.characterName ? `${story.characterName}'s Adventure` : 'Untitled Story')}</h4>
+                        <p>{story.setting || 'No setting specified'}</p>
+                        {story.storyStats && (
+                          <div className="story-item-stats">
+                            <span>{story.storyStats.totalWords || 0} words</span>
+                            <span>•</span>
+                            <span>{story.storyStats.paragraphs || 0} paragraphs</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="story-item-arrow">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="stories-empty">
+                  <p>No stories created from this scenario yet.</p>
+                  <p className="stories-empty-hint">Click "Create Story" to start your first story!</p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Quick Tips */}
           <div className="tips-card">

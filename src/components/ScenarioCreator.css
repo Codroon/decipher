@@ -140,6 +140,78 @@
   letter-spacing: 0.01em;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.create-story-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 32px;
+  background: linear-gradient(135deg, #4D70FF 0%, #7738CB 100%);
+  border: none;
+  border-radius: 16px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  color: #FFFFFF;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 24px rgba(77, 112, 255, 0.4);
+  position: relative;
+  overflow: hidden;
+}
+
+.create-story-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.create-story-button:hover:not(:disabled)::before {
+  left: 100%;
+}
+
+.create-story-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(77, 112, 255, 0.5);
+}
+
+.create-story-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.create-story-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.create-story-button svg {
+  transition: transform 0.3s ease;
+}
+
+.create-story-button:hover:not(:disabled) svg {
+  transform: scale(1.1);
+}
+
+.create-story-button .loading-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #FFFFFF;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
 .create-button {
   display: flex;
   align-items: center;
@@ -804,7 +876,8 @@
 }
 
 .preview-card,
-.tips-card {
+.tips-card,
+.stories-card {
   background: rgba(61, 17, 98, 0.4);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(119, 56, 203, 0.25);
@@ -814,13 +887,15 @@
 }
 
 .preview-card:hover,
-.tips-card:hover {
+.tips-card:hover,
+.stories-card:hover {
   border-color: rgba(119, 56, 203, 0.4);
   box-shadow: 0 8px 32px rgba(119, 56, 203, 0.15);
 }
 
 .preview-header,
-.tips-header {
+.tips-header,
+.stories-header {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -829,7 +904,8 @@
 }
 
 .preview-icon-wrapper,
-.tips-icon-wrapper {
+.tips-icon-wrapper,
+.stories-icon-wrapper {
   width: 36px;
   height: 36px;
   background: linear-gradient(135deg, rgba(119, 56, 203, 0.3) 0%, rgba(77, 112, 255, 0.3) 100%);
@@ -841,13 +917,25 @@
 }
 
 .preview-header h3,
-.tips-header h3 {
+.tips-header h3,
+.stories-header h3 {
   font-family: 'Poppins', sans-serif;
   font-weight: 600;
   font-size: 16px;
   color: #FFFFFF;
   margin: 0;
   letter-spacing: -0.01em;
+  flex: 1;
+}
+
+.stories-count {
+  background: rgba(119, 56, 203, 0.3);
+  border-radius: 12px;
+  padding: 4px 10px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #C4A0FF;
 }
 
 .preview-content {
@@ -1036,6 +1124,155 @@
   font-weight: 600;
 }
 
+/* Stories Card */
+.stories-list {
+  padding: 16px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.stories-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.stories-list::-webkit-scrollbar-track {
+  background: rgba(119, 56, 203, 0.1);
+  border-radius: 3px;
+}
+
+.stories-list::-webkit-scrollbar-thumb {
+  background: rgba(119, 56, 203, 0.4);
+  border-radius: 3px;
+}
+
+.stories-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(119, 56, 203, 0.6);
+}
+
+.story-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(79, 25, 125, 0.3);
+  border: 1px solid rgba(119, 56, 203, 0.2);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.story-item:hover {
+  background: rgba(79, 25, 125, 0.5);
+  border-color: rgba(119, 56, 203, 0.4);
+  transform: translateX(4px);
+  box-shadow: 0 4px 16px rgba(119, 56, 203, 0.2);
+}
+
+.story-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.story-item-content h4 {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  color: #FFFFFF;
+  margin: 0 0 6px 0;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.story-item-content p {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.story-item-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.story-item-stats span:nth-child(2) {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.story-item-arrow {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.6);
+  transition: all 0.3s ease;
+}
+
+.story-item:hover .story-item-arrow {
+  color: rgba(255, 255, 255, 0.9);
+  transform: translateX(4px);
+}
+
+.stories-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  gap: 16px;
+}
+
+.loading-spinner-small {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(119, 56, 203, 0.3);
+  border-top-color: #7738CB;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.stories-loading span {
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.stories-empty {
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.stories-empty p {
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0 0 8px 0;
+  line-height: 1.5;
+}
+
+.stories-empty-hint {
+  color: rgba(196, 160, 255, 0.8) !important;
+  font-size: 12px !important;
+  font-style: italic;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Modal Styles */
 .modal-overlay {
   position: fixed;
@@ -1204,7 +1441,8 @@
   }
 
   .preview-card,
-  .tips-card {
+  .tips-card,
+  .stories-card {
     flex: 1;
     min-width: 300px;
   }
@@ -1265,7 +1503,8 @@
   }
 
   .preview-card,
-  .tips-card {
+  .tips-card,
+  .stories-card {
     min-width: unset;
   }
 }

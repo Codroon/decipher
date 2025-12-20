@@ -468,8 +468,12 @@ function StoryCreator() {
           <div className="story-title-section">
             <h1 className="story-title">
               {isTabView 
-                ? `${generatedStory?.characterName}'s Adventure - ${activeTab === 'character' ? 'Characters' : activeTab === 'world' ? 'World' : activeTab === 'creatures' ? 'Creatures' : activeTab === 'story' ? 'Story Chapters' : ''}`
-                : `${generatedStory?.characterName}'s Adventure`
+                ? (generatedStory?.characterName 
+                    ? `${generatedStory.characterName}'s Adventure - ${activeTab === 'character' ? 'Characters' : activeTab === 'world' ? 'World' : activeTab === 'creatures' ? 'Creatures' : activeTab === 'story' ? 'Story Chapters' : ''}`
+                    : `Story Adventure - ${activeTab === 'character' ? 'Characters' : activeTab === 'world' ? 'World' : activeTab === 'creatures' ? 'Creatures' : activeTab === 'story' ? 'Story Chapters' : ''}`)
+                : (generatedStory?.characterName 
+                    ? `${generatedStory.characterName}'s Adventure`
+                    : 'Story Adventure')
               }
             </h1>
             <p className="story-subtitle">{generatedStory?.setting}</p>

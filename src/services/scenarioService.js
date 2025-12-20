@@ -179,3 +179,38 @@ export const deleteScenario = async (scenarioId) => {
   }
 }
 
+/**
+ * Get all stories for a scenario
+ * @param {string} scenarioId - The scenario ID
+ * @returns {Promise<Object>} Stories result
+ */
+export const getScenarioStories = async (scenarioId) => {
+  try {
+    const response = await fetch(API_ENDPOINTS.SCENARIO.GET_STORIES(scenarioId), {
+      method: 'GET',
+      headers: getHeaders(true)
+    })
+
+    const data = await response.json()
+
+    if (response.ok) {
+      return {
+        success: true,
+        stories: data.stories || [],
+        message: data.message
+      }
+    } else {
+      return {
+        success: false,
+        error: data.message || 'Failed to fetch scenario stories'
+      }
+    }
+  } catch (error) {
+    console.error('Get Scenario Stories Error:', error)
+    return {
+      success: false,
+      error: 'Network error. Please try again.'
+    }
+  }
+}
+

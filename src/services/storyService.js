@@ -46,6 +46,44 @@ export const createStory = async (setting, character, characterName) => {
 }
 
 /**
+ * Create a new story from a scenario
+ * @param {string} scenarioId - The scenario ID
+ * @returns {Promise<Object>} Story creation result
+ */
+export const createStoryFromScenario = async (scenarioId) => {
+  try {
+    const response = await fetch(API_ENDPOINTS.STORY.CREATE, {
+      method: 'POST',
+      headers: getHeaders(true), // Include auth token
+      body: JSON.stringify({
+        scenarioId
+      })
+    })
+
+    const data = await response.json()
+
+    if (response.ok) {
+      return {
+        success: true,
+        message: data.message,
+        story: data.story
+      }
+    } else {
+      return {
+        success: false,
+        error: data.message || 'Failed to create story from scenario'
+      }
+    }
+  } catch (error) {
+    console.error('Create Story From Scenario Error:', error)
+    return {
+      success: false,
+      error: 'Network error. Please try again.'
+    }
+  }
+}
+
+/**
  * Get all stories for the current user
  * @returns {Promise<Object>} User's stories
  */
@@ -54,7 +92,7 @@ export const getAllStories = async () => {
     console.log('Fetching stories from:', API_ENDPOINTS.STORY.GET_ALL)
     const token = localStorage.getItem('token')
     console.log('Token available:', !!token)
-    
+
     const response = await fetch(API_ENDPOINTS.STORY.GET_ALL, {
       method: 'GET',
       headers: getHeaders(true)
@@ -95,7 +133,7 @@ export const getStoryById = async (storyId) => {
     console.log('Fetching story:', storyId)
     const token = localStorage.getItem('token')
     console.log('Token available:', !!token)
-    
+
     const response = await fetch(API_ENDPOINTS.STORY.GET_BY_ID(storyId), {
       method: 'GET',
       headers: getHeaders(true)
@@ -283,7 +321,7 @@ export const editLastParagraph = async (storyId, minorEditInstruction, model = '
     const payload = { minorEditInstruction, model }
     console.log('Edit URL:', url)
     console.log('Edit payload:', payload)
-    
+
     const response = await fetch(url, {
       method: 'PATCH',
       headers: getHeaders(true),
@@ -323,7 +361,7 @@ export const editLastParagraph = async (storyId, minorEditInstruction, model = '
           error: 'Server returned empty response'
         }
       }
-      
+
       // Check if response is HTML (ngrok warning page)
       if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
         console.error('Received HTML instead of JSON (possibly ngrok warning):', responseText.substring(0, 200))
@@ -332,7 +370,7 @@ export const editLastParagraph = async (storyId, minorEditInstruction, model = '
           error: 'Received HTML response. Please check ngrok configuration or try again.'
         }
       }
-      
+
       data = JSON.parse(responseText)
       console.log('Edit success data:', data)
     } catch (parseError) {
@@ -357,7 +395,7 @@ export const editLastParagraph = async (storyId, minorEditInstruction, model = '
       message: error.message,
       stack: error.stack
     })
-    
+
     // Check for CORS error
     if (error.message.includes('CORS') || error.message.includes('preflight')) {
       return {
@@ -365,7 +403,7 @@ export const editLastParagraph = async (storyId, minorEditInstruction, model = '
         error: 'CORS Error: Backend server needs to allow PATCH method in CORS configuration. Please contact backend developer.'
       }
     }
-    
+
     return {
       success: false,
       error: `Network error: ${error.message}. Please check your connection and try again.`
@@ -385,7 +423,7 @@ export const editChunk = async (storyId, chunkIndex, newContent) => {
     const url = API_ENDPOINTS.STORY.EDIT_CHUNK(storyId)
     console.log('Edit Chunk URL:', url)
     console.log('Edit Chunk payload:', { chunkIndex, newContent })
-    
+
     const response = await fetch(url, {
       method: 'PATCH',
       headers: getHeaders(true),
@@ -422,7 +460,7 @@ export const editChunk = async (storyId, chunkIndex, newContent) => {
           error: 'Server returned empty response'
         }
       }
-      
+
       if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
         console.error('Received HTML instead of JSON:', responseText.substring(0, 200))
         return {
@@ -430,7 +468,7 @@ export const editChunk = async (storyId, chunkIndex, newContent) => {
           error: 'Received HTML response. Please check ngrok configuration or try again.'
         }
       }
-      
+
       data = JSON.parse(responseText)
       console.log('Edit Chunk success data:', data)
     } catch (parseError) {
@@ -448,7 +486,7 @@ export const editChunk = async (storyId, chunkIndex, newContent) => {
     }
   } catch (error) {
     console.error('Edit Chunk Network Error:', error)
-    
+
     // Check for CORS error
     if (error.message.includes('CORS') || error.message.includes('preflight')) {
       return {
@@ -456,7 +494,7 @@ export const editChunk = async (storyId, chunkIndex, newContent) => {
         error: 'CORS Error: Backend server needs to allow PATCH method in CORS configuration. Please contact backend developer.'
       }
     }
-    
+
     return {
       success: false,
       error: `Network error: ${error.message}. Please check your connection and try again.`
