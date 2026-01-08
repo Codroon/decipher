@@ -502,3 +502,36 @@ export const editChunk = async (storyId, chunkIndex, newContent) => {
   }
 }
 
+/**
+ * Get available models from backend
+ * @returns {Promise<Object>} List of models
+ */
+export const getModels = async () => {
+  try {
+    const response = await fetch(API_ENDPOINTS.STORY.MODELS, {
+      method: 'GET',
+      headers: getHeaders(true)
+    })
+
+    const data = await response.json()
+
+    if (response.ok) {
+      return {
+        success: true,
+        models: data.models
+      }
+    } else {
+      return {
+        success: false,
+        error: data.message || 'Failed to fetch models'
+      }
+    }
+  } catch (error) {
+    console.error('Get Models Error:', error)
+    return {
+      success: false,
+      error: 'Network error. Please try again.'
+    }
+  }
+}
+

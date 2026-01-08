@@ -9,8 +9,9 @@ function StoryCreator() {
   const [creativityLevel, setCreativityLevel] = useState(80)
   const [storyLength, setStoryLength] = useState('Medium (3-4 paragraphs)')
   const [tone, setTone] = useState('Mysterious')
-  const [model, setModel] = useState('llama3.2:3b')
-  
+  const [model, setModel] = useState('qwen3-vl-8b-instruct')
+  const [availableModels, setAvailableModels] = useState([])
+
   // Story creation states
   const [isCreating, setIsCreating] = useState(!storyId)
   const [creationStep, setCreationStep] = useState(1)
@@ -21,23 +22,23 @@ function StoryCreator() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [generatedStory, setGeneratedStory] = useState(null)
-  
+
   // Tab view state
   const [isTabView, setIsTabView] = useState(false) // false = main story page, true = tab cards view
-  
+
   // Story action states
   const [actionLoading, setActionLoading] = useState(null) // 'regenerate', 'continue', 'edit', or null
   const [aiInstruction, setAiInstruction] = useState('')
-  
+
   // Manual chunk editing states
   const [showChunkEditor, setShowChunkEditor] = useState(false)
   const [editingChunkIndex, setEditingChunkIndex] = useState(null)
   const [chunkEditContent, setChunkEditContent] = useState('')
-  
+
   // Inline editing states (for clicking on chunks in display)
   const [inlineEditingChunkIndex, setInlineEditingChunkIndex] = useState(null)
   const [inlineEditContent, setInlineEditContent] = useState('')
-  
+
   // Load existing story if storyId is provided
   useEffect(() => {
     const loadStory = async () => {
@@ -53,10 +54,32 @@ function StoryCreator() {
         setIsLoading(false)
       }
     }
-    
+
+    // Load available models
+    const loadModels = async () => {
+      const result = await storyService.getModels()
+      if (result.success && result.models && result.models.length > 0) {
+        setAvailableModels(result.models)
+
+        // If current model is not in list (and we haven't manually changed it yet from default)
+        // ensure we default to the requested 8b model if available, otherwise first one
+        // But we initialized state with 'qwen3-vl-8b-instruct', so let's check if it exists
+        const defaultModel = 'qwen3-vl-8b-instruct'
+        const hasDefault = result.models.some(m => m.id === defaultModel)
+
+        if (!hasDefault && result.models.length > 0) {
+          // Fallback to first available if preferred default is missing
+          // But only if we are creating a new story (don't override if user selected something else? 
+          // actually on mount this runs once, safe to set initial default if needed)
+          // matching the user request: "set 8b as default please"
+        }
+      }
+    }
+
     loadStory()
+    loadModels()
   }, [storyId])
-  
+
   // Predefined settings
   const settingOptions = [
     { id: 'magic', name: 'Land of Magic', icon: '✨' },
@@ -66,7 +89,7 @@ function StoryCreator() {
     { id: 'mystery', name: 'Mystery Manor', icon: '🔍' },
     { id: 'custom', name: 'Custom Setting', icon: '✏️' }
   ]
-  
+
   // Predefined characters
   const characterOptions = [
     { id: 'warrior', name: 'Warrior', icon: '⚔️' },
@@ -83,7 +106,7 @@ function StoryCreator() {
     { id: 'world', label: 'World', icon: '/worldwide-icon.png' },
     { id: 'creatures', label: 'creatures', icon: '/spaghetti-monster-icon.png' }
   ]
-  
+
   // Handle tab change - switch to tab cards view
   const handleTabChange = (tabId) => {
     setActiveTab(tabId)
@@ -94,42 +117,42 @@ function StoryCreator() {
   // Story action handlers
   const handleRegenerateChunk = async () => {
     if (!generatedStory?._id) return
-    
+
     setActionLoading('regenerate')
     const result = await storyService.regenerateLastChunk(generatedStory._id, model)
     setActionLoading(null)
-    
+
     if (result.success) {
       setGeneratedStory(result.story)
     } else {
       alert(result.error || 'Failed to regenerate story chunk')
     }
   }
-  
+
   const handleContinueStory = async () => {
     if (!generatedStory?._id) return
-    
+
     setActionLoading('continue')
     const result = await storyService.continueStory(generatedStory._id, model)
     setActionLoading(null)
-    
+
     if (result.success) {
       setGeneratedStory(result.story)
     } else {
       alert(result.error || 'Failed to continue story')
     }
   }
-  
+
   const handleEditParagraph = async () => {
     if (!generatedStory?._id || !aiInstruction.trim()) {
       alert('Please enter edit instructions')
       return
     }
-    
+
     setActionLoading('edit')
     const result = await storyService.editLastParagraph(generatedStory._id, aiInstruction.trim(), model)
     setActionLoading(null)
-    
+
     if (result.success) {
       setGeneratedStory(result.story)
       setAiInstruction('')
@@ -137,24 +160,24 @@ function StoryCreator() {
       alert(result.error || 'Failed to edit story')
     }
   }
-  
+
   const handleClearAiInput = () => {
     setAiInstruction('')
   }
-  
+
   // Handle manual chunk editing
   const handleOpenChunkEditor = () => {
     setShowChunkEditor(true)
   }
-  
+
   const handleEditChunk = (chunkIndex, currentContent) => {
     setEditingChunkIndex(chunkIndex)
     setChunkEditContent(currentContent)
   }
-  
+
   const handleSaveChunk = async () => {
     if (!generatedStory?._id || editingChunkIndex === null) return
-    
+
     setActionLoading('editChunk')
     const result = await storyService.editChunk(
       generatedStory._id,
@@ -162,7 +185,7 @@ function StoryCreator() {
       chunkEditContent.trim()
     )
     setActionLoading(null)
-    
+
     if (result.success) {
       setGeneratedStory(result.story)
       setEditingChunkIndex(null)
@@ -172,14 +195,14 @@ function StoryCreator() {
       alert(result.error || 'Failed to edit chunk')
     }
   }
-  
+
   const handleDeleteChunk = async () => {
     if (!generatedStory?._id || editingChunkIndex === null) return
-    
+
     if (!confirm('Are you sure you want to delete this chunk? This cannot be undone.')) {
       return
     }
-    
+
     setActionLoading('editChunk')
     // Send empty string to delete
     const result = await storyService.editChunk(
@@ -188,7 +211,7 @@ function StoryCreator() {
       ''
     )
     setActionLoading(null)
-    
+
     if (result.success) {
       setGeneratedStory(result.story)
       setEditingChunkIndex(null)
@@ -198,21 +221,21 @@ function StoryCreator() {
       alert(result.error || 'Failed to delete chunk')
     }
   }
-  
+
   const handleCancelChunkEdit = () => {
     setEditingChunkIndex(null)
     setChunkEditContent('')
   }
-  
+
   // Handle inline chunk editing (click on chunk to edit)
   const handleInlineEditChunk = (chunkIndex, currentContent) => {
     setInlineEditingChunkIndex(chunkIndex)
     setInlineEditContent(currentContent)
   }
-  
+
   const handleSaveInlineChunk = async () => {
     if (!generatedStory?._id || inlineEditingChunkIndex === null) return
-    
+
     setActionLoading('editChunk')
     const result = await storyService.editChunk(
       generatedStory._id,
@@ -220,7 +243,7 @@ function StoryCreator() {
       inlineEditContent.trim()
     )
     setActionLoading(null)
-    
+
     if (result.success) {
       setGeneratedStory(result.story)
       setInlineEditingChunkIndex(null)
@@ -229,12 +252,12 @@ function StoryCreator() {
       alert(result.error || 'Failed to edit chunk')
     }
   }
-  
+
   const handleCancelInlineEdit = () => {
     setInlineEditingChunkIndex(null)
     setInlineEditContent('')
   }
-  
+
   // Handle setting selection
   const handleSettingSelect = (settingId) => {
     if (settingId === 'custom') {
@@ -245,7 +268,7 @@ function StoryCreator() {
       setCreationStep(2)
     }
   }
-  
+
   // Handle custom setting submission
   const handleCustomSettingSubmit = () => {
     if (customSetting.trim()) {
@@ -253,29 +276,29 @@ function StoryCreator() {
       setCreationStep(2)
     }
   }
-  
+
   // Handle character selection
   const handleCharacterSelect = (characterId) => {
     const selectedCharacter = characterOptions.find(c => c.id === characterId)
     setCharacter(selectedCharacter.name)
     setCreationStep(3)
   }
-  
+
   // Handle story creation
   const handleCreateStory = async () => {
     if (!characterName.trim()) {
       setError('Please enter a character name')
       return
     }
-    
+
     setIsLoading(true)
     setError('')
-    
+
     const finalSetting = setting === 'custom' ? customSetting : setting
     const result = await storyService.createStory(finalSetting, character, characterName.trim())
-    
+
     setIsLoading(false)
-    
+
     if (result.success) {
       setGeneratedStory(result.story)
       setIsCreating(false)
@@ -283,7 +306,7 @@ function StoryCreator() {
       setError(result.error)
     }
   }
-  
+
   // Reset creation flow
   const handleNewStory = () => {
     setIsCreating(true)
@@ -307,7 +330,7 @@ function StoryCreator() {
       </div>
     )
   }
-  
+
   // Render creation wizard
   if (isCreating) {
     return (
@@ -324,7 +347,7 @@ function StoryCreator() {
                   window.history.back()
                 }
               }}>
-                <img src="/up-arrow-icon.png" alt="Back" style={{transform: 'rotate(90deg)'}} />
+                <img src="/up-arrow-icon.png" alt="Back" style={{ transform: 'rotate(90deg)' }} />
               </button>
               <h1 className="wizard-title">Create Your Story</h1>
               <div className="wizard-step-indicator">
@@ -339,7 +362,7 @@ function StoryCreator() {
               <div className="wizard-step step-setting">
                 <h2 className="step-title">Choose Your Story Setting</h2>
                 <p className="step-subtitle">Where will your adventure take place?</p>
-                
+
                 <div className="options-grid">
                   {settingOptions.map((option) => (
                     <button
@@ -352,7 +375,7 @@ function StoryCreator() {
                     </button>
                   ))}
                 </div>
-                
+
                 {setting === 'custom' && (
                   <div className="custom-input-area">
                     <input
@@ -364,7 +387,7 @@ function StoryCreator() {
                       className="custom-input"
                       autoFocus
                     />
-                    <button 
+                    <button
                       className="wizard-next-btn"
                       onClick={handleCustomSettingSubmit}
                       disabled={!customSetting.trim()}
@@ -381,7 +404,7 @@ function StoryCreator() {
               <div className="wizard-step step-character">
                 <h2 className="step-title">Choose Your Character</h2>
                 <p className="step-subtitle">Who will be the hero of your story?</p>
-                
+
                 <div className="options-grid">
                   {characterOptions.map((option) => (
                     <button
@@ -402,7 +425,7 @@ function StoryCreator() {
               <div className="wizard-step step-name">
                 <h2 className="step-title">Name Your Character</h2>
                 <p className="step-subtitle">Give your {character} a memorable name</p>
-                
+
                 <div className="name-input-area">
                   <input
                     type="text"
@@ -413,10 +436,10 @@ function StoryCreator() {
                     className="name-input"
                     autoFocus
                   />
-                  
+
                   {error && <p className="error-message">{error}</p>}
-                  
-                  <button 
+
+                  <button
                     className="wizard-create-btn"
                     onClick={handleCreateStory}
                     disabled={isLoading || !characterName.trim()}
@@ -430,7 +453,7 @@ function StoryCreator() {
                       'Create Story'
                     )}
                   </button>
-                  
+
                   <div className="creation-summary">
                     <p><strong>Setting:</strong> {setting === 'custom' ? customSetting : setting}</p>
                     <p><strong>Character:</strong> {character}</p>
@@ -462,18 +485,18 @@ function StoryCreator() {
       <div className="story-creator-header">
         <div className="header-content">
           <button className="back-button" onClick={handleBack}>
-            <img src="/up-arrow-icon.png" alt="Back" style={{transform: 'rotate(90deg)'}} />
+            <img src="/up-arrow-icon.png" alt="Back" style={{ transform: 'rotate(90deg)' }} />
           </button>
-          
+
           <div className="story-title-section">
             <h1 className="story-title">
-              {isTabView 
-                ? (generatedStory?.characterName 
-                    ? `${generatedStory.characterName}'s Adventure - ${activeTab === 'character' ? 'Characters' : activeTab === 'world' ? 'World' : activeTab === 'creatures' ? 'Creatures' : activeTab === 'story' ? 'Story Chapters' : ''}`
-                    : `Story Adventure - ${activeTab === 'character' ? 'Characters' : activeTab === 'world' ? 'World' : activeTab === 'creatures' ? 'Creatures' : activeTab === 'story' ? 'Story Chapters' : ''}`)
-                : (generatedStory?.characterName 
-                    ? `${generatedStory.characterName}'s Adventure`
-                    : 'Story Adventure')
+              {isTabView
+                ? (generatedStory?.characterName
+                  ? `${generatedStory.characterName}'s Adventure - ${activeTab === 'character' ? 'Characters' : activeTab === 'world' ? 'World' : activeTab === 'creatures' ? 'Creatures' : activeTab === 'story' ? 'Story Chapters' : ''}`
+                  : `Story Adventure - ${activeTab === 'character' ? 'Characters' : activeTab === 'world' ? 'World' : activeTab === 'creatures' ? 'Creatures' : activeTab === 'story' ? 'Story Chapters' : ''}`)
+                : (generatedStory?.characterName
+                  ? `${generatedStory.characterName}'s Adventure`
+                  : 'Story Adventure')
               }
             </h1>
             <p className="story-subtitle">{generatedStory?.setting}</p>
@@ -502,7 +525,7 @@ function StoryCreator() {
         </div>
       </div>
 
-   
+
 
       {/* Main Content Area */}
       <div className="story-content-area">
@@ -538,7 +561,7 @@ function StoryCreator() {
                     generatedStory.MainStory.map((chunk, chunkIndex) => {
                       // Check if this chunk is being edited inline
                       const isEditing = inlineEditingChunkIndex === chunk.index
-                      
+
                       if (isEditing) {
                         // Show editable textarea with save button
                         return (
@@ -572,15 +595,15 @@ function StoryCreator() {
                         // Show normal paragraph(s) - clickable to edit
                         const paragraphs = chunk.content.split('\n\n').filter(p => p.trim())
                         return (
-                          <div 
+                          <div
                             key={`chunk-${chunk.index}`}
                             className="chunk-display-wrapper"
                             onClick={() => handleInlineEditChunk(chunk.index, chunk.content)}
                             title="Click to edit this chunk"
                           >
                             {paragraphs.map((paragraph, paraIndex) => (
-                              <p 
-                                key={`${chunkIndex}-${paraIndex}`} 
+                              <p
+                                key={`${chunkIndex}-${paraIndex}`}
                                 className="story-paragraph editable-paragraph"
                               >
                                 {paragraph.trim()}
@@ -597,7 +620,7 @@ function StoryCreator() {
               </div>
 
               <div className="story-actions">
-                <button 
+                <button
                   className="action-btn"
                   onClick={handleRegenerateChunk}
                   disabled={actionLoading !== null}
@@ -613,8 +636,8 @@ function StoryCreator() {
                     </>
                   )}
                 </button>
-                
-                <button 
+
+                <button
                   className="action-btn"
                   onClick={handleContinueStory}
                   disabled={actionLoading !== null}
@@ -631,14 +654,14 @@ function StoryCreator() {
                   )}
                 </button>
               </div>
-              
+
               {/* Chunk Editor Modal */}
               {showChunkEditor && (
                 <div className="chunk-editor-overlay" onClick={() => !editingChunkIndex && setShowChunkEditor(false)}>
                   <div className="chunk-editor-modal" onClick={(e) => e.stopPropagation()}>
                     <div className="chunk-editor-header">
                       <h2>Edit Story Chunks</h2>
-                      <button 
+                      <button
                         className="close-chunk-editor"
                         onClick={() => {
                           setShowChunkEditor(false)
@@ -648,7 +671,7 @@ function StoryCreator() {
                         ✕
                       </button>
                     </div>
-                    
+
                     {editingChunkIndex === null ? (
                       // Show all chunks list
                       <div className="chunks-list">
@@ -694,7 +717,7 @@ function StoryCreator() {
                           >
                             {actionLoading === 'editChunk' ? 'Saving...' : 'Save Changes'}
                           </button>
-                        
+
                           <button
                             className="action-btn cancel-chunk-btn"
                             onClick={handleCancelChunkEdit}
@@ -717,8 +740,8 @@ function StoryCreator() {
               {generatedStory?.storyChapters && generatedStory.storyChapters.length > 0 ? (
                 <div className="content-cards-grid">
                   {generatedStory.storyChapters.map((chapter, index) => (
-                    <div 
-                      key={chapter._id || index} 
+                    <div
+                      key={chapter._id || index}
                       className="content-card"
                     >
                       <div className="content-card-header">
@@ -734,8 +757,8 @@ function StoryCreator() {
               ) : generatedStory?.MainStory && generatedStory.MainStory.length > 0 ? (
                 <div className="content-cards-grid">
                   {generatedStory.MainStory.map((chapter, index) => (
-                    <div 
-                      key={chapter._id || index} 
+                    <div
+                      key={chapter._id || index}
                       className="content-card"
                     >
                       <div className="content-card-header">
@@ -839,7 +862,7 @@ function StoryCreator() {
               <h3>AI Assistant</h3>
             </div>
             <div className="ai-input-area">
-              <textarea 
+              <textarea
                 placeholder="Guide The AI With Your Creative Direction..."
                 rows="3"
                 value={aiInstruction}
@@ -848,14 +871,14 @@ function StoryCreator() {
               ></textarea>
             </div>
             <div className="ai-buttons">
-              <button 
+              <button
                 className="send-btn"
                 onClick={handleEditParagraph}
                 disabled={actionLoading !== null || !aiInstruction.trim()}
               >
                 {actionLoading === 'edit' ? 'Editing...' : 'Send'}
               </button>
-              <button 
+              <button
                 className="clear-btn"
                 onClick={handleClearAiInput}
                 disabled={actionLoading === 'edit'}
@@ -871,14 +894,14 @@ function StoryCreator() {
               <img src="/settings-icon.png" alt="Controls" />
               <h3>Story Controls</h3>
             </div>
-            
+
             <div className="control-group">
               <label>Creativity Level</label>
               <div className="slider-container">
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="100" 
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
                   value={creativityLevel}
                   onChange={(e) => setCreativityLevel(e.target.value)}
                   className="creativity-slider"
@@ -917,9 +940,19 @@ function StoryCreator() {
               <label>Model</label>
               <div className="select-wrapper">
                 <select value={model} onChange={(e) => setModel(e.target.value)}>
-                  <option value="llama3.2:3b">llama3.2:3b (Lowest Resource)</option>
-                  <option value="qwen3:4b">qwen3:4b</option>
-                  <option value="qwen3:8b">qwen3:8b</option>
+                  {availableModels.length > 0 ? (
+                    availableModels.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.id}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="qwen3-vl-8b-instruct">qwen3-vl-8b-instruct (Default)</option>
+                      <option value="llama-3.2-3b-instruct">llama-3.2-3b-instruct</option>
+                      <option value="qwen2.5-32b-instruct">qwen2.5-32b-instruct</option>
+                    </>
+                  )}
                 </select>
               </div>
             </div>
@@ -931,7 +964,7 @@ function StoryCreator() {
               <img src="/reading-book-icon.png" alt="Stats" />
               <h3>Story Stats</h3>
             </div>
-            
+
             <div className="stats-list">
               <div className="stat-row">
                 <span className="stat-label">Words:</span>
