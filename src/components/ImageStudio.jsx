@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { apiPost, apiGet, API_ENDPOINTS, BASE_URL } from '../services/server'
+import SecureImage from './SecureImage' // Import SecureImage
 import './ImageStudio.css'
 
 function ImageStudio() {
+  /* ... existing state ... */
   const [activeTab, setActiveTab] = useState('creatures')
   const [selectedStyle, setSelectedStyle] = useState('fantasy')
   const [selectedSize, setSelectedSize] = useState('square')
@@ -16,6 +18,7 @@ function ImageStudio() {
   useEffect(() => {
     fetchImages()
   }, [])
+  /* ... existing methods ... */
 
   const fetchImages = async () => {
     try {
@@ -75,6 +78,7 @@ function ImageStudio() {
     document.body.style.overflow = 'auto'
   }
 
+  /* ... arrays ... */
   const tabs = [
     { id: 'creatures', label: 'creatures', icon: '/spaghetti-monster-icon.png' },
     { id: 'character', label: 'Character', icon: '/user-icon.png' },
@@ -117,15 +121,11 @@ function ImageStudio() {
     return date.toLocaleDateString()
   }
 
-  // Fallback image handler
-  const handleImageError = (e) => {
-    e.target.style.display = 'none'; // Hide broken image or replace src
-    // e.target.src = '/placeholder.png'; // If we had a placeholder
-  }
+  // Fallback image handler not needed with SecureImage
 
   return (
     <div className="image-studio">
-      {/* Header Section */}
+      {/* ... Header ... */}
       <div className="image-studio-header">
         <div className="header-content">
           <button className="back-button" onClick={() => window.history.back()}>
@@ -144,7 +144,7 @@ function ImageStudio() {
         </div>
       </div>
 
-      {/* Tab Navigation */}
+      {/* ... Tabs ... */}
       <div className="tabs-section">
         <div className="tabs-container">
           {tabs.map((tab) => (
@@ -160,14 +160,12 @@ function ImageStudio() {
         </div>
       </div>
 
-      {/* Main Content Area */}
       <div className="image-studio-content">
-        {/* Left Side - Image Generation */}
         <div className="generation-panel">
           <div className="generation-card">
             <h2 className="section-title">Image Generation</h2>
 
-            {/* Prompt Section */}
+            {/* ... Prompt ... */}
             <div className="prompt-section">
               <label>Prompt</label>
               <div className="prompt-input-wrapper">
@@ -185,9 +183,9 @@ function ImageStudio() {
               </button>
             </div>
 
-            {/* Art Style and Image Size */}
+            {/* ... Controls ... */}
             <div className="generation-controls">
-              {/* Art Style */}
+              {/* ... Art Style ... */}
               <div className="control-section">
                 <label>Art Style</label>
                 <div className="art-styles-grid">
@@ -204,7 +202,7 @@ function ImageStudio() {
                 </div>
               </div>
 
-              {/* Model */}
+              {/* ... Model ... */}
               <div className="control-section">
                 <label>Model</label>
                 <div className="models-grid">
@@ -221,7 +219,7 @@ function ImageStudio() {
                 </div>
               </div>
 
-              {/* Image Size */}
+              {/* ... Image Size ... */}
               <div className="control-section">
                 <label>Image Size</label>
                 <div className="image-sizes-grid">
@@ -255,11 +253,10 @@ function ImageStudio() {
                 <div className="control-section" style={{ marginTop: '20px' }}>
                   <label>Generated Result</label>
                   <div className="generated-image-preview" onClick={() => openPreview(`${BASE_URL}${generatedImage.image}`)} style={{ cursor: 'pointer' }}>
-                    <img
+                    <SecureImage
                       src={`${BASE_URL}${generatedImage.image}`}
                       alt="Generated Result"
                       className="generated-result-img"
-                      onError={handleImageError}
                     />
                     <div className="zoom-hint">Click to enlarge</div>
                   </div>
@@ -268,7 +265,7 @@ function ImageStudio() {
 
             </div>
 
-            {/* Generate Button */}
+            {/* ... Generate Button ... */}
             <button className="generate-image-btn" onClick={handleGenerate} disabled={isGenerating}>
               {isGenerating ? (
                 <div className="loader" style={{
@@ -301,11 +298,10 @@ function ImageStudio() {
               ) : (
                 recentImages.map((image) => (
                   <div key={image._id} className="recent-image-card" onClick={() => openPreview(`${BASE_URL}${image.image}`)}>
-                    <img
+                    <SecureImage
                       src={`${BASE_URL}${image.image}`}
                       alt={image.prompt}
                       className="recent-image-preview"
-                      onError={handleImageError}
                     />
                     <div className="recent-image-info">
                       <h4 title={image.prompt}>{image.prompt}</h4>
@@ -318,7 +314,7 @@ function ImageStudio() {
                 ))
               )}
             </div>
-
+            {/* ... View All ... */}
             {recentImages.length > 0 && (
               <button className="view-all-btn">View all images</button>
             )}
@@ -332,7 +328,7 @@ function ImageStudio() {
         <div className="image-viewer-overlay" onClick={closePreview}>
           <button className="close-viewer-btn" onClick={closePreview}>&times;</button>
           <div className="image-viewer-content" onClick={(e) => e.stopPropagation()}>
-            <img src={previewImage} alt="Full Preview" onError={handleImageError} />
+            <SecureImage src={previewImage} alt="Full Preview" />
           </div>
         </div>
       )}
