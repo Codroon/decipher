@@ -104,7 +104,10 @@ function ImageStudio() {
 
   // Helper to format time relative
   const formatTime = (dateString) => {
+    if (!dateString) return 'unknown date'
     const date = new Date(dateString)
+    if (isNaN(date.getTime())) return 'just now'
+
     const now = new Date()
     const diffInSeconds = Math.floor((now - date) / 1000)
 
@@ -112,6 +115,12 @@ function ImageStudio() {
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
     return date.toLocaleDateString()
+  }
+
+  // Fallback image handler
+  const handleImageError = (e) => {
+    e.target.style.display = 'none'; // Hide broken image or replace src
+    // e.target.src = '/placeholder.png'; // If we had a placeholder
   }
 
   return (
@@ -250,6 +259,7 @@ function ImageStudio() {
                       src={`${BASE_URL}${generatedImage.image}`}
                       alt="Generated Result"
                       className="generated-result-img"
+                      onError={handleImageError}
                     />
                     <div className="zoom-hint">Click to enlarge</div>
                   </div>
@@ -291,7 +301,12 @@ function ImageStudio() {
               ) : (
                 recentImages.map((image) => (
                   <div key={image._id} className="recent-image-card" onClick={() => openPreview(`${BASE_URL}${image.image}`)}>
-                    <img src={`${BASE_URL}${image.image}`} alt={image.prompt} className="recent-image-preview" />
+                    <img
+                      src={`${BASE_URL}${image.image}`}
+                      alt={image.prompt}
+                      className="recent-image-preview"
+                      onError={handleImageError}
+                    />
                     <div className="recent-image-info">
                       <h4 title={image.prompt}>{image.prompt}</h4>
                       <div className="image-meta">
@@ -317,7 +332,7 @@ function ImageStudio() {
         <div className="image-viewer-overlay" onClick={closePreview}>
           <button className="close-viewer-btn" onClick={closePreview}>&times;</button>
           <div className="image-viewer-content" onClick={(e) => e.stopPropagation()}>
-            <img src={previewImage} alt="Full Preview" />
+            <img src={previewImage} alt="Full Preview" onError={handleImageError} />
           </div>
         </div>
       )}
@@ -333,4 +348,3 @@ function ImageStudio() {
 }
 
 export default ImageStudio
-
