@@ -42,12 +42,12 @@ export const API_ENDPOINTS = {
     UPDATE: (id) => `${BASE_URL}/api/scenario/${id}`,
     DELETE: (id) => `${BASE_URL}/api/scenario/${id}`,
   },
-  // Add more endpoint categories as needed
-  // IMAGES: {
-  //   BASE: `${BASE_URL}/api/images`,
-  //   GENERATE: `${BASE_URL}/api/images/generate`,
-  //   ...
-  // }
+  // Image endpoints
+  IMAGES: {
+    BASE: `${BASE_URL}/api/images`,
+    GENERATE: `${BASE_URL}/api/images/generate`,
+    GET_ALL: `${BASE_URL}/api/images/`,
+  }
 }
 
 // Common headers for all requests
