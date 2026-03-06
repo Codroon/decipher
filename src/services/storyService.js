@@ -84,6 +84,120 @@ export const createStoryFromScenario = async (scenarioId) => {
 }
 
 /**
+ * Initialize a story with character-building questions (Pre-Game Interview)
+ * @param {string} setting - The story setting/world
+ * @param {string} character - The character type/role
+ * @param {string} characterName - The character's name
+ * @param {string} model - The LLM model to use
+ * @returns {Promise<Object>} { storyId, questions }
+ */
+export const initializeStoryWithQuestions = async (setting, character, characterName, model) => {
+  try {
+    const response = await fetch(API_ENDPOINTS.STORY.INITIALIZE, {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify({ setting, character, characterName, model })
+    })
+
+    const data = await response.json()
+
+    if (response.ok) {
+      return {
+        success: true,
+        storyId: data.storyId,
+        questions: data.questions
+      }
+    } else {
+      return {
+        success: false,
+        error: data.message || 'Failed to initialize story'
+      }
+    }
+  } catch (error) {
+    console.error('Initialize Story Error:', error)
+    return {
+      success: false,
+      error: 'Network error. Please try again.'
+    }
+  }
+}
+
+/**
+ * Initialize a story from a scenario with character-building questions
+ * @param {string} scenarioId - The scenario ID
+ * @param {string} model - The LLM model to use
+ * @returns {Promise<Object>} { storyId, questions }
+ */
+export const initializeStoryFromScenario = async (scenarioId, model) => {
+  try {
+    const response = await fetch(API_ENDPOINTS.STORY.INITIALIZE, {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify({ scenarioId, model })
+    })
+
+    const data = await response.json()
+
+    if (response.ok) {
+      return {
+        success: true,
+        storyId: data.storyId,
+        questions: data.questions
+      }
+    } else {
+      return {
+        success: false,
+        error: data.message || 'Failed to initialize story from scenario'
+      }
+    }
+  } catch (error) {
+    console.error('Initialize Story From Scenario Error:', error)
+    return {
+      success: false,
+      error: 'Network error. Please try again.'
+    }
+  }
+}
+
+/**
+ * Submit answers to character questions and awaken the story
+ * @param {string} storyId - The story ID
+ * @param {string[]} answers - Array of 5 answer strings
+ * @param {string} model - The LLM model to use
+ * @returns {Promise<Object>} Updated story
+ */
+export const submitAnswers = async (storyId, answers, model) => {
+  try {
+    const response = await fetch(API_ENDPOINTS.STORY.SUBMIT_ANSWERS(storyId), {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify({ answers, model })
+    })
+
+    const data = await response.json()
+
+    if (response.ok) {
+      return {
+        success: true,
+        message: data.message,
+        story: data.story
+      }
+    } else {
+      return {
+        success: false,
+        error: data.message || 'Failed to submit answers'
+      }
+    }
+  } catch (error) {
+    console.error('Submit Answers Error:', error)
+    return {
+      success: false,
+      error: 'Network error. Please try again.'
+    }
+  }
+}
+
+/**
  * Get all stories for the current user
  * @returns {Promise<Object>} User's stories
  */
@@ -275,19 +389,35 @@ export const regenerateLastChunk = async (storyId, model = 'qwen3:8b') => {
  * Continue the story
  * @param {string} storyId - The story ID
  * @param {string} model - The model to use (e.g., 'qwen3:8b')
+ * @param {string} userAction - Optional player action text
  * @returns {Promise<Object>} Continue result
  */
-export const continueStory = async (storyId, model = 'qwen3:8b') => {
+export const continueStory = async (storyId, model = 'qwen3:8b', userAction = '') => {
   try {
+    const body = { model }
+    if (userAction && userAction.trim()) {
+      body.userAction = userAction.trim()
+    }
+
     const response = await fetch(API_ENDPOINTS.STORY.CONTINUE(storyId), {
       method: 'POST',
       headers: getHeaders(true),
-      body: JSON.stringify({ model })
+      body: JSON.stringify(body)
     })
 
     const data = await response.json()
 
     if (response.ok) {
+      // Check if the router agent interrupted the flow
+      if (data.status === 'interrupted' && data.type === 'question') {
+        return {
+          success: true,
+          interrupted: true,
+          questionId: data.questionId,
+          questionText: data.text
+        }
+      }
+
       return {
         success: true,
         message: data.message,
@@ -301,6 +431,48 @@ export const continueStory = async (storyId, model = 'qwen3:8b') => {
     }
   } catch (error) {
     console.error('Continue Story Error:', error)
+    return {
+      success: false,
+      error: 'Network error. Please try again.'
+    }
+  }
+}
+
+/**
+ * Submit an inquiry reply (answer to a clarification question) and auto-continue the story
+ * @param {string} storyId - The story ID
+ * @param {string} questionId - The Mongoose _id of the characterQuestion
+ * @param {string} answer - The player's answer text
+ * @param {string} model - The model to use
+ * @returns {Promise<Object>} Continue result with the new story chunk
+ */
+export const submitInquiryReply = async (storyId, questionId, answer, model = 'qwen3:8b') => {
+  try {
+    const response = await fetch(API_ENDPOINTS.STORY.CONTINUE(storyId), {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify({
+        model,
+        inquiryReply: { questionId, answer }
+      })
+    })
+
+    const data = await response.json()
+
+    if (response.ok) {
+      return {
+        success: true,
+        message: data.message,
+        story: data.story
+      }
+    } else {
+      return {
+        success: false,
+        error: data.message || 'Failed to submit answer'
+      }
+    }
+  } catch (error) {
+    console.error('Submit Inquiry Reply Error:', error)
     return {
       success: false,
       error: 'Network error. Please try again.'

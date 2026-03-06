@@ -29,6 +29,10 @@ function StoryCreator() {
   // Story action states
   const [actionLoading, setActionLoading] = useState(null) // 'regenerate', 'continue', 'edit', or null
   const [aiInstruction, setAiInstruction] = useState('')
+  const [userAction, setUserAction] = useState('') // Player action input for continue story
+  const [clarificationData, setClarificationData] = useState(null) // { questionId, text }
+  const [clarificationAnswer, setClarificationAnswer] = useState('')
+  const [clarificationLoading, setClarificationLoading] = useState(false)
 
   // Manual chunk editing states
   const [showChunkEditor, setShowChunkEditor] = useState(false)
@@ -39,6 +43,14 @@ function StoryCreator() {
   const [inlineEditingChunkIndex, setInlineEditingChunkIndex] = useState(null)
   const [inlineEditContent, setInlineEditContent] = useState('')
 
+  // Question wizard states
+  const [questionWizardActive, setQuestionWizardActive] = useState(false)
+  const [questions, setQuestions] = useState([])
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [answers, setAnswers] = useState([])
+  const [wizardStoryId, setWizardStoryId] = useState(null)
+  const [isWeaving, setIsWeaving] = useState(false)
+
   // Load existing story if storyId is provided
   useEffect(() => {
     const loadStory = async () => {
@@ -46,8 +58,19 @@ function StoryCreator() {
         setIsLoading(true)
         const result = await storyService.getStoryById(storyId)
         if (result.success) {
-          setGeneratedStory(result.story)
-          setIsCreating(false)
+          const story = result.story
+          // If story has unanswered questions, enter wizard mode
+          if (story.unansweredQuestions && story.characterQuestions && story.characterQuestions.length > 0) {
+            setQuestions(story.characterQuestions.map(cq => cq.question))
+            setAnswers(story.characterQuestions.map(cq => cq.answer || ''))
+            setWizardStoryId(story._id)
+            setCurrentQuestionIndex(0)
+            setQuestionWizardActive(true)
+            setIsCreating(false)
+          } else {
+            setGeneratedStory(story)
+            setIsCreating(false)
+          }
         } else {
           setError(result.error || 'Failed to load story')
         }
@@ -133,13 +156,48 @@ function StoryCreator() {
     if (!generatedStory?._id) return
 
     setActionLoading('continue')
-    const result = await storyService.continueStory(generatedStory._id, model)
+    const result = await storyService.continueStory(generatedStory._id, model, userAction)
     setActionLoading(null)
 
     if (result.success) {
-      setGeneratedStory(result.story)
+      if (result.interrupted) {
+        // Router agent is asking the player a clarification question
+        setClarificationData({ questionId: result.questionId, text: result.questionText })
+        setClarificationAnswer('')
+      } else {
+        setGeneratedStory(result.story)
+        setUserAction('') // Clear action input on success
+      }
     } else {
       alert(result.error || 'Failed to continue story')
+    }
+  }
+
+  const handleSubmitClarification = async () => {
+    if (!clarificationData?.questionId || !clarificationAnswer.trim()) return
+    if (!generatedStory?._id) return
+
+    setClarificationLoading(true)
+    try {
+      const result = await storyService.submitInquiryReply(
+        generatedStory._id,
+        clarificationData.questionId,
+        clarificationAnswer.trim(),
+        model
+      )
+
+      if (result.success) {
+        setGeneratedStory(result.story)
+        setClarificationData(null)
+        setClarificationAnswer('')
+        setUserAction('')
+      } else {
+        alert(result.error || 'Failed to continue after answering')
+      }
+    } catch (err) {
+      alert('Network error. Please try again.')
+    } finally {
+      setClarificationLoading(false)
     }
   }
 
@@ -284,7 +342,7 @@ function StoryCreator() {
     setCreationStep(3)
   }
 
-  // Handle story creation
+  // Handle story creation — now initializes with questions instead of generating directly
   const handleCreateStory = async () => {
     if (!characterName.trim()) {
       setError('Please enter a character name')
@@ -295,15 +353,57 @@ function StoryCreator() {
     setError('')
 
     const finalSetting = setting === 'custom' ? customSetting : setting
-    const result = await storyService.createStory(finalSetting, character, characterName.trim())
+    const result = await storyService.initializeStoryWithQuestions(finalSetting, character, characterName.trim(), model)
 
     setIsLoading(false)
 
     if (result.success) {
-      setGeneratedStory(result.story)
+      setQuestions(result.questions)
+      setAnswers(new Array(result.questions.length).fill(''))
+      setWizardStoryId(result.storyId)
+      setCurrentQuestionIndex(0)
+      setQuestionWizardActive(true)
       setIsCreating(false)
     } else {
       setError(result.error)
+    }
+  }
+
+  // Handle question wizard answer submission
+  const handleQuestionNext = () => {
+    if (!answers[currentQuestionIndex]?.trim()) return
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1)
+    }
+  }
+
+  const handleQuestionBack = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1)
+    }
+  }
+
+  const handleAnswerChange = (value) => {
+    const newAnswers = [...answers]
+    newAnswers[currentQuestionIndex] = value
+    setAnswers(newAnswers)
+  }
+
+  // Final submission — awaken the story
+  const handleAwakenStory = async () => {
+    if (!answers[currentQuestionIndex]?.trim()) return
+    setIsWeaving(true)
+    setQuestionWizardActive(false)
+
+    const result = await storyService.submitAnswers(wizardStoryId, answers, model)
+
+    setIsWeaving(false)
+
+    if (result.success) {
+      setGeneratedStory(result.story)
+    } else {
+      setError(result.error || 'Failed to awaken story')
+      setQuestionWizardActive(true) // Let them retry
     }
   }
 
@@ -326,6 +426,107 @@ function StoryCreator() {
         <div className="loading-story-container">
           <div className="loading-spinner-large"></div>
           <p>Loading your story...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // "Weaving your world..." transition overlay
+  if (isWeaving) {
+    return (
+      <div className="story-creator">
+        <div className="weaving-overlay">
+          <div className="weaving-content">
+            <div className="weaving-orb">
+              <div className="weaving-orb-inner"></div>
+              <div className="weaving-ring weaving-ring-1"></div>
+              <div className="weaving-ring weaving-ring-2"></div>
+              <div className="weaving-ring weaving-ring-3"></div>
+            </div>
+            <h2 className="weaving-title">Weaving your world...</h2>
+            <p className="weaving-subtitle">Your answers are shaping the story</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Question Wizard — The Initiation State
+  if (questionWizardActive && questions.length > 0) {
+    const isLastQuestion = currentQuestionIndex === questions.length - 1
+    const currentAnswer = answers[currentQuestionIndex] || ''
+    const progress = ((currentQuestionIndex + 1) / questions.length) * 100
+
+    return (
+      <div className="story-creator">
+        <div className="question-wizard-overlay">
+          <div className="question-wizard">
+            {/* Progress bar */}
+            <div className="question-progress-bar">
+              <div className="question-progress-fill" style={{ width: `${progress}%` }}></div>
+            </div>
+
+            {/* Progress indicator */}
+            <div className="question-progress-text">
+              <span className="question-step-label">Question</span>
+              <span className="question-step-number">{currentQuestionIndex + 1}</span>
+              <span className="question-step-divider">/</span>
+              <span className="question-step-total">{questions.length}</span>
+            </div>
+
+            {/* Question slide */}
+            <div className="question-slide" key={currentQuestionIndex}>
+              <div className="question-icon">✦</div>
+              <h2 className="question-text">{questions[currentQuestionIndex]}</h2>
+              <textarea
+                className="question-answer-input"
+                placeholder="Speak your truth..."
+                value={currentAnswer}
+                onChange={(e) => handleAnswerChange(e.target.value)}
+                rows={4}
+                autoFocus
+              />
+            </div>
+
+            {/* Navigation */}
+            <div className="question-nav">
+              <button
+                className="question-back-btn"
+                onClick={handleQuestionBack}
+                disabled={currentQuestionIndex === 0}
+              >
+                ← Back
+              </button>
+
+              {isLastQuestion ? (
+                <button
+                  className="question-awaken-btn"
+                  onClick={handleAwakenStory}
+                  disabled={!currentAnswer.trim()}
+                >
+                  ✦ Awaken ✦
+                </button>
+              ) : (
+                <button
+                  className="question-next-btn"
+                  onClick={handleQuestionNext}
+                  disabled={!currentAnswer.trim()}
+                >
+                  Next →
+                </button>
+              )}
+            </div>
+
+            {/* Step dots */}
+            <div className="question-dots">
+              {questions.map((_, idx) => (
+                <div
+                  key={idx}
+                  className={`question-dot ${idx === currentQuestionIndex ? 'active' : ''} ${idx < currentQuestionIndex ? 'completed' : ''}`}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     )
@@ -637,8 +838,32 @@ function StoryCreator() {
                   )}
                 </button>
 
+                {/* Player Action Input */}
+                <div className="player-action-input-area">
+                  <div className="player-action-input-wrapper">
+                    <input
+                      type="text"
+                      className="player-action-input"
+                      placeholder="What does your character do next? (Optional)"
+                      value={userAction}
+                      onChange={(e) => setUserAction(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && !actionLoading && handleContinueStory()}
+                      disabled={actionLoading !== null}
+                    />
+                    {userAction && (
+                      <button
+                        className="player-action-clear"
+                        onClick={() => setUserAction('')}
+                        disabled={actionLoading !== null}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 <button
-                  className="action-btn"
+                  className="action-btn continue-action-btn"
                   onClick={handleContinueStory}
                   disabled={actionLoading !== null}
                 >
@@ -649,11 +874,55 @@ function StoryCreator() {
                     </>
                   ) : (
                     <>
-                      <h3>Continue Story</h3>
+                      <h3>{userAction.trim() ? '⚡ Act & Continue' : 'Continue Story'}</h3>
                     </>
                   )}
                 </button>
               </div>
+
+              {/* Clarification Question Modal */}
+              {clarificationData && (
+                <div className="clarification-overlay">
+                  <div className="clarification-modal" onClick={(e) => e.stopPropagation()}>
+                    {clarificationLoading ? (
+                      <div className="clarification-loading">
+                        <div className="weaving-orb">
+                          <div className="weaving-orb-inner"></div>
+                          <div className="weaving-ring weaving-ring-1"></div>
+                          <div className="weaving-ring weaving-ring-2"></div>
+                        </div>
+                        <h2 className="clarification-title">Weaving your fate...</h2>
+                        <p className="clarification-subtitle">Your answer is shaping the next chapter</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="clarification-icon">✦</div>
+                        <h2 className="clarification-title">The Story Needs You</h2>
+                        <p className="clarification-text">{clarificationData.text}</p>
+                        <textarea
+                          className="clarification-input"
+                          placeholder="Speak your decision..."
+                          value={clarificationAnswer}
+                          onChange={(e) => setClarificationAnswer(e.target.value)}
+                          rows={3}
+                          autoFocus
+                        />
+                        <div className="clarification-actions">
+                          <button
+                            className="clarification-dismiss-btn"
+                            onClick={() => { setClarificationData(null); setClarificationAnswer(''); }}
+                          >Dismiss</button>
+                          <button
+                            className="clarification-submit-btn"
+                            onClick={handleSubmitClarification}
+                            disabled={!clarificationAnswer.trim()}
+                          >✦ Submit Answer</button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Chunk Editor Modal */}
               {showChunkEditor && (

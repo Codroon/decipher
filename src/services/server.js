@@ -22,6 +22,8 @@ export const API_ENDPOINTS = {
   STORY: {
     BASE: `${BASE_URL}/api/story`,
     CREATE: `${BASE_URL}/api/story/create`,
+    INITIALIZE: `${BASE_URL}/api/story/initialize`,
+    SUBMIT_ANSWERS: (id) => `${BASE_URL}/api/story/submit-answers/${id}`,
     GET_ALL: `${BASE_URL}/api/story/`,
     GET_BY_ID: (id) => `${BASE_URL}/api/story/${id}`,
     UPDATE: (id) => `${BASE_URL}/api/story/${id}`,
