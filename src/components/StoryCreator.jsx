@@ -9,7 +9,7 @@ function StoryCreator() {
   const [creativityLevel, setCreativityLevel] = useState(80)
   const [storyLength, setStoryLength] = useState('Medium (3-4 paragraphs)')
   const [tone, setTone] = useState('Mysterious')
-  const [model, setModel] = useState('qwen3-vl-8b-instruct')
+  const [model, setModel] = useState('qwen2.5-32b-instruct')
   const [availableModels, setAvailableModels] = useState([])
 
   // Story creation states
@@ -174,17 +174,34 @@ function StoryCreator() {
   }
 
   const handleSubmitClarification = async () => {
-    if (!clarificationData?.questionId || !clarificationAnswer.trim()) return
-    if (!generatedStory?._id) return
+    console.log('[Clarification] Submit clicked', {
+      clarificationData,
+      clarificationAnswer,
+      storyId: generatedStory?._id
+    })
+
+    if (!clarificationAnswer.trim()) {
+      console.warn('[Clarification] Empty answer, aborting')
+      return
+    }
+    if (!generatedStory?._id) {
+      console.warn('[Clarification] No story ID, aborting')
+      return
+    }
+
+    // Use questionId if available, fall back to a placeholder
+    const questionId = clarificationData?.questionId || 'unknown'
 
     setClarificationLoading(true)
     try {
       const result = await storyService.submitInquiryReply(
         generatedStory._id,
-        clarificationData.questionId,
+        questionId,
         clarificationAnswer.trim(),
         model
       )
+
+      console.log('[Clarification] API result:', result)
 
       if (result.success) {
         setGeneratedStory(result.story)
@@ -195,6 +212,7 @@ function StoryCreator() {
         alert(result.error || 'Failed to continue after answering')
       }
     } catch (err) {
+      console.error('[Clarification] Error:', err)
       alert('Network error. Please try again.')
     } finally {
       setClarificationLoading(false)
@@ -904,6 +922,12 @@ function StoryCreator() {
                           placeholder="Speak your decision..."
                           value={clarificationAnswer}
                           onChange={(e) => setClarificationAnswer(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey && clarificationAnswer.trim()) {
+                              e.preventDefault()
+                              handleSubmitClarification()
+                            }
+                          }}
                           rows={3}
                           autoFocus
                         />

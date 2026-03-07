@@ -410,6 +410,11 @@ export const continueStory = async (storyId, model = 'qwen3:8b', userAction = ''
     if (response.ok) {
       // Check if the router agent interrupted the flow
       if (data.status === 'interrupted' && data.type === 'question') {
+        console.log('[ContinueStory] Router agent interrupted with question:', {
+          questionId: data.questionId,
+          text: data.text,
+          rawData: data
+        })
         return {
           success: true,
           interrupted: true,
