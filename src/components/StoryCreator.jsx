@@ -1,7 +1,107 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import './StoryCreator.css'
 import * as storyService from '../services/storyService'
+import { BASE_URL } from '../services/server'
+import { readLengthPrefixedFrames } from '../utils/chunkAudioStream.js'
+import { splitChunkSegments } from '../utils/splitChunkSegments.js'
+
+/** Curly apostrophes → ASCII so segment strings match story text from the API. */
+function normalizeForSegmentMatch(str) {
+  return str.replace(/\u2018/g, "'").replace(/\u2019/g, "'")
+}
+
+/**
+ * @param {string} fullText
+ * @param {string[]} segments
+ * @returns {{ start: number, end: number, index: number }[] | null}
+ */
+function buildSegmentRanges(fullText, segments) {
+  const text = normalizeForSegmentMatch(fullText)
+  let pos = 0
+  const ranges = []
+  for (let i = 0; i < segments.length; i++) {
+    const seg = normalizeForSegmentMatch(segments[i])
+    const start = text.indexOf(seg, pos)
+    if (start === -1) return null
+    ranges.push({ start, end: start + seg.length, index: i })
+    pos = start + seg.length
+  }
+  return ranges
+}
+
+/**
+ * @param {{ content: string, index: number }} chunk
+ * @param {{ mode: string, chunkIndex: number | null, segmentIndex: number | null }} ttsHighlight
+ * @param {number | null} playingChunkIndex
+ */
+function renderChunkWithTtsHighlight(chunk, ttsHighlight, playingChunkIndex) {
+  const full = chunk.content
+  const segments = splitChunkSegments(full).filter(Boolean)
+  const ranges = segments.length > 0 ? buildSegmentRanges(full, segments) : null
+  const useSentenceHighlight =
+    ttsHighlight.mode === 'sentence' &&
+    ttsHighlight.chunkIndex === chunk.index &&
+    playingChunkIndex === chunk.index &&
+    typeof ttsHighlight.segmentIndex === 'number'
+
+  const paraStrings = full.split(/\n\n/).filter((p) => p.trim())
+  let searchFrom = 0
+
+  return paraStrings.map((paraRaw, pi) => {
+    const trimmed = paraRaw.trim()
+    const pStart = full.indexOf(trimmed, searchFrom)
+    if (pStart === -1) {
+      return (
+        <p key={`para-${chunk.index}-${pi}`} className="story-paragraph editable-paragraph">
+          {trimmed}
+        </p>
+      )
+    }
+    const pEnd = pStart + trimmed.length
+    searchFrom = pEnd
+
+    const children = []
+    if (!ranges) {
+      children.push(trimmed)
+    } else {
+      const overlapping = ranges.filter((r) => r.end > pStart && r.start < pEnd)
+      let c = pStart
+      for (const r of overlapping) {
+        if (c < r.start) {
+          const gap = full.slice(c, Math.min(r.start, pEnd))
+          if (gap) children.push(gap)
+          c = Math.min(r.start, pEnd)
+        }
+        const segStart = Math.max(c, r.start)
+        const segEnd = Math.min(pEnd, r.end)
+        if (segStart < segEnd) {
+          const text = full.slice(segStart, segEnd)
+          const active = useSentenceHighlight && r.index === ttsHighlight.segmentIndex
+          children.push(
+            <span
+              key={`${chunk.index}-${pi}-seg-${r.index}-${segStart}`}
+              className={`story-tts-segment${active ? ' story-tts-segment--active' : ''}`}
+            >
+              {text}
+            </span>
+          )
+          c = segEnd
+        }
+      }
+      if (c < pEnd) {
+        const tail = full.slice(c, pEnd)
+        if (tail) children.push(tail)
+      }
+    }
+
+    return (
+      <p key={`para-${chunk.index}-${pi}`} className="story-paragraph editable-paragraph">
+        {children}
+      </p>
+    )
+  })
+}
 
 function StoryCreator() {
   const { storyId } = useParams()
@@ -50,6 +150,229 @@ function StoryCreator() {
   const [answers, setAnswers] = useState([])
   const [wizardStoryId, setWizardStoryId] = useState(null)
   const [isWeaving, setIsWeaving] = useState(false)
+
+  // Audio playback state
+  const audioRef = useRef(null)
+  const audioUrlsRef = useRef({})
+  const fetchPromisesRef = useRef({})
+  const chunkStreamAbortRef = useRef(null)
+  /** Chunk index when a stream session is active — used to abort only that session on clearChunkAudioState */
+  const streamTargetChunkRef = useRef(null)
+  const [playingChunkIndex, setPlayingChunkIndex] = useState(null)
+  const [audioStatus, setAudioStatus] = useState({})
+  const [ttsHighlight, setTtsHighlight] = useState({
+    mode: 'none',
+    chunkIndex: null,
+    segmentIndex: null,
+  })
+
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(audioUrlsRef.current).forEach(url => URL.revokeObjectURL(url))
+      audioUrlsRef.current = {}
+    }
+  }, [])
+
+  const clearChunkAudioState = (index) => {
+    const wasStreamingThisChunk = streamTargetChunkRef.current === index
+    if (wasStreamingThisChunk) {
+      chunkStreamAbortRef.current?.abort()
+      streamTargetChunkRef.current = null
+    }
+    if (audioUrlsRef.current[index]) {
+      URL.revokeObjectURL(audioUrlsRef.current[index])
+      delete audioUrlsRef.current[index]
+    }
+    delete fetchPromisesRef.current[index]
+    setAudioStatus(prev => {
+      const next = { ...prev }
+      delete next[index]
+      return next
+    })
+    if (wasStreamingThisChunk) {
+      setTtsHighlight({ mode: 'none', chunkIndex: null, segmentIndex: null })
+      setPlayingChunkIndex(null)
+    }
+  }
+
+  /**
+   * Fetch length-prefixed WAV stream; play each sentence as it arrives, queued on one audio element.
+   */
+  const startChunkStreamPlayback = (index) => {
+    if (!generatedStory?.MainStory || index >= generatedStory.MainStory.length) return
+    const audioEl = audioRef.current
+    if (!audioEl) return
+
+    chunkStreamAbortRef.current?.abort()
+    const ac = new AbortController()
+    chunkStreamAbortRef.current = ac
+    streamTargetChunkRef.current = index
+
+    const token = localStorage.getItem('token')
+    const storyId = generatedStory._id
+
+    setAudioStatus(prev => ({ ...prev, [index]: 'loading' }))
+    setTtsHighlight({ mode: 'chunk', chunkIndex: index, segmentIndex: null })
+
+    const queue = []
+    let readerDone = false
+    let waitingForData = true
+    let firstClipStarted = false
+    let framesReceived = 0
+    let clipIndex = 0
+    let useSentenceSync = false
+
+    const teardown = () => {
+      if (chunkStreamAbortRef.current === ac) {
+        chunkStreamAbortRef.current = null
+      }
+      if (streamTargetChunkRef.current === index) {
+        streamTargetChunkRef.current = null
+      }
+    }
+
+    const finishPlayback = () => {
+      teardown()
+      setPlayingChunkIndex(null)
+      setTtsHighlight({ mode: 'none', chunkIndex: null, segmentIndex: null })
+      setAudioStatus(prev => ({ ...prev, [index]: 'ready' }))
+    }
+
+    const playHead = () => {
+      if (ac.signal.aborted) return
+      if (queue.length > 0) {
+        waitingForData = false
+        const frame = queue.shift()
+        const clipIdx = clipIndex++
+        if (useSentenceSync) {
+          setTtsHighlight({ mode: 'sentence', chunkIndex: index, segmentIndex: clipIdx })
+        }
+        const url = URL.createObjectURL(new Blob([frame], { type: 'audio/wav' }))
+        audioEl.onended = () => {
+          URL.revokeObjectURL(url)
+          // Brief gap + wait for decode reduces clipped/mumbled first word on the next clip.
+          setTimeout(() => playHead(), 20)
+        }
+        audioEl.onerror = () => {
+          URL.revokeObjectURL(url)
+          console.error(
+            '[TTS] Chunk audio clip failed to load/decode; stopping playback (clip',
+            clipIdx,
+            ')'
+          )
+          setAudioStatus((prev) => ({ ...prev, [index]: 'error' }))
+          finishPlayback()
+        }
+        audioEl.src = url
+        const startPlayback = () => {
+          audioEl.play().catch((err) => {
+            console.error('Playback failed:', err)
+            URL.revokeObjectURL(url)
+            setAudioStatus(prev => ({ ...prev, [index]: 'error' }))
+            finishPlayback()
+          })
+        }
+        if (audioEl.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+          startPlayback()
+        } else {
+          audioEl.addEventListener('canplay', startPlayback, { once: true })
+        }
+        if (!firstClipStarted) {
+          firstClipStarted = true
+          setAudioStatus(prev => ({ ...prev, [index]: 'ready' }))
+        }
+        return
+      }
+      if (readerDone) {
+        finishPlayback()
+      } else {
+        waitingForData = true
+      }
+    }
+
+    const onFrame = (frame) => {
+      queue.push(frame)
+      framesReceived++
+      if (framesReceived >= 2) {
+        useSentenceSync = true
+        const seg = Math.max(0, clipIndex - 1)
+        setTtsHighlight({ mode: 'sentence', chunkIndex: index, segmentIndex: seg })
+      }
+      if (waitingForData) {
+        playHead()
+      }
+    }
+
+    ;(async () => {
+      try {
+        const res = await fetch(
+          `${BASE_URL}/api/story/${storyId}/audio/${index}/stream`,
+          { headers: { Authorization: `Bearer ${token}` }, signal: ac.signal }
+        )
+        if (!res.ok) {
+          throw new Error('Audio stream failed')
+        }
+        const reader = res.body.getReader()
+        await readLengthPrefixedFrames(reader, onFrame, ac.signal)
+        readerDone = true
+        useSentenceSync = framesReceived > 1
+        if (!useSentenceSync) {
+          setTtsHighlight((prev) =>
+            prev.chunkIndex === index ? { mode: 'chunk', chunkIndex: index, segmentIndex: null } : prev
+          )
+        } else {
+          setTtsHighlight((prev) =>
+            prev.chunkIndex === index ? { ...prev, mode: 'sentence' } : prev
+          )
+        }
+        playHead()
+      } catch (err) {
+        if (err?.name === 'AbortError') {
+          audioEl.pause()
+          teardown()
+          setPlayingChunkIndex(null)
+          setTtsHighlight({ mode: 'none', chunkIndex: null, segmentIndex: null })
+          return
+        }
+        console.error('Chunk audio stream error:', err)
+        setAudioStatus(prev => ({ ...prev, [index]: 'error' }))
+        finishPlayback()
+      }
+    })()
+  }
+
+  const togglePlayChunk = async (e, index) => {
+    e.stopPropagation() // Prevent opening the chunk inline editor
+    if (!generatedStory?.MainStory || index >= generatedStory.MainStory.length) return
+
+    // Stop if clicking the currently playing chunk
+    if (playingChunkIndex === index && audioRef.current && !audioRef.current.paused) {
+      chunkStreamAbortRef.current?.abort()
+      audioRef.current.pause()
+      streamTargetChunkRef.current = null
+      setPlayingChunkIndex(null)
+      setTtsHighlight({ mode: 'none', chunkIndex: null, segmentIndex: null })
+      setAudioStatus(prev => ({ ...prev, [index]: 'ready' }))
+      return
+    }
+
+    setPlayingChunkIndex(index)
+    startChunkStreamPlayback(index)
+  }
+
+  const handleAudioEnded = () => {
+    if (streamTargetChunkRef.current != null) return
+    setPlayingChunkIndex(null)
+    setTtsHighlight({ mode: 'none', chunkIndex: null, segmentIndex: null })
+  }
+
+  const handleAudioError = (e) => {
+    console.error('Audio playback error:', e)
+    streamTargetChunkRef.current = null
+    setPlayingChunkIndex(null)
+    setTtsHighlight({ mode: 'none', chunkIndex: null, segmentIndex: null })
+  }
 
   // Load existing story if storyId is provided
   useEffect(() => {
@@ -146,6 +469,10 @@ function StoryCreator() {
     setActionLoading(null)
 
     if (result.success) {
+      if (generatedStory?.MainStory?.length > 0) {
+        const lastIdx = generatedStory.MainStory[generatedStory.MainStory.length - 1].index
+        clearChunkAudioState(lastIdx)
+      }
       setGeneratedStory(result.story)
     } else {
       alert(result.error || 'Failed to regenerate story chunk')
@@ -263,6 +590,7 @@ function StoryCreator() {
     setActionLoading(null)
 
     if (result.success) {
+      clearChunkAudioState(editingChunkIndex)
       setGeneratedStory(result.story)
       setEditingChunkIndex(null)
       setChunkEditContent('')
@@ -289,6 +617,7 @@ function StoryCreator() {
     setActionLoading(null)
 
     if (result.success) {
+      clearChunkAudioState(editingChunkIndex)
       setGeneratedStory(result.story)
       setEditingChunkIndex(null)
       setChunkEditContent('')
@@ -321,6 +650,7 @@ function StoryCreator() {
     setActionLoading(null)
 
     if (result.success) {
+      clearChunkAudioState(inlineEditingChunkIndex)
       setGeneratedStory(result.story)
       setInlineEditingChunkIndex(null)
       setInlineEditContent('')
@@ -774,10 +1104,16 @@ function StoryCreator() {
           {!isTabView && (
             <>
               <div className="story-text-area">
+                <audio 
+                    ref={audioRef} 
+                    onEnded={handleAudioEnded} 
+                    onError={handleAudioError}
+                    style={{ display: 'none' }}
+                />
                 <div className="story-text scrollable-content">
                   {generatedStory?.MainStory && generatedStory.MainStory.length > 0 ? (
                     // Show all story chunks combined, with paragraph breaks
-                    generatedStory.MainStory.map((chunk, chunkIndex) => {
+                    generatedStory.MainStory.map((chunk) => {
                       // Check if this chunk is being edited inline
                       const isEditing = inlineEditingChunkIndex === chunk.index
 
@@ -812,22 +1148,23 @@ function StoryCreator() {
                         )
                       } else {
                         // Show normal paragraph(s) - clickable to edit
-                        const paragraphs = chunk.content.split('\n\n').filter(p => p.trim())
                         return (
                           <div
                             key={`chunk-${chunk.index}`}
-                            className="chunk-display-wrapper"
+                            className={`chunk-display-wrapper${playingChunkIndex === chunk.index ? ' story-audio-playing' : ''}`}
                             onClick={() => handleInlineEditChunk(chunk.index, chunk.content)}
                             title="Click to edit this chunk"
                           >
-                            {paragraphs.map((paragraph, paraIndex) => (
-                              <p
-                                key={`${chunkIndex}-${paraIndex}`}
-                                className="story-paragraph editable-paragraph"
-                              >
-                                {paragraph.trim()}
-                              </p>
-                            ))}
+                            <button 
+                              className="chunk-audio-btn" 
+                              onClick={(e) => togglePlayChunk(e, chunk.index)}
+                              title={playingChunkIndex === chunk.index ? "Stop playing" : "Play chunk"}
+                            >
+                                {audioStatus[chunk.index] === 'loading'
+                                  ? <span className="audio-loading-spinner" />
+                                  : playingChunkIndex === chunk.index ? "⏹️" : "🔊"}
+                            </button>
+                            {renderChunkWithTtsHighlight(chunk, ttsHighlight, playingChunkIndex)}
                           </div>
                         )
                       }
