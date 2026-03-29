@@ -308,7 +308,14 @@ function StoryCreator() {
       try {
         const res = await fetch(
           `${BASE_URL}/api/story/${storyId}/audio/${index}/stream`,
-          { headers: { Authorization: `Bearer ${token}` }, signal: ac.signal }
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              // ngrok free tier returns an HTML warning page without CORS headers unless skipped
+              'ngrok-skip-browser-warning': 'true',
+            },
+            signal: ac.signal,
+          }
         )
         if (!res.ok) {
           throw new Error('Audio stream failed')
