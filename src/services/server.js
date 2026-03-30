@@ -33,6 +33,7 @@ export const API_ENDPOINTS = {
     EDIT: (id) => `${BASE_URL}/api/story/edit/${id}`,
     EDIT_CHUNK: (id) => `${BASE_URL}/api/story/edit-chunk/${id}`,
     MODELS: `${BASE_URL}/api/story/models`,
+    TRANSCRIBE: `${BASE_URL}/api/story/transcribe`,
   },
   // Scenario endpoints
   SCENARIO: {
@@ -67,6 +68,18 @@ export const getHeaders = (includeAuth = false) => {
     }
   }
 
+  return headers
+}
+
+/** For multipart/form-data: do not set Content-Type (browser sets boundary). */
+export const getAuthMultipartHeaders = () => {
+  const headers = {
+    'ngrok-skip-browser-warning': 'true'
+  }
+  const token = localStorage.getItem('token')
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   return headers
 }
 

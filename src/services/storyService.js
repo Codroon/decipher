@@ -1,7 +1,7 @@
 // Story Service
 // This file contains all story-related API calls
 
-import { API_ENDPOINTS, getHeaders } from './server'
+import { API_ENDPOINTS, getHeaders, getAuthMultipartHeaders } from './server'
 
 /**
  * Create a new story
@@ -705,6 +705,44 @@ export const getModels = async () => {
     }
   } catch (error) {
     console.error('Get Models Error:', error)
+    return {
+      success: false,
+      error: 'Network error. Please try again.'
+    }
+  }
+}
+
+/**
+ * Transcribe audio blob via local Whisper (backend).
+ * @param {Blob} audioBlob
+ * @returns {Promise<{ success: boolean, text?: string, error?: string }>}
+ */
+export const transcribeAudio = async (audioBlob) => {
+  try {
+    const formData = new FormData()
+    formData.append('audio', audioBlob, 'recording.webm')
+
+    const response = await fetch(API_ENDPOINTS.STORY.TRANSCRIBE, {
+      method: 'POST',
+      headers: getAuthMultipartHeaders(),
+      body: formData
+    })
+
+    const data = await response.json().catch(() => ({}))
+
+    if (response.ok && data.success) {
+      return {
+        success: true,
+        text: typeof data.text === 'string' ? data.text : ''
+      }
+    }
+
+    return {
+      success: false,
+      error: data.message || data.error || `Transcription failed (${response.status})`
+    }
+  } catch (error) {
+    console.error('Transcribe Audio Error:', error)
     return {
       success: false,
       error: 'Network error. Please try again.'

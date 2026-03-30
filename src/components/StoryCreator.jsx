@@ -166,11 +166,32 @@ function StoryCreator() {
     segmentIndex: null,
   })
 
+  const [isRecording, setIsRecording] = useState(false)
+  const [transcribeLoading, setTranscribeLoading] = useState(false)
+  const [transcribeError, setTranscribeError] = useState('')
+  const mediaStreamRef = useRef(null)
+  const mediaRecorderRef = useRef(null)
+  const mediaChunksRef = useRef([])
+  const storyViewMountedRef = useRef(true)
+
   // Cleanup blob URLs on unmount
   useEffect(() => {
     return () => {
       Object.values(audioUrlsRef.current).forEach(url => URL.revokeObjectURL(url))
       audioUrlsRef.current = {}
+    }
+  }, [])
+
+  useEffect(() => {
+    storyViewMountedRef.current = true
+    return () => {
+      storyViewMountedRef.current = false
+      mediaStreamRef.current?.getTracks().forEach((t) => t.stop())
+      mediaStreamRef.current = null
+      if (mediaRecorderRef.current?.state === 'recording') {
+        mediaRecorderRef.current.stop()
+      }
+      mediaRecorderRef.current = null
     }
   }, [])
 
@@ -573,6 +594,97 @@ function StoryCreator() {
 
   const handleClearAiInput = () => {
     setAiInstruction('')
+  }
+
+  const stopActionMicStream = () => {
+    mediaStreamRef.current?.getTracks().forEach((t) => t.stop())
+    mediaStreamRef.current = null
+  }
+
+  const handleActionMicToggle = async () => {
+    if (transcribeLoading || actionLoading !== null) return
+
+    if (isRecording && mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop()
+      return
+    }
+
+    setTranscribeError('')
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      mediaStreamRef.current = stream
+      mediaChunksRef.current = []
+
+      const candidates = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus',
+        'audio/ogg',
+      ]
+      let mimeType = ''
+      for (const c of candidates) {
+        if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(c)) {
+          mimeType = c
+          break
+        }
+      }
+
+      const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+      mediaRecorderRef.current = rec
+
+      rec.ondataavailable = (e) => {
+        if (e.data.size > 0) mediaChunksRef.current.push(e.data)
+      }
+
+      rec.onstop = async () => {
+        stopActionMicStream()
+        mediaRecorderRef.current = null
+        const blobType = rec.mimeType || mimeType || 'audio/webm'
+        const chunks = mediaChunksRef.current
+        mediaChunksRef.current = []
+
+        if (storyViewMountedRef.current) {
+          setIsRecording(false)
+        }
+
+        const blob = new Blob(chunks, { type: blobType })
+        if (blob.size < 64) {
+          if (storyViewMountedRef.current) {
+            setTranscribeError('Recording too short.')
+          }
+          return
+        }
+
+        if (!storyViewMountedRef.current) return
+
+        setTranscribeLoading(true)
+        const result = await storyService.transcribeAudio(blob)
+
+        if (!storyViewMountedRef.current) return
+
+        setTranscribeLoading(false)
+
+        if (result.success) {
+          setUserAction((prev) => {
+            const t = (result.text || '').trim()
+            if (!t) return prev
+            return prev.trim() ? `${prev.trim()} ${t}` : t
+          })
+        } else {
+          setTranscribeError(result.error || 'Transcription failed.')
+        }
+      }
+
+      rec.start()
+      setIsRecording(true)
+    } catch (err) {
+      console.error('Microphone error:', err)
+      setTranscribeError('Microphone access denied or unavailable.')
+      stopActionMicStream()
+      mediaRecorderRef.current = null
+      setIsRecording(false)
+    }
   }
 
   // Handle manual chunk editing
@@ -1202,26 +1314,48 @@ function StoryCreator() {
 
                 {/* Player Action Input */}
                 <div className="player-action-input-area">
-                  <div className="player-action-input-wrapper">
+                  <div
+                    className={`player-action-input-wrapper${userAction ? ' player-action-input-wrapper--has-clear' : ''}`}
+                  >
                     <input
                       type="text"
-                      className="player-action-input"
+                      className={`player-action-input${userAction ? ' player-action-input--with-clear' : ''}`}
                       placeholder="What does your character do next? (Optional)"
                       value={userAction}
                       onChange={(e) => setUserAction(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && !actionLoading && handleContinueStory()}
-                      disabled={actionLoading !== null}
+                      disabled={actionLoading !== null || transcribeLoading}
                     />
+                    <button
+                      type="button"
+                      className={`player-action-mic${isRecording ? ' player-action-mic--recording' : ''}`}
+                      onClick={handleActionMicToggle}
+                      disabled={actionLoading !== null || transcribeLoading}
+                      title={isRecording ? 'Stop and transcribe' : 'Record voice'}
+                      aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+                    >
+                      {transcribeLoading ? (
+                        <span className="player-action-mic-spinner" />
+                      ) : (
+                        '🎤'
+                      )}
+                    </button>
                     {userAction && (
                       <button
+                        type="button"
                         className="player-action-clear"
                         onClick={() => setUserAction('')}
-                        disabled={actionLoading !== null}
+                        disabled={actionLoading !== null || transcribeLoading}
                       >
                         ✕
                       </button>
                     )}
                   </div>
+                  {transcribeError && (
+                    <p className="player-action-transcribe-error" role="alert">
+                      {transcribeError}
+                    </p>
+                  )}
                 </div>
 
                 <button
