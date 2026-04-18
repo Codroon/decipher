@@ -15,6 +15,7 @@ import ForgotPasswordForm from './components/ForgotPasswordForm'
 import ResetPassword from './components/ResetPassword'
 import VerifyEmail from './components/VerifyEmail'
 import Profile from './components/Profile'
+import Library from './components/Library'
 
 function AppContent() {
   const navigate = useNavigate()
@@ -228,6 +229,7 @@ function AppContent() {
           <Route path="/image-studio" element={<ImageStudio />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/library" element={<Library />} />
           <Route path="/signup" element={<RegistrationForm />} />
           <Route path="/verify-otp" element={<OTPVerificationForm />} />
           <Route path="/verify-email" element={<VerifyEmail />} />

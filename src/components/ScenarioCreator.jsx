@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import './ScenarioCreator.css'
 import * as scenarioService from '../services/scenarioService'
+import * as libraryService from '../services/libraryService'
 import { initializeStoryFromScenario } from '../services/storyService'
 
 // Modern SVG Icon Components
@@ -135,6 +136,12 @@ const IconPlus = () => (
   </svg>
 )
 
+const IconBookmark = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+  </svg>
+)
+
 const IconLock = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -177,6 +184,11 @@ function ScenarioCreator() {
   const [characters, setCharacters] = useState([])
   const [locations, setLocations] = useState([])
   const [creatures, setCreatures] = useState([])
+
+  // Library entities
+  const [libraryCharacters, setLibraryCharacters] = useState([])
+  const [libraryLocations, setLibraryLocations] = useState([])
+  const [libraryCreatures, setLibraryCreatures] = useState([])
 
   // Modal states
   const [activeModal, setActiveModal] = useState(null) // 'character', 'location', 'creature'
@@ -242,6 +254,21 @@ function ScenarioCreator() {
     loadStories()
   }, [scenarioId])
 
+  // Load library entities
+  useEffect(() => {
+    const loadLibrary = async () => {
+      const charRes = await libraryService.getLibraryEntities('character')
+      if (charRes.success) setLibraryCharacters(charRes.data || [])
+
+      const locRes = await libraryService.getLibraryEntities('location')
+      if (locRes.success) setLibraryLocations(locRes.data || [])
+
+      const creaRes = await libraryService.getLibraryEntities('creature')
+      if (creaRes.success) setLibraryCreatures(creaRes.data || [])
+    }
+    loadLibrary()
+  }, [])
+
   // Handle tag input
   const handleAddTag = () => {
     if (tagInput.trim() && !tags.includes(tagInput.trim())) {
@@ -258,6 +285,29 @@ function ScenarioCreator() {
     if (e.key === 'Enter') {
       e.preventDefault()
       handleAddTag()
+    }
+  }
+
+  // Handle adding entity from library
+  const handleAddFromLibrary = (type, libraryIndexStr) => {
+    if (libraryIndexStr === '') return
+    const libraryIndex = parseInt(libraryIndexStr, 10)
+
+    if (type === 'character') {
+      const entity = libraryCharacters[libraryIndex]
+      if (!characters.some(c => c.name === entity.name)) {
+        setCharacters([...characters, { name: entity.name, description: entity.description }])
+      }
+    } else if (type === 'location') {
+      const entity = libraryLocations[libraryIndex]
+      if (!locations.some(l => l.name === entity.name)) {
+        setLocations([...locations, { name: entity.name, description: entity.description }])
+      }
+    } else if (type === 'creature') {
+      const entity = libraryCreatures[libraryIndex]
+      if (!creatures.some(c => c.name === entity.name)) {
+        setCreatures([...creatures, { name: entity.name, description: entity.description }])
+      }
     }
   }
 
@@ -691,12 +741,25 @@ function ScenarioCreator() {
                       </div>
                     </div>
                   ))}
-                  <button className="add-entity-btn" onClick={() => openModal('character')}>
-                    <div className="add-icon">
-                      <IconPlus />
-                    </div>
-                    <span>Add Character</span>
-                  </button>
+                  <div className="add-entity-actions">
+                    <button className="add-entity-btn" onClick={() => openModal('character')}>
+                      <div className="add-icon"><IconPlus /></div>
+                      <span>New Character</span>
+                    </button>
+                    <button
+                      className="add-entity-btn browse-library-btn"
+                      onClick={() => openModal('library-character')}
+                      disabled={libraryCharacters.filter(c => !characters.some(sc => sc.name === c.name)).length === 0}
+                    >
+                      <div className="add-icon library-icon"><IconBookmark /></div>
+                      <span>Browse Library</span>
+                      {libraryCharacters.filter(c => !characters.some(sc => sc.name === c.name)).length > 0 && (
+                        <span className="library-count-badge">
+                          {libraryCharacters.filter(c => !characters.some(sc => sc.name === c.name)).length}
+                        </span>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -740,12 +803,25 @@ function ScenarioCreator() {
                       </div>
                     </div>
                   ))}
-                  <button className="add-entity-btn" onClick={() => openModal('location')}>
-                    <div className="add-icon">
-                      <IconPlus />
-                    </div>
-                    <span>Add Location</span>
-                  </button>
+                  <div className="add-entity-actions">
+                    <button className="add-entity-btn" onClick={() => openModal('location')}>
+                      <div className="add-icon"><IconPlus /></div>
+                      <span>New Location</span>
+                    </button>
+                    <button
+                      className="add-entity-btn browse-library-btn"
+                      onClick={() => openModal('library-location')}
+                      disabled={libraryLocations.filter(l => !locations.some(sl => sl.name === l.name)).length === 0}
+                    >
+                      <div className="add-icon library-icon"><IconBookmark /></div>
+                      <span>Browse Library</span>
+                      {libraryLocations.filter(l => !locations.some(sl => sl.name === l.name)).length > 0 && (
+                        <span className="library-count-badge">
+                          {libraryLocations.filter(l => !locations.some(sl => sl.name === l.name)).length}
+                        </span>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -789,12 +865,25 @@ function ScenarioCreator() {
                       </div>
                     </div>
                   ))}
-                  <button className="add-entity-btn" onClick={() => openModal('creature')}>
-                    <div className="add-icon">
-                      <IconPlus />
-                    </div>
-                    <span>Add Creature</span>
-                  </button>
+                  <div className="add-entity-actions">
+                    <button className="add-entity-btn" onClick={() => openModal('creature')}>
+                      <div className="add-icon"><IconPlus /></div>
+                      <span>New Creature</span>
+                    </button>
+                    <button
+                      className="add-entity-btn browse-library-btn"
+                      onClick={() => openModal('library-creature')}
+                      disabled={libraryCreatures.filter(c => !creatures.some(sc => sc.name === c.name)).length === 0}
+                    >
+                      <div className="add-icon library-icon"><IconBookmark /></div>
+                      <span>Browse Library</span>
+                      {libraryCreatures.filter(c => !creatures.some(sc => sc.name === c.name)).length > 0 && (
+                        <span className="library-count-badge">
+                          {libraryCreatures.filter(c => !creatures.some(sc => sc.name === c.name)).length}
+                        </span>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -944,8 +1033,8 @@ function ScenarioCreator() {
         </div>
       </div>
 
-      {/* Entity Modal */}
-      {activeModal && (
+      {/* Entity Edit/Add Modal */}
+      {activeModal && !activeModal.startsWith('library-') && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="entity-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -995,6 +1084,74 @@ function ScenarioCreator() {
           </div>
         </div>
       )}
+
+      {/* Library Picker Modal */}
+      {activeModal && activeModal.startsWith('library-') && (() => {
+        const libType = activeModal.replace('library-', '') // 'character' | 'location' | 'creature'
+        const libItems = libType === 'character' ? libraryCharacters : libType === 'location' ? libraryLocations : libraryCreatures
+        const currentItems = libType === 'character' ? characters : libType === 'location' ? locations : creatures
+        const available = libItems.filter(item => !currentItems.some(ci => ci.name === item.name))
+        const typeLabel = libType.charAt(0).toUpperCase() + libType.slice(1)
+        const typeIcon = libType === 'character' ? '👤' : libType === 'location' ? '🌍' : '🐉'
+
+        return (
+          <div className="modal-overlay" onClick={closeModal}>
+            <div className="entity-modal library-picker-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <div className="library-modal-title">
+                  <span className="library-modal-type-icon">{typeIcon}</span>
+                  <div>
+                    <h2>Your {typeLabel} Library</h2>
+                    <p className="library-modal-subtitle">
+                      {available.length > 0
+                        ? `${available.length} ${typeLabel.toLowerCase()}${available.length !== 1 ? 's' : ''} available to add`
+                        : `All library ${typeLabel.toLowerCase()}s are already in this scenario`}
+                    </p>
+                  </div>
+                </div>
+                <button className="close-modal" onClick={closeModal}>
+                  <IconClose />
+                </button>
+              </div>
+
+              <div className="library-picker-grid">
+                {available.length === 0 ? (
+                  <div className="library-picker-empty">
+                    <span className="library-picker-empty-icon">{typeIcon}</span>
+                    <p>No {typeLabel.toLowerCase()}s left in your library to add.</p>
+                    <p className="library-picker-empty-hint">Save more from the Story Creator first.</p>
+                  </div>
+                ) : (
+                  available.map((item, index) => (
+                    <button
+                      key={item._id || index}
+                      className="library-picker-card"
+                      onClick={() => {
+                        const originalIndex = libItems.indexOf(item)
+                        handleAddFromLibrary(libType, String(originalIndex))
+                        closeModal()
+                      }}
+                    >
+                      <div className="library-picker-card-icon">{typeIcon}</div>
+                      <div className="library-picker-card-body">
+                        <h4>{item.name}</h4>
+                        <p>{item.description ? item.description.substring(0, 80) + (item.description.length > 80 ? '...' : '') : 'No description'}</p>
+                      </div>
+                      <div className="library-picker-card-add">
+                        <IconPlus />
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+
+              <div className="modal-actions">
+                <button className="cancel-btn" onClick={closeModal}>Close</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

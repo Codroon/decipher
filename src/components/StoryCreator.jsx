@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import './StoryCreator.css'
 import * as storyService from '../services/storyService'
+import * as libraryService from '../services/libraryService'
 import { BASE_URL } from '../services/server'
 import { readLengthPrefixedFrames } from '../utils/chunkAudioStream.js'
 import { splitChunkSegments } from '../utils/splitChunkSegments.js'
@@ -142,6 +143,10 @@ function StoryCreator() {
   // Inline editing states (for clicking on chunks in display)
   const [inlineEditingChunkIndex, setInlineEditingChunkIndex] = useState(null)
   const [inlineEditContent, setInlineEditContent] = useState('')
+
+  // Library entity selection states
+  const [selectedEntity, setSelectedEntity] = useState(null)
+  const [librarySaveState, setLibrarySaveState] = useState({ loading: false, success: false, error: null })
 
   // Question wizard states
   const [questionWizardActive, setQuestionWizardActive] = useState(false)
@@ -1557,7 +1562,15 @@ function StoryCreator() {
               {generatedStory?.characters && generatedStory.characters.length > 0 ? (
                 <div className="content-cards-grid">
                   {generatedStory.characters.map((char, index) => (
-                    <div key={char._id || index} className="content-card">
+                    <div 
+                      key={char._id || index} 
+                      className="content-card"
+                      onClick={() => {
+                        setSelectedEntity({ type: 'character', data: char })
+                        setLibrarySaveState({ loading: false, success: false, error: null })
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
                       <div className="content-card-header">
                         <span className="content-icon">👤</span>
                         <h3>{char.name}</h3>
@@ -1581,7 +1594,15 @@ function StoryCreator() {
               {generatedStory?.locations && generatedStory.locations.length > 0 ? (
                 <div className="content-cards-grid">
                   {generatedStory.locations.map((location, index) => (
-                    <div key={location._id || index} className="content-card">
+                    <div 
+                      key={location._id || index} 
+                      className="content-card"
+                      onClick={() => {
+                        setSelectedEntity({ type: 'location', data: location })
+                        setLibrarySaveState({ loading: false, success: false, error: null })
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
                       <div className="content-card-header">
                         <span className="content-icon">🌍</span>
                         <h3>{location.name}</h3>
@@ -1605,7 +1626,15 @@ function StoryCreator() {
               {generatedStory?.creatures && generatedStory.creatures.length > 0 ? (
                 <div className="content-cards-grid">
                   {generatedStory.creatures.map((creature, index) => (
-                    <div key={creature._id || index} className="content-card">
+                    <div 
+                      key={creature._id || index} 
+                      className="content-card"
+                      onClick={() => {
+                        setSelectedEntity({ type: 'creature', data: creature })
+                        setLibrarySaveState({ loading: false, success: false, error: null })
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
                       <div className="content-card-header">
                         <span className="content-icon">🐉</span>
                         <h3>{creature.name}</h3>
@@ -1757,6 +1786,64 @@ function StoryCreator() {
           </div>
         </div>
       </div>
+
+      {/* Entity Library Modal */}
+      {selectedEntity && (
+        <div className="clarification-overlay entity-library-overlay" onClick={() => setSelectedEntity(null)}>
+          <div className="clarification-modal entity-library-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="entity-modal-header">
+              <div className="clarification-icon entity-modal-icon">
+                {selectedEntity.type === 'character' ? '👤' : selectedEntity.type === 'location' ? '🌍' : '🐉'}
+              </div>
+              <h2 className="clarification-title entity-modal-title">{selectedEntity.data.name}</h2>
+            </div>
+            
+            <div className="entity-modal-content">
+              <p className="clarification-text entity-modal-description">{selectedEntity.data.description}</p>
+            </div>
+            
+            <div className="clarification-actions entity-modal-actions">
+              {librarySaveState.error && <p className="player-action-transcribe-error">{librarySaveState.error}</p>}
+              
+              <button 
+                className="clarification-dismiss-btn" 
+                onClick={() => {
+                  setSelectedEntity(null)
+                  setLibrarySaveState({ loading: false, success: false, error: null })
+                }}
+              >
+                Close
+              </button>
+
+              {librarySaveState.success ? (
+                <button className="clarification-submit-btn success-btn" style={{ background: 'rgba(0, 255, 128, 0.2)', border: '1px solid rgba(0, 255, 128, 0.4)', color: '#00ff80' }} disabled>
+                  ✓ Added to Library
+                </button>
+              ) : (
+                <button 
+                  className="clarification-submit-btn" 
+                  onClick={async () => {
+                    setLibrarySaveState({ loading: true, success: false, error: null })
+                    const res = await libraryService.saveEntityToLibrary(
+                      selectedEntity.type, 
+                      selectedEntity.data.name, 
+                      selectedEntity.data.description
+                    )
+                    if (res.success) {
+                      setLibrarySaveState({ loading: false, success: true, error: null })
+                    } else {
+                      setLibrarySaveState({ loading: false, success: false, error: res.error })
+                    }
+                  }}
+                  disabled={librarySaveState.loading}
+                >
+                  {librarySaveState.loading ? 'Adding...' : '✦ Add to Library'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

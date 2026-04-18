@@ -14,6 +14,8 @@ function Sidebar({ isOpen, onClose, onNavigate }) {
       onNavigate('image-studio')
     } else if (itemId === 'scenario-creator') {
       onNavigate('scenario-creator')
+    } else if (itemId === 'library') {
+      onNavigate('library')
     } else if (itemId === 'settings') {
       onNavigate('settings')
     }
@@ -38,6 +40,12 @@ function Sidebar({ isOpen, onClose, onNavigate }) {
       id: 'scenario-creator',
       label: 'Scenario Builder',
       icon: '/script-icon.png'
+    },
+    {
+      id: 'library',
+      label: 'My Library',
+      icon: '/imagestudio.png',
+      svgIcon: true
     },
     {
       id: 'image-studio',
@@ -66,7 +74,13 @@ function Sidebar({ isOpen, onClose, onNavigate }) {
               onClick={() => handleNavigation(item.id)}
             >
               <span className="sidebar-icon">
-                <img src={item.icon} alt={item.label} />
+                {item.id === 'library' ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                  </svg>
+                ) : (
+                  <img src={item.icon} alt={item.label} />
+                )}
               </span>
               <span className="sidebar-label">{item.label}</span>
             </button>

@@ -2854,3 +2854,7 @@
     font-size: 20px;
   }
 }
+ /* Entity Library Modal Specifics */
+ .entity-modal-header { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem; }
+ .entity-modal-content { max-height: 50vh; overflow-y: auto; text-align: left; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; }
+ .entity-modal-description { margin: 0; font-size: 1rem; line-height: 1.6; }
