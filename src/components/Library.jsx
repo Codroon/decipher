@@ -150,7 +150,11 @@ function Library() {
     try {
       const res = await fetch(url, {
         method:  isEdit ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 
+          'Content-Type': 'application/json', 
+          Authorization: `Bearer ${token}`, 
+          'ngrok-skip-browser-warning': '69420' 
+        },
         body:    JSON.stringify({ name: formData.name.trim(), description: formData.description.trim() }),
       })
       const json = await res.json()
@@ -174,7 +178,13 @@ function Library() {
     const BASE_URL = (await import('../services/server')).BASE_URL
     const url = `${BASE_URL}${ENDPOINTS[deleteConfirm.type]}/${deleteConfirm.id}`
     try {
-      const res = await fetch(url, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+      const res = await fetch(url, { 
+        method: 'DELETE', 
+        headers: { 
+          Authorization: `Bearer ${token}`, 
+          'ngrok-skip-browser-warning': '69420' 
+        } 
+      })
       if (!res.ok) throw new Error('Delete failed')
       await fetchEntities(deleteConfirm.type)
       showToast(`Deleted "${deleteConfirm.name}"`)

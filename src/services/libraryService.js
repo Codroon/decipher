@@ -18,7 +18,8 @@ export const saveEntityToLibrary = async (type, name, description) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
+        'ngrok-skip-browser-warning': '69420'
       },
       body: JSON.stringify({ name, description })
     });
@@ -52,7 +53,8 @@ export const getLibraryEntities = async (type) => {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
+        'ngrok-skip-browser-warning': '69420'
       }
     });
 
