@@ -1,7 +1,7 @@
 // Story Service
 // This file contains all story-related API calls
 
-import { API_ENDPOINTS, getHeaders, getAuthMultipartHeaders } from './server'
+import { API_ENDPOINTS, getHeaders } from './server'
 
 /**
  * Create a new story
@@ -354,7 +354,7 @@ export const deleteStory = async (storyId) => {
  * @param {string} model - The model to use (e.g., 'qwen3:8b')
  * @returns {Promise<Object>} Regeneration result
  */
-export const regenerateLastChunk = async (storyId, model = 'qwen3:8b') => {
+export const regenerateLastChunk = async (storyId, model = 'google/gemini-3.1-flash-lite') => {
   try {
     const url = `${API_ENDPOINTS.STORY.REGENERATE(storyId)}?model=${encodeURIComponent(model)}`
     const response = await fetch(url, {
@@ -392,7 +392,7 @@ export const regenerateLastChunk = async (storyId, model = 'qwen3:8b') => {
  * @param {string} userAction - Optional player action text
  * @returns {Promise<Object>} Continue result
  */
-export const continueStory = async (storyId, model = 'qwen3:8b', userAction = '') => {
+export const continueStory = async (storyId, model = 'google/gemini-3.1-flash-lite', userAction = '') => {
   try {
     const body = { model }
     if (userAction && userAction.trim()) {
@@ -451,7 +451,7 @@ export const continueStory = async (storyId, model = 'qwen3:8b', userAction = ''
  * @param {string} model - The model to use
  * @returns {Promise<Object>} Continue result with the new story chunk
  */
-export const submitInquiryReply = async (storyId, questionId, answer, model = 'qwen3:8b') => {
+export const submitInquiryReply = async (storyId, questionId, answer, model = 'google/gemini-3.1-flash-lite') => {
   try {
     const response = await fetch(API_ENDPOINTS.STORY.CONTINUE(storyId), {
       method: 'POST',
@@ -492,7 +492,7 @@ export const submitInquiryReply = async (storyId, questionId, answer, model = 'q
  * @param {string} model - The model to use (e.g., 'qwen3:8b')
  * @returns {Promise<Object>} Edit result
  */
-export const editLastParagraph = async (storyId, minorEditInstruction, model = 'qwen3:8b') => {
+export const editLastParagraph = async (storyId, minorEditInstruction, model = 'google/gemini-3.1-flash-lite') => {
   try {
     const url = API_ENDPOINTS.STORY.EDIT(storyId)
     const payload = { minorEditInstruction, model }
@@ -705,44 +705,6 @@ export const getModels = async () => {
     }
   } catch (error) {
     console.error('Get Models Error:', error)
-    return {
-      success: false,
-      error: 'Network error. Please try again.'
-    }
-  }
-}
-
-/**
- * Transcribe audio blob via local Whisper (backend).
- * @param {Blob} audioBlob
- * @returns {Promise<{ success: boolean, text?: string, error?: string }>}
- */
-export const transcribeAudio = async (audioBlob) => {
-  try {
-    const formData = new FormData()
-    formData.append('audio', audioBlob, 'recording.webm')
-
-    const response = await fetch(API_ENDPOINTS.STORY.TRANSCRIBE, {
-      method: 'POST',
-      headers: getAuthMultipartHeaders(),
-      body: formData
-    })
-
-    const data = await response.json().catch(() => ({}))
-
-    if (response.ok && data.success) {
-      return {
-        success: true,
-        text: typeof data.text === 'string' ? data.text : ''
-      }
-    }
-
-    return {
-      success: false,
-      error: data.message || data.error || `Transcription failed (${response.status})`
-    }
-  } catch (error) {
-    console.error('Transcribe Audio Error:', error)
     return {
       success: false,
       error: 'Network error. Please try again.'

@@ -33,7 +33,6 @@ export const API_ENDPOINTS = {
     EDIT: (id) => `${BASE_URL}/api/story/edit/${id}`,
     EDIT_CHUNK: (id) => `${BASE_URL}/api/story/edit-chunk/${id}`,
     MODELS: `${BASE_URL}/api/story/models`,
-    TRANSCRIBE: `${BASE_URL}/api/story/transcribe`,
   },
   // Scenario endpoints
   SCENARIO: {
