@@ -1,17 +1,17 @@
 /* ================================================================
-   Library Page — matches Decipher dark/glass design language
-   Background palette: #1A0B2E → #2D1B4E | Accent: #7738CB / #4D70FF
+   Library Page (redesign) — tokenized to styles.css design system.
+   Inherits the app cosmic shell; glass surfaces + hairlines + --grad.
    ================================================================ */
 
 /* ── Page Shell ─────────────────────────────────────────────────── */
 .library-page {
   width: 100%;
   min-height: 100vh;
-  background: linear-gradient(180deg, #1A0B2E 0%, #2D1B4E 55%, #1A0B2E 100%);
-  padding-top: var(--navbar-height, 64px);
+  background: transparent;
+  padding-top: var(--navbar-height, 72px);
   position: relative;
   overflow-x: hidden;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-body);
 }
 
 /* Ambient orbs */
@@ -62,23 +62,20 @@
 .library-header-icon {
   width: 56px; height: 56px;
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(119,56,203,0.45) 0%, rgba(77,112,255,0.45) 100%);
-  border: 1px solid rgba(119,56,203,0.4);
+  background: var(--grad-135);
+  border: 1px solid var(--hairline);
   display: flex; align-items: center; justify-content: center;
   color: #fff;
   box-shadow: 0 0 30px rgba(119,56,203,0.3);
   flex-shrink: 0;
 }
 .library-title {
-  font-size: 32px;
+  font-family: var(--font-display);
+  font-size: 30px;
   font-weight: 700;
+  letter-spacing: -0.01em;
   margin: 0 0 4px;
-  background: linear-gradient(135deg, #fff 0%, #C4A0FF 60%, #fff 100%);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: shimmer 4s linear infinite;
+  color: #fff;
 }
 @keyframes shimmer { to { background-position: 200% center; } }
 
@@ -93,9 +90,9 @@
 .lib-add-btn {
   display: flex; align-items: center; gap: 10px;
   padding: 14px 28px;
-  background: linear-gradient(135deg, #7738CB 0%, #4D70FF 100%);
+  background: var(--grad-135);
   border: none; border-radius: 14px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600; font-size: 14px; color: #fff;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
@@ -132,9 +129,9 @@
 
 .lib-tabs {
   display: flex; gap: 8px;
-  background: rgba(30,10,60,0.5);
+  background: rgba(255,255,255,0.04);
   backdrop-filter: blur(14px);
-  border: 1px solid rgba(119,56,203,0.2);
+  border: 1px solid var(--hairline-soft);
   border-radius: 14px;
   padding: 6px;
 }
@@ -142,7 +139,7 @@
   display: flex; align-items: center; gap: 8px;
   padding: 10px 20px;
   border-radius: 10px; border: none;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-size: 13px; font-weight: 500;
   color: rgba(255,255,255,0.55);
   background: transparent;
@@ -154,7 +151,7 @@
 .lib-tab.active {
   color: #fff;
   background: rgba(255,255,255,0.1);
-  box-shadow: 0 0 0 1px var(--tab-color, #7738CB), inset 0 0 20px rgba(255,255,255,0.04);
+  box-shadow: 0 0 0 1px var(--tab-color, var(--grad-a)), inset 0 0 20px rgba(255,255,255,0.04);
 }
 .lib-tab-icon { opacity: 0.8; display: flex; }
 .lib-tab-count {
@@ -173,9 +170,9 @@
   position: relative;
   display: flex; align-items: center;
   flex: 1; max-width: 340px;
-  background: rgba(61,17,98,0.45);
+  background: rgba(255,255,255,0.05);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(119,56,203,0.25);
+  border: 1px solid var(--hairline-soft);
   border-radius: 12px;
   padding: 0 14px;
   transition: border-color 0.25s, box-shadow 0.25s;
@@ -183,14 +180,14 @@
   color: rgba(255,255,255,0.4);
 }
 .lib-search:focus-within {
-  border-color: rgba(119,56,203,0.6);
-  box-shadow: 0 0 0 3px rgba(119,56,203,0.12);
+  border-color: var(--grad-a);
+  box-shadow: 0 0 0 3px rgba(119,56,203,0.16);
   color: rgba(255,255,255,0.7);
 }
 .lib-search input {
   flex: 1;
   background: transparent; border: none; outline: none;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-size: 13px; color: #fff;
   padding: 12px 0;
 }
@@ -252,9 +249,9 @@
 .lib-empty-cta {
   display: flex; align-items: center; gap: 8px;
   margin-top: 8px; padding: 12px 24px;
-  background: linear-gradient(135deg, var(--tab-color, #7738CB) 0%, rgba(77,112,255,0.9) 100%);
+  background: linear-gradient(135deg, var(--tab-color, var(--grad-a)) 0%, rgba(77,112,255,0.9) 100%);
   border: none; border-radius: 12px;
-  font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 13px; color: #fff;
+  font-family: var(--font-display); font-weight: 600; font-size: 13px; color: #fff;
   cursor: pointer;
   box-shadow: 0 4px 20px rgba(119,56,203,0.3);
   transition: all 0.3s ease;
@@ -269,9 +266,9 @@
 }
 
 .lib-card {
-  background: rgba(61,17,98,0.35);
+  background: rgba(255,255,255,0.04);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(119,56,203,0.2);
+  border: 1px solid var(--hairline-soft);
   border-radius: 18px;
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
@@ -282,16 +279,16 @@
 .lib-card::before {
   content: '';
   position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, var(--card-border, #7738CB), transparent 60%);
+  background: linear-gradient(90deg, var(--card-border, var(--grad-a)), transparent 60%);
   opacity: 0;
   transition: opacity 0.3s;
 }
 .lib-card:hover::before { opacity: 1; }
 .lib-card:hover {
-  border-color: color-mix(in srgb, var(--card-border, #7738CB) 60%, transparent);
+  border-color: color-mix(in srgb, var(--card-border, var(--grad-a)) 60%, transparent);
   transform: translateY(-4px);
-  box-shadow: 0 16px 40px rgba(0,0,0,0.3), 0 0 0 1px color-mix(in srgb, var(--card-border, #7738CB) 25%, transparent);
-  background: rgba(61,17,98,0.55);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.3), 0 0 0 1px color-mix(in srgb, var(--card-border, var(--grad-a)) 25%, transparent);
+  background: rgba(255,255,255,0.06);
 }
 @keyframes cardIn {
   from { opacity: 0; transform: translateY(14px); }
@@ -335,7 +332,7 @@
   padding: 8px;
   border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);
   background: transparent;
-  font-family: 'Poppins', sans-serif; font-size: 12px; font-weight: 500;
+  font-family: var(--font-display); font-size: 12px; font-weight: 500;
   color: rgba(255,255,255,0.55);
   cursor: pointer;
   transition: all 0.2s ease;
@@ -353,22 +350,22 @@
 
 /* ── Add-new ghost card ─────────────────────────────────────────── */
 .lib-card-add {
-  background: transparent;
-  border: 2px dashed rgba(119,56,203,0.3);
+  background: rgba(255,255,255,0.02);
+  border: 1.5px dashed var(--hairline);
   display: flex; align-items: center; justify-content: center;
   min-height: 180px;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 .lib-card-add:hover {
-  border-color: var(--card-border, #7738CB);
+  border-color: var(--card-border, var(--grad-a));
   background: rgba(119,56,203,0.07);
   transform: translateY(-4px);
 }
 .lib-card-add-inner {
   display: flex; flex-direction: column; align-items: center; gap: 14px;
   color: rgba(255,255,255,0.45);
-  font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 500;
+  font-family: var(--font-display); font-size: 13px; font-weight: 500;
   transition: color 0.3s;
 }
 .lib-card-add:hover .lib-card-add-inner { color: rgba(255,255,255,0.85); }
@@ -379,7 +376,7 @@
   transition: all 0.3s ease;
 }
 .lib-card-add:hover .lib-card-add-circle {
-  background: linear-gradient(135deg, #7738CB 0%, #4D70FF 100%) !important;
+  background: var(--grad-135) !important;
   transform: rotate(90deg) scale(1.1);
   color: #fff;
   box-shadow: 0 6px 20px rgba(119,56,203,0.4);
@@ -397,8 +394,8 @@
 @keyframes fadeOverlay { from { opacity: 0; } to { opacity: 1; } }
 
 .lib-modal {
-  background: linear-gradient(145deg, rgba(50,15,90,0.95) 0%, rgba(30,10,60,0.98) 100%);
-  border: 1px solid rgba(119,56,203,0.35);
+  background: linear-gradient(180deg, rgba(28,18,48,0.97), rgba(16,11,26,0.98));
+  border: 1px solid var(--hairline);
   border-radius: 22px;
   width: 100%; max-width: 520px;
   box-shadow: 0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
@@ -444,18 +441,18 @@
 }
 .lib-form-input {
   width: 100%; box-sizing: border-box;
-  background: rgba(79,25,125,0.35);
-  border: 1px solid rgba(119,56,203,0.25);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--hairline-soft);
   border-radius: 12px;
   padding: 13px 16px;
-  font-family: 'Poppins', sans-serif; font-size: 14px; color: #fff;
+  font-family: var(--font-body); font-size: 15px; color: #fff;
   transition: border-color 0.25s, box-shadow 0.25s;
   outline: none;
 }
 .lib-form-input:focus {
-  border-color: rgba(119,56,203,0.7);
-  box-shadow: 0 0 0 3px rgba(119,56,203,0.15);
-  background: rgba(79,25,125,0.5);
+  border-color: var(--grad-a);
+  box-shadow: 0 0 0 3px rgba(119,56,203,0.16);
+  background: rgba(255,255,255,0.07);
 }
 .lib-form-input::placeholder { color: rgba(255,255,255,0.3); }
 .lib-form-textarea { resize: vertical; min-height: 120px; line-height: 1.6; }
@@ -475,7 +472,7 @@
 .lib-modal-cancel {
   padding: 11px 22px; border-radius: 11px;
   background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
-  font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.65);
+  font-family: var(--font-display); font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.65);
   cursor: pointer; transition: all 0.2s;
 }
 .lib-modal-cancel:hover { background: rgba(255,255,255,0.1); color: #fff; }
@@ -483,8 +480,8 @@
 
 .lib-modal-save {
   padding: 11px 26px; border-radius: 11px; border: none;
-  background: linear-gradient(135deg, var(--modal-color, #7738CB) 0%, #4D70FF 100%);
-  font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 600; color: #fff;
+  background: linear-gradient(135deg, var(--modal-color, var(--grad-a)) 0%, var(--grad-b) 100%);
+  font-family: var(--font-display); font-size: 13px; font-weight: 600; color: #fff;
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(119,56,203,0.3);
   transition: all 0.25s ease;
@@ -495,7 +492,7 @@
 .lib-modal-delete {
   padding: 11px 26px; border-radius: 11px; border: none;
   background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
-  font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 600; color: #fff;
+  font-family: var(--font-display); font-size: 13px; font-weight: 600; color: #fff;
   cursor: pointer; box-shadow: 0 4px 16px rgba(239,68,68,0.3);
   transition: all 0.25s;
 }
@@ -510,8 +507,8 @@
 .lib-toast {
   position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
   z-index: 2000;
-  background: linear-gradient(135deg, rgba(30,10,60,0.97) 0%, rgba(50,15,90,0.97) 100%);
-  border: 1px solid rgba(119,56,203,0.45);
+  background: rgba(22, 14, 36, 0.98);
+  border: 1px solid var(--hairline);
   backdrop-filter: blur(16px);
   border-radius: 14px;
   padding: 14px 24px;
@@ -523,7 +520,7 @@
 }
 .lib-toast span:first-child {
   width: 22px; height: 22px; border-radius: 50%;
-  background: linear-gradient(135deg, #7738CB, #4D70FF);
+  background: var(--grad-135);
   display: flex; align-items: center; justify-content: center;
   font-size: 13px; flex-shrink: 0;
 }

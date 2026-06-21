@@ -6,7 +6,7 @@
   padding: 10px 14px;
   margin-bottom: 14px;
   color: #FF6B6B;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 500;
   font-size: 12px;
   text-align: center;
@@ -75,13 +75,13 @@
 }
 
 .popup-modal {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(28, 18, 48, 0.97), rgba(16, 11, 26, 0.98));
+  border-radius: 20px;
   padding: 28px;
   max-width: 380px;
   width: 90%;
-  box-shadow: 0px 8px 32px rgba(146, 94, 213, 0.3);
-  border: 1px solid rgba(146, 94, 213, 0.25);
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--hairline);
   text-align: center;
   animation: popupSlideIn 0.3s ease-out;
 }
@@ -101,7 +101,7 @@
   margin: 0 auto 16px;
   width: 56px;
   height: 56px;
-  background: rgba(146, 94, 213, 0.1);
+  background: rgba(119, 56, 203, 0.16);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -109,41 +109,41 @@
 }
 
 .popup-modal h2 {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-size: 20px;
   font-weight: 700;
-  color: #FFF8FF;
+  color: #fff;
   margin-bottom: 14px;
 }
 
 .popup-message {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-size: 13px;
-  color: #BEBEBE;
+  color: var(--ink-55);
   margin-bottom: 10px;
   line-height: 1.5;
 }
 
 .popup-message strong {
-  color: #925ED5;
+  color: var(--grad-b);
   font-weight: 600;
 }
 
 .popup-submessage {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-size: 12px;
-  color: rgba(155, 155, 155, 0.9);
+  color: var(--ink-40);
   margin-bottom: 20px;
   line-height: 1.5;
 }
 
 .popup-btn {
-  background: linear-gradient(135deg, #925ED5 0%, #7C3AED 100%);
-  color: #FFF8FF;
+  background: var(--grad-135);
+  color: #fff;
   border: none;
   border-radius: 10px;
   padding: 10px 28px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -196,7 +196,7 @@
 }
 
 .strength-label {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
@@ -215,7 +215,7 @@
 }
 
 .strength-requirements p {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-size: 10px;
   color: rgba(153, 153, 153, 0.9);
   margin-bottom: 4px;
@@ -231,7 +231,7 @@
 .requirement-item {
   display: flex;
   align-items: center;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-size: 10px;
   color: #ff6b6b;
   margin-bottom: 3px;
@@ -253,7 +253,7 @@
 }
 
 .match-indicator {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-size: 11px;
   font-weight: 500;
   display: flex;

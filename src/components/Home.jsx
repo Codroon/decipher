@@ -4,10 +4,45 @@ import './Home.css'
 import * as storyService from '../services/storyService'
 import * as scenarioService from '../services/scenarioService'
 
+const FlameIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1 3-1 5-2 6-1.5 1.5-2 3-2 4a4 4 0 0 0 8 0c0-1.2-.5-2.3-1-3 2 1 3 3 3 5a6 6 0 0 1-12 0c0-4 3-6 4-8 1-1.6 2-2.8 2-4z"/></svg>
+)
+
+const PlayIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+)
+
+const FEATURED = [
+  {
+    image: '/fantasy-art-style.png',
+    rank: 'Trending #1',
+    title: 'Beneath the Obsidian Moon',
+    tags: ['Dark Fantasy', 'Romance'],
+    desc: 'A forbidden romance unfolds in a kingdom cloaked in eternal twilight. Your choices decide who survives the night.',
+  },
+  {
+    image: '/recent-image-3.png',
+    rank: 'Trending #2',
+    title: 'The Crystalsong Wyrm',
+    tags: ['High Fantasy', 'Adventure'],
+    desc: 'Descend into the singing caverns where an ancient dragon guards a power that could remake the world — or end it.',
+  },
+  {
+    image: '/Group 7.png',
+    rank: 'Trending #3',
+    title: 'Gates of Eldenvale',
+    tags: ['Fantasy', 'Mystery'],
+    desc: 'The golden city has stood for a thousand years. Tonight its gates open for you — and nothing is as it seems.',
+  },
+]
+
+const FEATURED_DURATION = 6000
+
 function Home() {
   const navigate = useNavigate()
   const [showBanner, setShowBanner] = useState(true)
-  const [currentCarouselIndex, setCurrentCarouselIndex] = useState(2)
+  const [activeFeatured, setActiveFeatured] = useState(0)
+  const [featuredPaused, setFeaturedPaused] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [userStories, setUserStories] = useState([])
   const [userScenarios, setUserScenarios] = useState([])
@@ -85,22 +120,16 @@ function Home() {
     fetchUserScenarios()
   }, [])
 
-  const carouselImages = [
-    "/ai_storytelling_platform_balanced 1.png",
-    "/Group 7.png",
-    "/ai_storytelling_platform_balanced 5.png",
-    "/ai_storytelling_platform_balanced 1.png",
-    "/Group 7.png"
-  ]
+  // Auto-advance the featured hero carousel (pauses on hover / reduced motion)
+  useEffect(() => {
+    if (featuredPaused) return
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const id = setTimeout(() => {
+      setActiveFeatured((prev) => (prev + 1) % FEATURED.length)
+    }, FEATURED_DURATION)
+    return () => clearTimeout(id)
+  }, [activeFeatured, featuredPaused])
 
-  const handleCarouselPrev = () => {
-    setCurrentCarouselIndex((prev) => (prev > 0 ? prev - 1 : carouselImages.length - 1))
-  }
-
-  const handleCarouselNext = () => {
-    setCurrentCarouselIndex((prev) => (prev < carouselImages.length - 1 ? prev + 1 : 0))
-  }
-  
   const handlePlayStory = (storyId) => {
     navigate(`/story-creator/${storyId}`)
   }
@@ -131,55 +160,49 @@ function Home() {
         </div>
       )}
 
-      {/* Hero Section */}
+      {/* Hero Section — cinematic featured carousel */}
       <div className="hero-section">
-        <div className="hero-content">
-          <h1 className="hero-title">
-            Create, <span className="highlight-purple">Explore</span> And Live
-            <br />
-            Infinite Stories With <span className="highlight-purple">AI</span>
-          </h1>
-          <button className="start-adventure-btn">Start Adventure</button>
-        </div>
+        <div
+          className="feat"
+          onMouseEnter={() => setFeaturedPaused(true)}
+          onMouseLeave={() => setFeaturedPaused(false)}
+        >
+          {FEATURED.map((slide, index) => (
+            <div className={`feat-slide ${index === activeFeatured ? 'show' : ''}`} key={index}>
+              <img src={slide.image} alt={slide.title} />
+              <div className="feat-grad"></div>
+            </div>
+          ))}
 
-        {/* Image Carousel */}
-        <div className="image-carousel">
-          <button className="carousel-arrow carousel-left" onClick={handleCarouselPrev}>
-            <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 18l-6-6 6-6"/>
-            </svg>
-          </button>
-
-          <div className="carousel-track">
-            {carouselImages.map((image, index) => {
-              const position = index - currentCarouselIndex
-              let className = 'carousel-item'
-              
-              if (position === 0) className += ' active'
-              else if (position === -1) className += ' prev-1'
-              else if (position === -2) className += ' prev'
-              else if (position === 1) className += ' next-1'
-              else if (position === 2) className += ' next'
-              // Handle wrap-around
-              else if (position === carouselImages.length - 1) className += ' prev'
-              else if (position === carouselImages.length - 2) className += ' prev-1'
-              else if (position === -(carouselImages.length - 1)) className += ' next'
-              else if (position === -(carouselImages.length - 2)) className += ' next-1'
-              else className += ' hidden'
-
-              return (
-                <div key={index} className={className}>
-                  <img src={image} alt={`Story ${index + 1}`} />
-                </div>
-              )
-            })}
+          <div className="feat-body" key={activeFeatured}>
+            <span className="feat-badge"><FlameIcon /> {FEATURED[activeFeatured].rank}</span>
+            <div className="feat-meta">
+              {FEATURED[activeFeatured].tags.map((tag) => (
+                <span className="feat-tag" key={tag}>{tag}</span>
+              ))}
+            </div>
+            <h1 className="feat-title">{FEATURED[activeFeatured].title}</h1>
+            <p className="feat-desc">{FEATURED[activeFeatured].desc}</p>
+            <div className="feat-cta">
+              <button className="btn btn-primary btn-lg" onClick={() => navigate('/story-creator')}>
+                <PlayIcon /> Start Adventure
+              </button>
+              <button className="btn btn-ghost btn-lg">Details</button>
+            </div>
           </div>
 
-          <button className="carousel-arrow carousel-right" onClick={handleCarouselNext}>
-            <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 18l6-6-6-6"/>
-            </svg>
-          </button>
+          <div className="feat-dots">
+            {FEATURED.map((_, index) => (
+              <button
+                className={`feat-dot ${index === activeFeatured ? 'active' : ''} ${featuredPaused ? 'paused' : ''}`}
+                key={index}
+                onClick={() => setActiveFeatured(index)}
+                aria-label={`Slide ${index + 1}`}
+              >
+                <i key={`${index}-${activeFeatured}`} style={{ animationDuration: `${FEATURED_DURATION}ms` }}></i>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

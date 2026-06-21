@@ -3,8 +3,8 @@
   position: relative;
   width: 100%;
   min-height: 100vh;
-  background: linear-gradient(145.07deg, #3D1162 -2.32%, #0B0A10 100.33%);
-  padding-top: var(--navbar-height, 64px);
+  background: transparent;
+  padding-top: var(--navbar-height, 72px);
   color: #FFFFFF;
 }
 
@@ -15,7 +15,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(145.07deg, #3D1162 -2.32%, #0B0A10 100.33%);
+  background: rgba(6, 4, 10, 0.82);
+  backdrop-filter: blur(12px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -38,8 +39,8 @@
 .creation-wizard {
   max-width: 600px;
   width: 100%;
-  background: rgba(61, 17, 98, 0.7);
-  border: 1px solid rgba(119, 56, 203, 0.5);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--hairline);
   box-shadow: 0px 0px 32px rgba(146, 94, 213, 0.4);
   border-radius: 14px;
   padding: 28px;
@@ -65,7 +66,7 @@
   justify-content: space-between;
   margin-bottom: 24px;
   padding-bottom: 16px;
-  border-bottom: 1px solid rgba(119, 56, 203, 0.3);
+  border-bottom: 1px solid var(--hairline-soft);
 }
 
 .back-button-wizard {
@@ -87,7 +88,7 @@
 }
 
 .wizard-title {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: 20px;
   line-height: 1.3;
@@ -106,12 +107,12 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: rgba(79, 25, 125, 0.5);
-  border: 2px solid rgba(119, 56, 203, 0.5);
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid var(--hairline);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 12px;
   color: #FFFFFF;
@@ -119,8 +120,8 @@
 }
 
 .wizard-step-indicator span.active {
-  background: linear-gradient(90deg, #7738CB 0%, #4D70FF 100%);
-  border-color: #4D70FF;
+  background: var(--grad);
+  border-color: var(--grad-b);
   box-shadow: 0px 0px 12px rgba(77, 112, 255, 0.5);
 }
 
@@ -142,7 +143,7 @@
 }
 
 .step-title {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: 18px;
   line-height: 1.4;
@@ -152,7 +153,7 @@
 }
 
 .step-subtitle {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   font-size: 13px;
   line-height: 1.5;
@@ -170,8 +171,8 @@
 }
 
 .option-card {
-  background: rgba(79, 25, 125, 0.6);
-  border: 1px solid rgba(119, 56, 203, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--hairline);
   border-radius: 10px;
   padding: 18px 14px;
   display: flex;
@@ -190,8 +191,8 @@
 }
 
 .option-card.selected {
-  background: linear-gradient(135deg, #7738CB 0%, #4D70FF 100%);
-  border-color: #4D70FF;
+  background: var(--grad-135);
+  border-color: var(--grad-b);
   box-shadow: 0px 0px 20px rgba(77, 112, 255, 0.5);
   transform: translateY(-3px);
 }
@@ -202,7 +203,7 @@
 }
 
 .option-name {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 13px;
   line-height: 1.4;
@@ -233,11 +234,11 @@
 .custom-input {
   flex: 1;
   height: 44px;
-  background: rgba(79, 25, 125, 0.6);
-  border: 1px solid rgba(119, 56, 203, 0.5);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--hairline);
   border-radius: 10px;
   padding: 0 16px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   font-size: 14px;
   color: #FFFFFF;
@@ -246,7 +247,7 @@
 
 .custom-input:focus {
   outline: none;
-  border-color: #7738CB;
+  border-color: var(--grad-a);
   box-shadow: 0px 0px 12px rgba(119, 56, 203, 0.3);
 }
 
@@ -257,10 +258,10 @@
 .wizard-next-btn {
   height: 44px;
   padding: 0 24px;
-  background: linear-gradient(90deg, #7738CB 0%, #4D70FF 100%);
+  background: var(--grad);
   border: none;
   border-radius: 22px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 14px;
   color: #FFFFFF;
@@ -291,11 +292,11 @@
 .name-input {
   width: 100%;
   height: 48px;
-  background: rgba(79, 25, 125, 0.6);
-  border: 1px solid rgba(119, 56, 203, 0.5);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--hairline);
   border-radius: 10px;
   padding: 0 18px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   font-size: 15px;
   color: #FFFFFF;
@@ -305,7 +306,7 @@
 
 .name-input:focus {
   outline: none;
-  border-color: #7738CB;
+  border-color: var(--grad-a);
   box-shadow: 0px 0px 16px rgba(119, 56, 203, 0.3);
 }
 
@@ -315,10 +316,10 @@
 
 .wizard-create-btn {
   height: 48px;
-  background: linear-gradient(90deg, #7738CB 0%, #4D70FF 100%);
+  background: var(--grad);
   border: none;
   border-radius: 24px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 15px;
   color: #FFFFFF;
@@ -357,7 +358,7 @@
 }
 
 .error-message {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-size: 12px;
   color: #ff6b6b;
   text-align: center;
@@ -370,8 +371,8 @@
 
 .creation-summary {
   padding: 18px;
-  background: rgba(79, 25, 125, 0.5);
-  border: 1px solid rgba(119, 56, 203, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--hairline-soft);
   border-radius: 10px;
   display: flex;
   flex-direction: column;
@@ -379,7 +380,7 @@
 }
 
 .creation-summary p {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-size: 13px;
   color: #FFFFFF;
   margin: 0;
@@ -438,7 +439,7 @@
 }
 
 .story-title {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: 22px;
   line-height: 1.3;
@@ -449,7 +450,7 @@
 }
 
 .story-subtitle {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   font-size: 14px;
   line-height: 1.5;
@@ -468,7 +469,7 @@
   gap: 8px;
   min-width: 100px;
   height: 44px;
-  background: linear-gradient(90deg, #7738CB 0%, #4D70FF 100%);
+  background: var(--grad);
   box-shadow: 0px 0px 12px rgba(146, 94, 213, 0.4);
   border-radius: 22px;
   border: none;
@@ -489,7 +490,7 @@
 }
 
 .save-button span {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 14px;
   line-height: 1;
@@ -502,7 +503,7 @@
   position: relative;
   width: 100%;
   padding: 24px 0 16px;
-  border-bottom: 1px solid rgba(61, 17, 98, 0.5);
+  border-bottom: 1px solid var(--hairline-soft);
 }
 
 .tabs-container {
@@ -535,7 +536,7 @@
 }
 
 .tab-btn span {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 14px;
   line-height: 1.4;
@@ -569,8 +570,8 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: rgba(61, 17, 98, 0.8);
-  border: 1px solid rgba(119, 56, 203, 0.4);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--hairline);
   box-shadow: 0px 0px 24px rgba(146, 94, 213, 0.3);
   border-radius: 14px;
   overflow: hidden;
@@ -588,7 +589,7 @@
 }
 
 .chapter-info h2 {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 20px;
   line-height: 1.4;
@@ -598,7 +599,7 @@
 }
 
 .last-updated {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   font-size: 13px;
   line-height: 1.4;
@@ -657,19 +658,19 @@
 
 .story-text {
   width: 100%;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-body);
   font-weight: 400;
-  font-size: 14px;
-  line-height: 1.7;
+  font-size: 15px;
+  line-height: 1.75;
   text-align: left;
   letter-spacing: -0.01em;
-  color: #FFFFFF;
+  color: rgba(255, 255, 255, 0.9);
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: 12px;
   scrollbar-width: thin;
-  scrollbar-color: #7738CB #4F197D;
+  scrollbar-color: var(--grad-a) rgba(255, 255, 255, 0.06);
   min-height: 0;
   max-height: 100%;
 }
@@ -679,7 +680,7 @@
 }
 
 .story-text::-webkit-scrollbar-track {
-  background: rgba(79, 25, 125, 0.5);
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 4px;
 }
 
@@ -721,7 +722,7 @@
 
 .chunk-display-wrapper:hover {
   background: rgba(119, 56, 203, 0.12);
-  border-color: rgba(119, 56, 203, 0.4);
+  border-color: var(--hairline);
   box-shadow: 0px 0px 8px rgba(119, 56, 203, 0.2);
   transform: scale(1.01);
 }
@@ -755,8 +756,8 @@
   position: absolute;
   top: 10px;
   right: 10px;
-  background: rgba(79, 25, 125, 0.8);
-  border: 1px solid rgba(119, 56, 203, 0.5);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--hairline);
   border-radius: 50%;
   width: 32px;
   height: 32px;
@@ -781,7 +782,7 @@
 
 .chunk-audio-btn:has(.audio-loading-spinner) {
   opacity: 1; /* Keep it visible even when not hovering if it's loading */
-  background: rgba(79, 25, 125, 0.4);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .audio-loading-spinner {
@@ -812,8 +813,8 @@
 .inline-edit-container {
   margin-bottom: 20px;
   padding: 16px;
-  background: rgba(79, 25, 125, 0.3);
-  border: 1px solid rgba(119, 56, 203, 0.5);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--hairline);
   border-radius: 10px;
   animation: slideDown 0.3s ease;
   flex-shrink: 0;
@@ -822,11 +823,11 @@
 .inline-edit-textarea {
   width: 100%;
   min-height: 120px;
-  background: rgba(79, 25, 125, 0.6);
-  border: 1px solid rgba(77, 112, 255, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--hairline-soft);
   border-radius: 8px;
   padding: 12px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   font-size: 14px;
   line-height: 1.7;
@@ -838,7 +839,7 @@
 
 .inline-edit-textarea:focus {
   outline: none;
-  border-color: #7738CB;
+  border-color: var(--grad-a);
   box-shadow: 0px 0px 12px rgba(119, 56, 203, 0.3);
 }
 
@@ -854,10 +855,10 @@
 
 .inline-save-btn {
   padding: 8px 20px;
-  background: linear-gradient(90deg, #7738CB 0%, #4D70FF 100%);
+  background: var(--grad);
   border: none;
   border-radius: 8px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 13px;
   color: #FFFFFF;
@@ -879,9 +880,9 @@
 .inline-cancel-btn {
   padding: 8px 20px;
   background: transparent;
-  border: 1px solid rgba(119, 56, 203, 0.5);
+  border: 1px solid var(--hairline);
   border-radius: 8px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 500;
   font-size: 13px;
   color: #FFFFFF;
@@ -908,7 +909,7 @@
   min-height: 280px;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: #7738CB #4F197D;
+  scrollbar-color: var(--grad-a) rgba(255, 255, 255, 0.06);
 }
 
 .tab-content-area::-webkit-scrollbar {
@@ -916,12 +917,12 @@
 }
 
 .tab-content-area::-webkit-scrollbar-track {
-  background: rgba(79, 25, 125, 0.5);
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 3px;
 }
 
 .tab-content-area::-webkit-scrollbar-thumb {
-  background: #7738CB;
+  background: var(--grad-a);
   border-radius: 3px;
 }
 
@@ -938,8 +939,8 @@
 }
 
 .content-card {
-  background: rgba(79, 25, 125, 0.6);
-  border: 1px solid rgba(77, 112, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--hairline-soft);
   border-radius: 10px;
   padding: 18px 14px;
   transition: all 0.2s ease;
@@ -964,7 +965,7 @@
 .content-card:hover {
   transform: translateY(-3px);
   box-shadow: 0px 0px 16px rgba(77, 112, 255, 0.4);
-  border-color: rgba(119, 56, 203, 0.5);
+  border-color: var(--hairline);
 }
 
 
@@ -983,7 +984,7 @@
 }
 
 .content-card-header h3 {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 14px;
   line-height: 1.4;
@@ -992,7 +993,7 @@
 }
 
 .content-description {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   font-size: 12px;
   line-height: 1.5;
@@ -1026,7 +1027,7 @@
 }
 
 .empty-state p {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   font-size: 14px;
   line-height: 1.5;
@@ -1048,8 +1049,8 @@
   flex: 1;
   min-width: 200px;
   min-height: 70px;
-  background: rgba(79, 25, 125, 0.6);
-  border: 1px solid rgba(77, 112, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--hairline-soft);
   border-radius: 10px;
   padding: 16px 14px;
   cursor: pointer;
@@ -1060,13 +1061,13 @@
   justify-content: center;
   align-items: center;
   gap: 6px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
 }
 
 .action-btn:hover:not(:disabled) {
   transform: translateY(-3px);
   background: rgba(77, 112, 255, 0.1);
-  border-color: rgba(77, 112, 255, 0.4);
+  border-color: var(--hairline);
 }
 
 .action-btn:disabled {
@@ -1075,7 +1076,7 @@
 }
 
 .action-btn h3 {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 14px;
   line-height: 1.4;
@@ -1086,7 +1087,7 @@
 }
 
 .action-btn p {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   font-size: 11px;
   line-height: 1.4;
@@ -1097,7 +1098,7 @@
 }
 
 .action-btn>span {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 500;
   font-size: 13px;
   line-height: 1.4;
@@ -1130,11 +1131,11 @@
 .player-action-input {
   width: 100%;
   height: 48px;
-  background: rgba(79, 25, 125, 0.5);
-  border: 1px solid rgba(119, 56, 203, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--hairline);
   border-radius: 10px;
   padding: 0 52px 0 16px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   font-size: 14px;
   color: #FFFFFF;
@@ -1147,9 +1148,9 @@
 
 .player-action-input:focus {
   outline: none;
-  border-color: #7738CB;
+  border-color: var(--grad-a);
   box-shadow: 0px 0px 16px rgba(119, 56, 203, 0.35);
-  background: rgba(79, 25, 125, 0.7);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .player-action-input::placeholder {
@@ -1225,7 +1226,7 @@
   margin: 8px 0 0;
   font-size: 12px;
   color: #ff8a8a;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
 }
 
 .player-action-clear {
@@ -1259,8 +1260,8 @@
 
 /* Continue Action Button - highlighted when action is present */
 .continue-action-btn {
-  background: rgba(79, 25, 125, 0.6);
-  border: 1px solid rgba(77, 112, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--hairline-soft);
   transition: all 0.3s ease;
 }
 
@@ -1290,7 +1291,7 @@
 .clarification-modal {
   max-width: 480px;
   width: 100%;
-  background: rgba(61, 17, 98, 0.9);
+  background: rgba(20, 13, 32, 0.95);
   border: 1px solid rgba(119, 56, 203, 0.6);
   box-shadow: 0px 0px 40px rgba(146, 94, 213, 0.5), 0px 0px 80px rgba(77, 112, 255, 0.15);
   border-radius: 16px;
@@ -1303,7 +1304,7 @@
   font-size: 42px;
   line-height: 1;
   margin-bottom: 16px;
-  color: #4D70FF;
+  color: var(--grad-b);
   text-shadow: 0px 0px 20px rgba(77, 112, 255, 0.6);
   animation: pulse 2s ease-in-out infinite;
 }
@@ -1323,7 +1324,7 @@
 }
 
 .clarification-title {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: 22px;
   line-height: 1.3;
@@ -1332,7 +1333,7 @@
 }
 
 .clarification-text {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   font-size: 15px;
   line-height: 1.7;
@@ -1345,11 +1346,11 @@
 .clarification-input {
   width: 100%;
   min-height: 80px;
-  background: rgba(79, 25, 125, 0.5);
-  border: 1px solid rgba(119, 56, 203, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--hairline);
   border-radius: 10px;
   padding: 14px 16px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   font-size: 14px;
   line-height: 1.6;
@@ -1361,9 +1362,9 @@
 
 .clarification-input:focus {
   outline: none;
-  border-color: #7738CB;
+  border-color: var(--grad-a);
   box-shadow: 0px 0px 16px rgba(119, 56, 203, 0.35);
-  background: rgba(79, 25, 125, 0.7);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .clarification-input::placeholder {
@@ -1382,9 +1383,9 @@
   height: 46px;
   padding: 0 24px;
   background: transparent;
-  border: 1px solid rgba(119, 56, 203, 0.5);
+  border: 1px solid var(--hairline);
   border-radius: 23px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 500;
   font-size: 14px;
   color: rgba(255, 255, 255, 0.8);
@@ -1400,10 +1401,10 @@
 .clarification-submit-btn {
   height: 46px;
   padding: 0 30px;
-  background: linear-gradient(90deg, #7738CB 0%, #4D70FF 100%);
+  background: var(--grad);
   border: none;
   border-radius: 23px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 15px;
   color: #FFFFFF;
@@ -1432,7 +1433,7 @@
 }
 
 .clarification-subtitle {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   font-size: 14px;
   line-height: 1.5;
@@ -1453,7 +1454,7 @@
 .weaving-orb-inner {
   width: 20px;
   height: 20px;
-  background: linear-gradient(135deg, #7738CB, #4D70FF);
+  background: var(--grad-135);
   border-radius: 50%;
   box-shadow: 0px 0px 20px rgba(77, 112, 255, 0.6);
   animation: orbPulse 1.5s ease-in-out infinite;
@@ -1510,8 +1511,8 @@
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  background: rgba(79, 25, 125, 0.6);
-  border: 1px solid rgba(77, 112, 255, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--hairline-soft);
   border-radius: 10px;
   animation: slideDown 0.3s ease;
 }
@@ -1519,11 +1520,11 @@
 .edit-instruction-input {
   width: 100%;
   min-height: 80px;
-  background: rgba(79, 25, 125, 0.5);
-  border: 1px solid rgba(119, 56, 203, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--hairline);
   border-radius: 8px;
   padding: 12px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   font-size: 13px;
   line-height: 1.5;
@@ -1534,7 +1535,7 @@
 
 .edit-instruction-input:focus {
   outline: none;
-  border-color: #7738CB;
+  border-color: var(--grad-a);
   box-shadow: 0px 0px 12px rgba(119, 56, 203, 0.3);
 }
 
@@ -1559,7 +1560,7 @@
   color: #FFFFFF;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 500;
 }
 
@@ -1570,7 +1571,7 @@
 .cancel-edit-btn {
   flex: 1;
   background: transparent;
-  border: 1px solid rgba(119, 56, 203, 0.5);
+  border: 1px solid var(--hairline);
   box-shadow: none;
   min-height: 38px;
   padding: 8px 16px;
@@ -1580,7 +1581,7 @@
   color: #FFFFFF;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 500;
 }
 
@@ -1605,8 +1606,8 @@
 }
 
 .chunk-editor-modal {
-  background: rgba(61, 17, 98, 0.95);
-  border: 1px solid rgba(119, 56, 203, 0.5);
+  background: rgba(20, 13, 32, 0.96);
+  border: 1px solid var(--hairline);
   box-shadow: 0px 0px 32px rgba(146, 94, 213, 0.4);
   border-radius: 14px;
   max-width: 600px;
@@ -1622,11 +1623,11 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px;
-  border-bottom: 1px solid rgba(119, 56, 203, 0.3);
+  border-bottom: 1px solid var(--hairline-soft);
 }
 
 .chunk-editor-header h2 {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: 18px;
   color: #FFFFFF;
@@ -1637,7 +1638,7 @@
   width: 28px;
   height: 28px;
   background: transparent;
-  border: 1px solid rgba(119, 56, 203, 0.5);
+  border: 1px solid var(--hairline);
   border-radius: 50%;
   color: #FFFFFF;
   font-size: 16px;
@@ -1664,15 +1665,15 @@
 }
 
 .chunk-item {
-  background: rgba(79, 25, 125, 0.6);
-  border: 1px solid rgba(77, 112, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--hairline-soft);
   border-radius: 10px;
   padding: 14px;
   transition: all 0.2s ease;
 }
 
 .chunk-item:hover {
-  border-color: rgba(119, 56, 203, 0.5);
+  border-color: var(--hairline);
   box-shadow: 0px 0px 12px rgba(77, 112, 255, 0.3);
 }
 
@@ -1684,7 +1685,7 @@
 }
 
 .chunk-item-header h3 {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 14px;
   color: #FFFFFF;
@@ -1694,10 +1695,10 @@
 .edit-chunk-btn {
   padding: 6px 14px;
   background: transparent;
-  border: 1px solid rgba(77, 112, 255, 0.4);
+  border: 1px solid var(--hairline-soft);
   border-radius: 6px;
   color: #FFFFFF;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 500;
   font-size: 12px;
   cursor: pointer;
@@ -1710,7 +1711,7 @@
 }
 
 .chunk-preview {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-size: 12px;
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.75);
@@ -1724,7 +1725,7 @@
   text-align: center;
   color: rgba(255, 255, 255, 0.6);
   padding: 28px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-size: 14px;
 }
 
@@ -1739,7 +1740,7 @@
 }
 
 .chunk-editor-content h3 {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 16px;
   color: #FFFFFF;
@@ -1749,11 +1750,11 @@
 .chunk-edit-textarea {
   width: 100%;
   min-height: 260px;
-  background: rgba(79, 25, 125, 0.6);
-  border: 1px solid rgba(77, 112, 255, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--hairline-soft);
   border-radius: 10px;
   padding: 14px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   font-size: 13px;
   line-height: 1.6;
@@ -1764,7 +1765,7 @@
 
 .chunk-edit-textarea:focus {
   outline: none;
-  border-color: #7738CB;
+  border-color: var(--grad-a);
   box-shadow: 0px 0px 12px rgba(119, 56, 203, 0.3);
 }
 
@@ -1781,7 +1782,7 @@
 .save-chunk-btn {
   flex: 1;
   min-width: 100px;
-  background: linear-gradient(90deg, #7738CB 0%, #4D70FF 100%);
+  background: var(--grad);
   min-height: 38px;
   padding: 8px 16px;
   font-size: 13px;
@@ -1791,7 +1792,7 @@
   color: #FFFFFF;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 500;
 }
 
@@ -1808,7 +1809,7 @@
   border-radius: 19px;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 500;
 }
 
@@ -1820,7 +1821,7 @@
   flex: 1;
   min-width: 100px;
   background: transparent;
-  border: 1px solid rgba(119, 56, 203, 0.5);
+  border: 1px solid var(--hairline);
   min-height: 38px;
   padding: 8px 16px;
   font-size: 13px;
@@ -1829,7 +1830,7 @@
   color: #FFFFFF;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 500;
 }
 
@@ -1857,7 +1858,7 @@
 }
 
 .loading-story-container p {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 16px;
   color: #FFFFFF;
@@ -1881,8 +1882,8 @@
 }
 
 .sidebar-card {
-  background: rgba(61, 17, 98, 0.8);
-  border: 1px solid rgba(119, 56, 203, 0.4);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--hairline);
   box-shadow: 0px 0px 12px rgba(255, 248, 255, 0.1);
   border-radius: 14px;
   padding: 18px 16px;
@@ -1903,7 +1904,7 @@
 }
 
 .card-header h3 {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 14px;
   line-height: 1.4;
@@ -1924,11 +1925,11 @@
 .ai-input-area textarea {
   width: 100%;
   min-height: 90px;
-  background: rgba(79, 25, 125, 0.6);
-  border: 1px solid rgba(77, 112, 255, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--hairline-soft);
   border-radius: 10px;
   padding: 12px 14px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   font-size: 13px;
   line-height: 1.5;
@@ -1942,7 +1943,7 @@
 
 .ai-input-area textarea:focus {
   outline: none;
-  border-color: #7738CB;
+  border-color: var(--grad-a);
 }
 
 .ai-buttons {
@@ -1958,7 +1959,7 @@
   justify-content: center;
   align-items: center;
   padding: 8px 16px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 13px;
   line-height: 1;
@@ -1970,7 +1971,7 @@
 }
 
 .send-btn {
-  background: linear-gradient(90deg, #7738CB 0%, #4D70FF 100%);
+  background: var(--grad);
   box-shadow: 0px 0px 10px rgba(255, 248, 255, 0.3);
   border: none;
 }
@@ -1982,7 +1983,7 @@
 
 .clear-btn {
   background: transparent;
-  border: 1px solid rgba(119, 56, 203, 0.5);
+  border: 1px solid var(--hairline);
 }
 
 .clear-btn:hover {
@@ -2006,7 +2007,7 @@
 
 .control-group label {
   display: block;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 500;
   font-size: 12px;
   line-height: 1.4;
@@ -2022,7 +2023,7 @@
 .creativity-slider {
   width: 100%;
   height: 6px;
-  background: rgba(79, 25, 125, 0.8);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 3px;
   outline: none;
   -webkit-appearance: none;
@@ -2035,7 +2036,7 @@
   appearance: none;
   width: 14px;
   height: 14px;
-  background: #7738CB;
+  background: var(--grad-a);
   cursor: pointer;
   border-radius: 50%;
 }
@@ -2043,7 +2044,7 @@
 .creativity-slider::-moz-range-thumb {
   width: 14px;
   height: 14px;
-  background: #7738CB;
+  background: var(--grad-a);
   cursor: pointer;
   border-radius: 50%;
   border: none;
@@ -2055,7 +2056,7 @@
 }
 
 .slider-labels span {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   font-size: 10px;
   line-height: 1.4;
@@ -2073,11 +2074,11 @@
 .select-wrapper select {
   width: 100%;
   height: 40px;
-  background: rgba(79, 25, 125, 0.6);
-  border: 1px solid rgba(77, 112, 255, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--hairline-soft);
   border-radius: 8px;
   padding: 0 32px 0 12px;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-body);
   font-weight: 500;
   font-size: 13px;
   line-height: 1.4;
@@ -2107,7 +2108,7 @@
 
 .select-wrapper select:focus {
   outline: none;
-  border-color: #7738CB;
+  border-color: var(--grad-a);
 }
 
 /* Story Stats Card */
@@ -2128,7 +2129,7 @@
 }
 
 .stat-label {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 500;
   font-size: 12px;
   line-height: 1.4;
@@ -2137,7 +2138,7 @@
 }
 
 .stat-value {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 12px;
   line-height: 1.4;
@@ -2174,12 +2175,20 @@
 
   .story-content-area {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .story-editor {
+    max-height: none;
+    min-height: 600px;
   }
 
   .story-sidebar {
     width: 100%;
     flex-direction: row;
     flex-wrap: wrap;
+    min-height: 0;
+    max-height: none;
   }
 
   .sidebar-card {
@@ -2432,7 +2441,7 @@
 
 .question-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #7738CB 0%, #4D70FF 50%, #925ED5 100%);
+  background: linear-gradient(90deg, var(--grad-a) 0%, var(--grad-b) 50%, #925ED5 100%);
   border-radius: 0 2px 2px 0;
   transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 0 12px rgba(77, 112, 255, 0.5);
@@ -2445,7 +2454,7 @@
   justify-content: center;
   gap: 6px;
   padding: 20px 32px 0;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
 }
 
 .question-step-label {
@@ -2459,7 +2468,7 @@
 .question-step-number {
   font-weight: 700;
   font-size: 14px;
-  color: #4D70FF;
+  color: var(--grad-b);
 }
 
 .question-step-divider {
@@ -2496,7 +2505,7 @@
   font-size: 28px;
   text-align: center;
   margin-bottom: 16px;
-  background: linear-gradient(90deg, #7738CB, #4D70FF);
+  background: linear-gradient(90deg, var(--grad-a), var(--grad-b));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -2518,7 +2527,7 @@
 }
 
 .question-text {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 18px;
   line-height: 1.5;
@@ -2532,10 +2541,10 @@
   width: 100%;
   min-height: 120px;
   background: rgba(11, 10, 16, 0.6);
-  border: 1px solid rgba(119, 56, 203, 0.3);
+  border: 1px solid var(--hairline-soft);
   border-radius: 12px;
   padding: 16px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   font-size: 14px;
   line-height: 1.7;
@@ -2570,9 +2579,9 @@
 .question-back-btn {
   padding: 10px 20px;
   background: transparent;
-  border: 1px solid rgba(119, 56, 203, 0.3);
+  border: 1px solid var(--hairline-soft);
   border-radius: 10px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 500;
   font-size: 13px;
   color: rgba(255, 255, 255, 0.6);
@@ -2581,7 +2590,7 @@
 }
 
 .question-back-btn:hover:not(:disabled) {
-  border-color: rgba(119, 56, 203, 0.5);
+  border-color: var(--hairline);
   color: #FFFFFF;
 }
 
@@ -2592,10 +2601,10 @@
 
 .question-next-btn {
   padding: 12px 28px;
-  background: linear-gradient(90deg, #7738CB 0%, #4D70FF 100%);
+  background: var(--grad);
   border: none;
   border-radius: 10px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 600;
   font-size: 14px;
   color: #FFFFFF;
@@ -2617,12 +2626,12 @@
 /* Awaken Button — signature final button */
 .question-awaken-btn {
   padding: 14px 36px;
-  background: linear-gradient(90deg, #4D70FF 0%, #7738CB 50%, #4D70FF 100%);
+  background: linear-gradient(90deg, var(--grad-b) 0%, var(--grad-a) 50%, var(--grad-b) 100%);
   background-size: 200% 100%;
   animation: awakenShimmer 3s ease-in-out infinite;
   border: none;
   border-radius: 12px;
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: 16px;
   color: #FFFFFF;
@@ -2678,13 +2687,13 @@
 }
 
 .question-dot.active {
-  background: #4D70FF;
+  background: var(--grad-b);
   box-shadow: 0 0 10px rgba(77, 112, 255, 0.5);
   transform: scale(1.3);
 }
 
 .question-dot.completed {
-  background: #7738CB;
+  background: var(--grad-a);
 }
 
 /* ============================================================
@@ -2727,7 +2736,7 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #7738CB, #4D70FF);
+  background: var(--grad-135);
   box-shadow:
     0 0 30px rgba(77, 112, 255, 0.5),
     0 0 60px rgba(119, 56, 203, 0.3);
@@ -2751,7 +2760,7 @@
 .weaving-ring {
   position: absolute;
   border-radius: 50%;
-  border: 1px solid rgba(119, 56, 203, 0.3);
+  border: 1px solid var(--hairline-soft);
   animation: ringExpand 3s ease-in-out infinite;
 }
 
@@ -2790,7 +2799,7 @@
 }
 
 .weaving-title {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: 24px;
   color: #FFFFFF;
@@ -2812,7 +2821,7 @@
 }
 
 .weaving-subtitle {
-  font-family: 'Poppins', sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   font-size: 14px;
   color: rgba(255, 255, 255, 0.5);

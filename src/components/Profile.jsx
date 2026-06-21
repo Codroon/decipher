@@ -44,9 +44,12 @@ function Profile() {
       <div className="profile-content">
         {/* Profile Avatar Section */}
         <div className="profile-avatar-section">
+          <div className="profile-cover" aria-hidden="true"></div>
           <div className="profile-avatar-large">
             <img src={user?.avatar || "/author-avatar-7942f7.png"} alt="Profile" />
           </div>
+          <h2 className="profile-name">{user?.name || 'Adventurer'}</h2>
+          {user?.email && <p className="profile-email-sub">{user.email}</p>}
           <button className="change-avatar-btn">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>

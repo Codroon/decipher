@@ -83,9 +83,20 @@ function LoginForm() {
   }
 
   return (
-    <div className="signup-container">
+    <div className="signup-container auth-page-bg">
       <div className="signup-card login-card">
+        <div className="auth-brand">
+          <span className="auth-brand-logo">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" />
+              <path d="M2 17L12 22L22 17" fill="none" stroke="currentColor" strokeWidth="2" />
+              <path d="M2 12L12 17L22 12" fill="none" stroke="currentColor" strokeWidth="2" />
+            </svg>
+          </span>
+          <span className="auth-brand-name">Decipher Engine</span>
+        </div>
         <div className="form-header">
+          <span className="auth-eyebrow-mini">Welcome back</span>
           <h1>SIGN IN</h1>
           <p>Dive into your next AI-crafted adventure.</p>
         </div>
@@ -115,7 +126,7 @@ function LoginForm() {
           </div>
         )}
 
-        <form className="signup-form" onSubmit={handleSubmit}>
+        <form className="signup-form" onSubmit={handleSubmit} noValidate>
           <div className="form-fields">
             <div className="input-group">
               <label>Email</label>

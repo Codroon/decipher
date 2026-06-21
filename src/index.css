@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Poppins:wght@400;500;600;700;800&family=Roboto:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Poppins:wght@400;500;600;700;800&family=Roboto:wght@400;500&family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 
 :root {
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -11,9 +11,9 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   
-  /* CSS Variables for consistent scaling */
-  --navbar-height: 64px;
-  --sidebar-width: 240px;
+  /* CSS Variables for consistent scaling (aligned to redesign shell) */
+  --navbar-height: 72px;
+  --sidebar-width: 248px;
   --border-radius-sm: 6px;
   --border-radius-md: 10px;
   --border-radius-lg: 14px;
@@ -51,4 +51,175 @@ a {
 
 button {
   font-family: inherit;
+}
+
+/* ============================================================
+   Decipher Redesign — Design Tokens (ported from new design styles.css)
+   Additive only: these power the redesign phases. Existing pages keep
+   their current look until each is restyled to use these tokens.
+   ============================================================ */
+:root {
+  /* Brand */
+  --purple: #7738CB;
+  --blue: #4D70FF;
+  --accent: #925ED5;
+  --gold: #FFC94D;
+
+  /* Tweakable brand gradient stops (Settings > Appearance can override) */
+  --grad-a: #7738CB;
+  --grad-b: #4D70FF;
+
+  /* App background stops */
+  --bg-from: #3D1162;
+  --bg-to: #0B0A10;
+
+  /* Derived gradients */
+  --grad: linear-gradient(90deg, var(--grad-a) 0%, var(--grad-b) 100%);
+  --grad-135: linear-gradient(135deg, var(--grad-a) 0%, var(--grad-b) 100%);
+
+  /* Surfaces */
+  --glass: rgba(61, 17, 98, 0.45);
+  --glass-strong: rgba(61, 17, 98, 0.85);
+  --hairline: rgba(119, 56, 203, 0.35);
+  --hairline-soft: rgba(255, 255, 255, 0.08);
+
+  /* Text / ink */
+  --ink: #FFFFFF;
+  --ink-70: rgba(255, 255, 255, 0.70);
+  --ink-55: rgba(255, 255, 255, 0.55);
+  --ink-40: rgba(255, 255, 255, 0.40);
+
+  /* Fonts */
+  --font-display: 'Poppins', sans-serif;
+  --font-body: 'Spectral', Georgia, serif;
+
+  /* Shell metrics for the redesign shell (rail + 72px topbar) */
+  --rail-w: 248px;
+  --topbar-h: 72px;
+}
+
+/* ============================================================
+   Button system (ported from new design styles.css)
+   ============================================================ */
+.btn {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 600; font-size: 13.5px;
+  letter-spacing: 0.07em; text-transform: uppercase;
+  border: none; cursor: pointer; white-space: nowrap;
+  border-radius: 11px;
+  transition: transform .25s ease, box-shadow .25s ease, background .25s ease, border-color .25s ease;
+  text-decoration: none; overflow: hidden;
+}
+.btn-lg { padding: 17px 32px; font-size: 14px; letter-spacing: 0.08em; }
+.btn-md { padding: 12px 22px; font-size: 12.5px; }
+.btn-sm { padding: 9px 18px; font-size: 12px; }
+.btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+.btn-primary {
+  background: var(--grad);
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(119,56,203,0.5), inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -1px 0 rgba(0,0,0,0.20);
+}
+.btn-primary::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(110deg, transparent 32%, rgba(255,255,255,0.30) 50%, transparent 68%);
+  transform: translateX(-130%); transition: transform .6s ease; pointer-events: none;
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 46px rgba(119,56,203,0.66), inset 0 1px 0 rgba(255,255,255,0.36), inset 0 -1px 0 rgba(0,0,0,0.20); }
+.btn-primary:hover::after { transform: translateX(130%); }
+
+.btn-ghost {
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+  border: 1px solid var(--hairline);
+  backdrop-filter: blur(8px);
+}
+.btn-ghost:hover { background: rgba(119,56,203,0.18); border-color: var(--grad-a); transform: translateY(-2px); box-shadow: 0 10px 30px rgba(119,56,203,0.26); }
+
+/* ============================================================
+   Typography helpers (ported)
+   ============================================================ */
+.grad-text {
+  background: linear-gradient(100deg, #C9A7FF 0%, #8C6BFF 38%, #6E9BFF 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-display);
+  font-weight: 600; font-size: 11.5px; letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-70);
+  padding: 7px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 100px;
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(8px);
+}
+.eyebrow .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--grad-b);
+  box-shadow: 0 0 10px var(--grad-b);
+}
+
+/* ============================================================
+   Motion layer — elegant, subtle, reduced-motion aware
+   All entrance/scroll motion lives here so it stays cohesive
+   and is fully disabled for users who prefer reduced motion.
+   ============================================================ */
+@keyframes dz-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dz-fade-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes dz-reveal { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes dz-drop { from { opacity: 0; transform: translateY(-8px) scale(0.98); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+
+  /* Gentle on-mount fade-up for primary content (also acts as a soft
+     page-transition between routes). */
+  .hero-section,
+  .stories-section,
+  .settings-content,
+  .profile-content,
+  .library-body {
+    animation: dz-fade-up 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+
+  /* Views with sticky side-rails get an opacity-only fade so an
+     animating transform never breaks position: sticky. */
+  .scenario-content,
+  .image-studio-content,
+  .sc-content {
+    animation: dz-fade 0.5s ease both;
+  }
+
+  /* Sidebar rail: light staggered entrance on mount. */
+  .sidebar-item { animation: dz-fade-up 0.42s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+  .sidebar-item:nth-of-type(1) { animation-delay: 0.03s; }
+  .sidebar-item:nth-of-type(2) { animation-delay: 0.07s; }
+  .sidebar-item:nth-of-type(3) { animation-delay: 0.11s; }
+  .sidebar-item:nth-of-type(4) { animation-delay: 0.15s; }
+  .sidebar-item:nth-of-type(5) { animation-delay: 0.19s; }
+  .sidebar-item:nth-of-type(6) { animation-delay: 0.23s; }
+}
+
+/* Scroll-driven reveal for cards/sections. Modern browsers only;
+   everywhere else the content simply renders normally (no flash). */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .story-card,
+    .scenario-card,
+    .shared-card,
+    .settings-card,
+    .recent-image-card,
+    .profile-avatar-section,
+    .profile-info-section {
+      animation: dz-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 2% cover 26%;
+    }
+  }
 }

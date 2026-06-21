@@ -85,7 +85,7 @@ function AppContent() {
   return (
     <div className="app-container">
       {/* Navigation Bar */}
-      <nav className="navbar">
+      <nav className={`navbar ${isAuthPage ? 'auth-page' : sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
         <div className="nav-content">
           <div className="nav-left">
             {/* Hide hamburger menu on auth pages */}
@@ -99,17 +99,20 @@ function AppContent() {
                 <span></span>
               </div>
             )}
-            <div 
-              className="logo-container" 
-              onClick={() => navigate('/home')}
-              style={{ cursor: 'pointer' }}
-            >
-              <svg className="logo-icon" width="17" height="17" viewBox="0 0 24 24" fill="white">
-                <path d="M12 2L2 7L12 12L22 7L12 2Z" />
-                <path d="M2 17L12 22L22 17" />
-                <path d="M2 12L12 17L22 12" />
-              </svg>
-            </div>
+            {/* Logo lives in the rail on app pages; show it here only on auth pages */}
+            {isAuthPage && (
+              <div 
+                className="logo-container" 
+                onClick={() => navigate('/home')}
+                style={{ cursor: 'pointer' }}
+              >
+                <svg className="logo-icon" width="17" height="17" viewBox="0 0 24 24" fill="white">
+                  <path d="M12 2L2 7L12 12L22 7L12 2Z" />
+                  <path d="M2 17L12 22L22 17" />
+                  <path d="M2 12L12 17L22 12" />
+                </svg>
+              </div>
+            )}
           </div>
           
           {/* Hide search bar on authentication pages */}
@@ -214,6 +217,7 @@ function AppContent() {
           isOpen={sidebarOpen} 
           onClose={() => setSidebarOpen(false)}
           onNavigate={handleNavigation}
+          currentPage={currentPage}
         />
       )}
 
