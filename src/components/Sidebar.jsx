@@ -16,18 +16,13 @@ const ICONS = {
   'image-studio': (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15l-5-5L5 21"/></svg>
   ),
+  'image-library': (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+  ),
   settings: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>
   ),
 }
-
-const BrandLogo = () => (
-  <svg className="brand-logo" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2L2 7L12 12L22 7L12 2Z" />
-    <path d="M2 17L12 22L22 17" />
-    <path d="M2 12L12 17L22 12" />
-  </svg>
-)
 
 const CREATE_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', route: 'home' },
@@ -38,6 +33,7 @@ const CREATE_ITEMS = [
 
 const STUDIO_ITEMS = [
   { id: 'image-studio', label: 'Image Studio', route: 'image-studio' },
+  { id: 'image-library', label: 'Image Library', route: 'image-library' },
   { id: 'settings', label: 'Settings', route: 'settings' },
 ]
 
@@ -48,6 +44,7 @@ const ROUTE_TO_ID = {
   'scenario-creator': 'scenario-creator',
   library: 'library',
   'image-studio': 'image-studio',
+  'image-library': 'image-library',
   settings: 'settings',
 }
 
@@ -78,7 +75,7 @@ function Sidebar({ isOpen, onClose, onNavigate, currentPage }) {
 
       <aside className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
         <div className="rail-top" onClick={() => go('home')}>
-          <BrandLogo />
+          <img className="brand-logo" src="/decipher-logo.png" alt="Decipher Engine" />
           <span className="brand-name">Decipher Engine</span>
         </div>
 

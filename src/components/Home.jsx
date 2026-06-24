@@ -8,9 +8,34 @@ const FlameIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1 3-1 5-2 6-1.5 1.5-2 3-2 4a4 4 0 0 0 8 0c0-1.2-.5-2.3-1-3 2 1 3 3 3 5a6 6 0 0 1-12 0c0-4 3-6 4-8 1-1.6 2-2.8 2-4z"/></svg>
 )
 
-const PlayIcon = () => (
+const PlaySectionIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
 )
+
+const MapSectionIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg>
+)
+
+const BookSectionIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+)
+
+const PlayIcon = PlaySectionIcon
+
+function SectionHead({ icon, title, sub, link }) {
+  return (
+    <div className="section-header zone-head">
+      <div>
+        <h2 className="section-title zone-title">
+          <span className="section-icon">{icon}</span>
+          {title}
+        </h2>
+        {sub && <p className="zone-sub">{sub}</p>}
+      </div>
+      {link && <a href="#" className="view-all zone-link">{link}</a>}
+    </div>
+  )
+}
 
 const FEATURED = [
   {
@@ -207,8 +232,12 @@ function Home() {
       </div>
 
       {/* Previously Played Stories */}
-      <section className="stories-section">
-        <h2 className="section-title">Previously Played Stories</h2>
+      <section className="stories-section zone">
+        <SectionHead
+          icon={<PlaySectionIcon />}
+          title="Previously Played Stories"
+          sub="Jump back into your adventures"
+        />
         {loadingStories ? (
           <div className="loading-stories">
             <div className="loading-spinner"></div>
@@ -241,8 +270,12 @@ function Home() {
       </section>
 
       {/* My Scenarios */}
-      <section className="stories-section">
-        <h2 className="section-title">My Scenarios</h2>
+      <section className="stories-section zone">
+        <SectionHead
+          icon={<MapSectionIcon />}
+          title="My Scenarios"
+          sub="Pre-built worlds, ready to play instantly"
+        />
         {loadingScenarios ? (
           <div className="loading-stories">
             <div className="loading-spinner"></div>
@@ -275,11 +308,13 @@ function Home() {
       </section>
 
       {/* Explore Shared Stories */}
-      <section className="stories-section explore-section">
-        <div className="section-header">
-          <h2 className="section-title">Explore Shared Stories</h2>
-          <a href="#" className="view-all">View All</a>
-        </div>
+      <section className="stories-section explore-section zone">
+        <SectionHead
+          icon={<BookSectionIcon />}
+          title="Explore Shared Stories"
+          sub="Stories shared by the community"
+          link="View All"
+        />
         
         <div className="stories-grid">
           {exploreStories.map((story) => (

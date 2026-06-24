@@ -156,8 +156,21 @@
   width: 17px;
   height: 17px;
   flex-shrink: 0;
-  object-fit: contain;
-  opacity: 0.6;
+  color: var(--ink-40);
+}
+
+.nav-spacer {
+  flex: 1;
+}
+
+.nav-new-story {
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.nav-new-story svg {
+  width: 16px;
+  height: 16px;
 }
 
 .search-bar input {
@@ -188,7 +201,7 @@
 .user-profile {
   display: flex;
   align-items: center;
-  margin-left: auto;
+  flex-shrink: 0;
   position: relative;
 }
 

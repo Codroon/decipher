@@ -40,7 +40,7 @@
   width: 34px;
   height: 34px;
   flex-shrink: 0;
-  color: #fff;
+  object-fit: contain;
   filter: drop-shadow(0 4px 14px rgba(146, 94, 213, 0.55));
 }
 

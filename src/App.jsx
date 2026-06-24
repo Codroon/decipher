@@ -7,6 +7,7 @@ import Sidebar from './components/Sidebar'
 import StoryCreator from './components/StoryCreator'
 import ScenarioCreator from './components/ScenarioCreator'
 import ImageStudio from './components/ImageStudio'
+import ImageLibrary from './components/ImageLibrary'
 import Settings from './components/Settings'
 import LoginForm from './components/LoginForm'
 import RegistrationForm from './components/RegistrationForm'
@@ -16,6 +17,7 @@ import ResetPassword from './components/ResetPassword'
 import VerifyEmail from './components/VerifyEmail'
 import Profile from './components/Profile'
 import Library from './components/Library'
+import Landing from './components/Landing'
 
 function AppContent() {
   const navigate = useNavigate()
@@ -32,6 +34,9 @@ function AppContent() {
   
   // Check if current page is an authentication page
   const isAuthPage = ['login', 'signup', 'verify-otp', 'forgot-password', 'reset-password', 'verify-email'].includes(currentPage)
+
+  // Public marketing landing page lives at the root path
+  const isLandingPage = location.pathname === '/'
 
   // Close dropdown when clicking outside
   const handleClickOutside = (e) => {
@@ -60,9 +65,12 @@ function AppContent() {
     if (!isLoading) {
       // Check if current path is an auth page
       const isOnAuthPage = authPages.some(page => location.pathname.startsWith(page))
-      
+
+      // The landing page ('/') is public — never force a redirect away from it
+      const isOnPublicPage = isOnAuthPage || location.pathname === '/'
+
       // If not authenticated and trying to access protected route → redirect to login
-      if (!isAuthenticated && !isOnAuthPage) {
+      if (!isAuthenticated && !isOnPublicPage) {
         navigate('/login')
       }
       
@@ -80,6 +88,31 @@ function AppContent() {
         <div className="loading-spinner"></div>
       </div>
     )
+  }
+
+  // The marketing landing page renders standalone (its own nav/footer, no app shell)
+  if (isLandingPage) {
+    return <Landing />
+  }
+
+  // Sign in / Create account render standalone with their own branded nav + backdrop
+  if (currentPage === 'login') {
+    return <LoginForm />
+  }
+  if (currentPage === 'signup') {
+    return <RegistrationForm />
+  }
+  if (currentPage === 'forgot-password') {
+    return <ForgotPasswordForm />
+  }
+  if (currentPage === 'reset-password') {
+    return <ResetPassword />
+  }
+  if (currentPage === 'verify-otp') {
+    return <OTPVerificationForm />
+  }
+  if (currentPage === 'verify-email') {
+    return <VerifyEmail />
   }
 
   return (
@@ -117,10 +150,28 @@ function AppContent() {
           
           {/* Hide search bar on authentication pages */}
           {!isAuthPage && (
-            <div className="search-bar">
-              <img src="/search-icon.png" alt="Search" className="search-icon" />
-              <input type="text" placeholder="Search stories, authors, or genres..." />
-            </div>
+            <>
+              <div className="search-bar">
+                <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M21 21l-4-4" />
+                </svg>
+                <input type="text" placeholder="Search stories, authors, or genres..." />
+              </div>
+
+              <div className="nav-spacer"></div>
+
+              <button
+                type="button"
+                className="btn btn-primary btn-sm nav-new-story"
+                onClick={() => navigate('/story-creator')}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                New story
+              </button>
+            </>
           )}
 
           {/* Show login/signup buttons only on auth pages */}
@@ -231,6 +282,7 @@ function AppContent() {
           <Route path="/scenario-creator" element={<ScenarioCreator />} />
           <Route path="/scenario-creator/:scenarioId" element={<ScenarioCreator />} />
           <Route path="/image-studio" element={<ImageStudio />} />
+          <Route path="/image-library" element={<ImageLibrary />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/library" element={<Library />} />

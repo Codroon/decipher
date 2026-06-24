@@ -1,168 +1,149 @@
 import { useState, useEffect, useCallback } from 'react'
 import './Library.css'
 import * as libraryService from '../services/libraryService'
+import { BASE_URL, getHeaders } from '../services/server'
 
-// ── Icon Components ─────────────────────────────────────────────────────────
+const I = {
+  search: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <circle cx="11" cy="11" r="7" />
+      <path d="M21 21l-4-4" />
+    </svg>
+  ),
+  user: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  ),
+  pin: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  ),
+  paw: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="6" cy="10" r="2" />
+      <circle cx="10" cy="6" r="2" />
+      <circle cx="14" cy="6" r="2" />
+      <circle cx="18" cy="10" r="2" />
+      <path d="M9 14c-2 1.5-3 3-3 4.5A2.5 2.5 0 0 0 8.5 21c1 0 1.8-.5 3.5-.5s2.5.5 3.5.5A2.5 2.5 0 0 0 18 18.5c0-1.5-1-3-3-4.5a3.5 3.5 0 0 0-6 0z" />
+    </svg>
+  ),
+  plus: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  ),
+  edit: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+    </svg>
+  ),
+  trash: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 6h18M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </svg>
+  ),
+  x: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="M18 6L6 18M6 6l12 12" />
+    </svg>
+  ),
+  check: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  ),
+}
 
-const IconUsers = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
-    <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-  </svg>
-)
-
-const IconMap = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
-    <line x1="8" y1="2" x2="8" y2="18" /><line x1="16" y1="6" x2="16" y2="22" />
-  </svg>
-)
-
-const IconDragon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
-  </svg>
-)
-
-const IconPlus = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-  </svg>
-)
-
-const IconEdit = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-  </svg>
-)
-
-const IconTrash = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="3 6 5 6 21 6" />
-    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-  </svg>
-)
-
-const IconSearch = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-  </svg>
-)
-
-const IconClose = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-  </svg>
-)
-
-const IconBookmark = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-  </svg>
-)
-
-const IconEmpty = () => (
-  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" opacity="0.3">
-    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-  </svg>
-)
-
-// ── Type Config ──────────────────────────────────────────────────────────────
-
-const TABS = [
-  { id: 'character', label: 'Characters', icon: <IconUsers />, emoji: '👤', color: '#7738CB', accentColor: 'rgba(119,56,203,0.25)' },
-  { id: 'location',  label: 'Locations',  icon: <IconMap />,   emoji: '🌍', color: '#2A8FA4', accentColor: 'rgba(42,143,164,0.25)' },
-  { id: 'creature',  label: 'Creatures',  icon: <IconDragon />,emoji: '🐉', color: '#C0534E', accentColor: 'rgba(192,83,78,0.25)'  },
+const CATS = [
+  { id: 'character', label: 'Characters', icon: I.user, singular: 'Character' },
+  { id: 'location', label: 'Locations', icon: I.pin, singular: 'Location' },
+  { id: 'creature', label: 'Creatures', icon: I.paw, singular: 'Creature' },
 ]
 
 const ENDPOINTS = {
   character: '/api/characters',
-  location:  '/api/locations',
-  creature:  '/api/creatures',
+  location: '/api/locations',
+  creature: '/api/creatures',
 }
 
-// ── Library Component ────────────────────────────────────────────────────────
-
 function Library() {
-  const [activeTab, setActiveTab]       = useState('character')
-  const [entities, setEntities]         = useState({ character: [], location: [], creature: [] })
-  const [loading, setLoading]           = useState({ character: false, location: false, creature: false })
-  const [search, setSearch]             = useState('')
-  const [modal, setModal]               = useState(null)   // null | { mode:'create'|'edit', type, data }
-  const [deleteConfirm, setDeleteConfirm] = useState(null) // null | { type, id, name }
-  const [formData, setFormData]         = useState({ name: '', description: '' })
-  const [formError, setFormError]       = useState('')
-  const [saving, setSaving]             = useState(false)
-  const [deleting, setDeleting]         = useState(false)
-  const [toastMsg, setToastMsg]         = useState(null)
+  const [cat, setCat] = useState('character')
+  const [entities, setEntities] = useState({ character: [], location: [], creature: [] })
+  const [loading, setLoading] = useState({ character: false, location: false, creature: false })
+  const [search, setSearch] = useState('')
+  const [modal, setModal] = useState(null)
+  const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [formData, setFormData] = useState({ name: '', description: '' })
+  const [formError, setFormError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [toast, setToast] = useState(null)
 
-  const tab = TABS.find(t => t.id === activeTab)
+  const catObj = CATS.find((c) => c.id === cat) || CATS[0]
 
-  // ── Data fetching ──────────────────────────────────────────────────────────
   const fetchEntities = useCallback(async (type) => {
-    setLoading(prev => ({ ...prev, [type]: true }))
+    setLoading((prev) => ({ ...prev, [type]: true }))
     const res = await libraryService.getLibraryEntities(type)
-    if (res.success) {
-      setEntities(prev => ({ ...prev, [type]: res.data || [] }))
-    }
-    setLoading(prev => ({ ...prev, [type]: false }))
+    if (res.success) setEntities((prev) => ({ ...prev, [type]: res.data || [] }))
+    setLoading((prev) => ({ ...prev, [type]: false }))
   }, [])
 
   useEffect(() => {
-    TABS.forEach(t => fetchEntities(t.id))
+    CATS.forEach((c) => fetchEntities(c.id))
   }, [fetchEntities])
 
-  // ── Toast helper ──────────────────────────────────────────────────────────
-  const showToast = (msg) => {
-    setToastMsg(msg)
-    setTimeout(() => setToastMsg(null), 3000)
-  }
+  useEffect(() => {
+    if (!toast) return undefined
+    const t = setTimeout(() => setToast(null), 2400)
+    return () => clearTimeout(t)
+  }, [toast])
 
-  // ── Modal helpers ─────────────────────────────────────────────────────────
+  const showToast = (msg) => setToast(msg)
+
   const openCreate = () => {
     setFormData({ name: '', description: '' })
     setFormError('')
-    setModal({ mode: 'create', type: activeTab })
+    setModal({ mode: 'create', type: cat })
   }
 
   const openEdit = (entity) => {
     setFormData({ name: entity.name, description: entity.description || '' })
     setFormError('')
-    setModal({ mode: 'edit', type: activeTab, data: entity })
+    setModal({ mode: 'edit', type: cat, data: entity })
   }
 
   const closeModal = () => setModal(null)
 
-  // ── Save (create / update) ────────────────────────────────────────────────
   const handleSave = async () => {
-    if (!formData.name.trim()) { setFormError('Name is required.'); return }
+    if (!formData.name.trim()) {
+      setFormError('Name is required.')
+      return
+    }
     setSaving(true)
     setFormError('')
-
-    const token = localStorage.getItem('token')
-    const BASE_URL = (await import('../services/server')).BASE_URL
-    const isEdit   = modal.mode === 'edit'
-    const url      = isEdit
+    const isEdit = modal.mode === 'edit'
+    const url = isEdit
       ? `${BASE_URL}${ENDPOINTS[modal.type]}/${modal.data._id}`
       : `${BASE_URL}${ENDPOINTS[modal.type]}`
-
     try {
       const res = await fetch(url, {
-        method:  isEdit ? 'PUT' : 'POST',
-        headers: { 
-          'Content-Type': 'application/json', 
-          Authorization: `Bearer ${token}`, 
-          'ngrok-skip-browser-warning': '69420' 
-        },
-        body:    JSON.stringify({ name: formData.name.trim(), description: formData.description.trim() }),
+        method: isEdit ? 'PUT' : 'POST',
+        headers: getHeaders(true),
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          description: formData.description.trim(),
+        }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.message || 'Failed to save')
-
       await fetchEntities(modal.type)
       closeModal()
-      showToast(isEdit ? `${tab.label.slice(0,-1)} updated!` : `${tab.label.slice(0,-1)} added to library!`)
+      showToast(isEdit ? `${catObj.singular} updated` : `${catObj.singular} added to library`)
     } catch (err) {
       setFormError(err.message)
     } finally {
@@ -170,21 +151,12 @@ function Library() {
     }
   }
 
-  // ── Delete ────────────────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!deleteConfirm) return
     setDeleting(true)
-    const token = localStorage.getItem('token')
-    const BASE_URL = (await import('../services/server')).BASE_URL
     const url = `${BASE_URL}${ENDPOINTS[deleteConfirm.type]}/${deleteConfirm.id}`
     try {
-      const res = await fetch(url, { 
-        method: 'DELETE', 
-        headers: { 
-          Authorization: `Bearer ${token}`, 
-          'ngrok-skip-browser-warning': '69420' 
-        } 
-      })
+      const res = await fetch(url, { method: 'DELETE', headers: getHeaders(true) })
       if (!res.ok) throw new Error('Delete failed')
       await fetchEntities(deleteConfirm.type)
       showToast(`Deleted "${deleteConfirm.name}"`)
@@ -196,230 +168,187 @@ function Library() {
     }
   }
 
-  // ── Filtered list ─────────────────────────────────────────────────────────
-  const filtered = (entities[activeTab] || []).filter(e =>
-    e.name?.toLowerCase().includes(search.toLowerCase()) ||
-    e.description?.toLowerCase().includes(search.toLowerCase())
+  const filtered = (entities[cat] || []).filter(
+    (e) =>
+      e.name?.toLowerCase().includes(search.toLowerCase()) ||
+      e.description?.toLowerCase().includes(search.toLowerCase())
   )
 
-  const totalAll = TABS.reduce((acc, t) => acc + (entities[t.id]?.length || 0), 0)
+  const totalAll = CATS.reduce((acc, c) => acc + (entities[c.id]?.length || 0), 0)
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="library-page">
-      {/* Ambient glow background */}
-      <div className="library-bg-orb orb-1" />
-      <div className="library-bg-orb orb-2" />
-
-      {/* ── Page Header ──────────────────────────────────────────────── */}
-      <div className="library-header">
-        <div className="library-header-inner">
-          <div className="library-header-left">
-            <div className="library-header-icon">
-              <IconBookmark />
-            </div>
-            <div>
-              <h1 className="library-title">My Library</h1>
-              <p className="library-subtitle">
-                {totalAll} saved {totalAll === 1 ? 'entity' : 'entities'} across characters, locations &amp; creatures
-              </p>
-            </div>
-          </div>
-
-          <button className="lib-add-btn" onClick={openCreate}>
-            <IconPlus />
-            <span>Add {tab.label.slice(0, -1)}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* ── Tab + Search Bar ─────────────────────────────────────────── */}
-      <div className="library-controls">
-        <div className="lib-tabs">
-          {TABS.map(t => (
+    <div className="my-library-page">
+      <div className="lib-wrap">
+        <aside className="lib-side">
+          <div className="lib-cap">Categories</div>
+          {CATS.map((c) => (
             <button
-              key={t.id}
-              className={`lib-tab ${activeTab === t.id ? 'active' : ''}`}
-              onClick={() => { setActiveTab(t.id); setSearch('') }}
-              style={activeTab === t.id ? { '--tab-color': t.color } : {}}
+              key={c.id}
+              type="button"
+              className={`lib-cat ${cat === c.id ? 'active' : ''}`}
+              onClick={() => {
+                setCat(c.id)
+                setSearch('')
+              }}
             >
-              <span className="lib-tab-icon">{t.icon}</span>
-              <span>{t.label}</span>
-              <span className="lib-tab-count" style={activeTab === t.id ? { background: t.color } : {}}>
-                {entities[t.id]?.length || 0}
-              </span>
+              {c.icon}
+              <span>{c.label}</span>
+              <span className="ct">{entities[c.id]?.length || 0}</span>
             </button>
           ))}
-        </div>
+        </aside>
 
-        <div className="lib-search">
-          <IconSearch />
-          <input
-            type="text"
-            placeholder={`Search ${tab.label.toLowerCase()}…`}
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-          {search && (
-            <button className="lib-search-clear" onClick={() => setSearch('')}>
-              <IconClose />
+        <div className="lib-main">
+          <div className="lib-bar">
+            <div>
+              <div className="crumb">{catObj.label}</div>
+              <div className="crumb-sub">
+                {totalAll} saved {totalAll === 1 ? 'entry' : 'entries'} in your library
+              </div>
+            </div>
+            <div className="spacer" />
+            <div className="lib-search2">
+              {I.search}
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={`Search ${catObj.label.toLowerCase()}…`}
+              />
+            </div>
+            <button type="button" className="btn btn-primary btn-md" onClick={openCreate} style={{ gap: 7 }}>
+              {I.plus} New {catObj.singular.toLowerCase()}
             </button>
-          )}
-        </div>
-      </div>
-
-      {/* ── Entity Grid ──────────────────────────────────────────────── */}
-      <div className="library-body">
-        {loading[activeTab] ? (
-          <div className="lib-loading">
-            <div className="lib-spinner" style={{ borderTopColor: tab.color }} />
-            <span>Loading {tab.label.toLowerCase()}…</span>
           </div>
-        ) : filtered.length === 0 ? (
-          <div className="lib-empty">
-            <div className="lib-empty-icon">{tab.emoji}</div>
-            <h3>No {tab.label.toLowerCase()} {search ? 'match your search' : 'yet'}</h3>
-            <p>
-              {search
-                ? 'Try different keywords or clear the search.'
-                : `Save ${tab.label.toLowerCase()} from the Story Creator, or create one here.`}
-            </p>
-            {!search && (
-              <button className="lib-empty-cta" onClick={openCreate}
-                style={{ '--tab-color': tab.color }}>
-                <IconPlus /> Create your first {tab.label.slice(0, -1).toLowerCase()}
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="lib-grid">
-            {filtered.map(entity => (
-              <div
-                key={entity._id}
-                className="lib-card"
-                style={{ '--card-accent': tab.accentColor, '--card-border': tab.color }}
-              >
-                <div className="lib-card-emoji">{tab.emoji}</div>
 
-                <div className="lib-card-body">
-                  <h3 className="lib-card-name">{entity.name}</h3>
-                  <p className="lib-card-desc">
-                    {entity.description?.trim()
-                      ? entity.description
-                      : <span className="lib-card-no-desc">No description</span>
-                    }
+          <div className="lib-gridwrap">
+            <div className="lib-grid">
+              {loading[cat] ? (
+                <div className="lib-loading">
+                  <div className="spin" />
+                  <span>Loading {catObj.label.toLowerCase()}…</span>
+                </div>
+              ) : filtered.length === 0 && !search ? (
+                <div className="lib-empty2">
+                  <div className="ei">{catObj.icon}</div>
+                  <h3>No {catObj.label.toLowerCase()} yet</h3>
+                  <p>
+                    Save {catObj.label.toLowerCase()} from Story Creator or Scenario Builder, or create one here.
                   </p>
-                </div>
-
-                <div className="lib-card-actions">
-                  <button
-                    className="lib-card-btn edit"
-                    onClick={() => openEdit(entity)}
-                    title="Edit"
-                  >
-                    <IconEdit />
-                  </button>
-                  <button
-                    className="lib-card-btn delete"
-                    onClick={() => setDeleteConfirm({ type: activeTab, id: entity._id, name: entity.name })}
-                    title="Delete"
-                  >
-                    <IconTrash />
+                  <button type="button" className="btn btn-primary btn-md" onClick={openCreate} style={{ gap: 7 }}>
+                    {I.plus} New {catObj.singular.toLowerCase()}
                   </button>
                 </div>
-              </div>
-            ))}
-
-            {/* Add-new ghost card */}
-            <button
-              className="lib-card lib-card-add"
-              onClick={openCreate}
-              style={{ '--card-border': tab.color }}
-            >
-              <div className="lib-card-add-inner">
-                <div className="lib-card-add-circle" style={{ background: tab.accentColor }}>
-                  <IconPlus />
+              ) : filtered.length === 0 ? (
+                <div className="lib-empty2">
+                  <div className="ei">{catObj.icon}</div>
+                  <h3>No matches</h3>
+                  <p>Try a different search term.</p>
                 </div>
-                <span>New {tab.label.slice(0, -1)}</span>
-              </div>
-            </button>
+              ) : (
+                <>
+                  {filtered.map((entity) => (
+                    <div className="libc" key={entity._id}>
+                      <div className="libc-cover">
+                        {catObj.icon}
+                        <span className="libc-badge">{catObj.singular}</span>
+                      </div>
+                      <div className="libc-body">
+                        <h3>{entity.name}</h3>
+                        <p>{entity.description?.trim() || 'No description'}</p>
+                      </div>
+                      <div className="libc-acts">
+                        <button type="button" className="libc-act" onClick={() => openEdit(entity)}>
+                          {I.edit} Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="libc-act del"
+                          onClick={() =>
+                            setDeleteConfirm({ type: cat, id: entity._id, name: entity.name })
+                          }
+                        >
+                          {I.trash} Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <button type="button" className="libc-add" onClick={openCreate}>
+                    <span className="c">{I.plus}</span>
+                    New {catObj.singular.toLowerCase()}
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* ── Create / Edit Modal ───────────────────────────────────────── */}
       {modal && (
-        <div className="lib-modal-overlay" onClick={closeModal}>
-          <div className="lib-modal" onClick={e => e.stopPropagation()}>
-            <div className="lib-modal-header" style={{ '--modal-color': tab.color }}>
-              <div className="lib-modal-title-group">
-                <span className="lib-modal-emoji">{tab.emoji}</span>
-                <div>
-                  <h2>{modal.mode === 'create' ? `New ${tab.label.slice(0,-1)}` : `Edit ${tab.label.slice(0,-1)}`}</h2>
-                  <p className="lib-modal-sub">{tab.label}</p>
-                </div>
-              </div>
-              <button className="lib-modal-close" onClick={closeModal}><IconClose /></button>
+        <div className="lm-ov" onClick={closeModal} role="presentation">
+          <div className="lm" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+            <div className="lm-head">
+              <h2>
+                {modal.mode === 'create' ? `New ${catObj.singular}` : `Edit ${catObj.singular}`}
+              </h2>
+              <button type="button" className="x" onClick={closeModal}>
+                {I.x}
+              </button>
             </div>
-
-            <div className="lib-modal-body">
-              {formError && <div className="lib-modal-error">{formError}</div>}
-
-              <div className="lib-form-group">
-                <label>Name *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
-                  placeholder={`Enter ${tab.label.slice(0,-1).toLowerCase()} name…`}
-                  autoFocus
-                  className="lib-form-input"
-                />
-              </div>
-
-              <div className="lib-form-group">
-                <label>Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={e => setFormData(p => ({ ...p, description: e.target.value }))}
-                  placeholder={`Describe this ${tab.label.slice(0,-1).toLowerCase()}…`}
-                  rows="5"
-                  className="lib-form-input lib-form-textarea"
-                />
-              </div>
+            {formError && <div className="lm-err">{formError}</div>}
+            <div className="lm-fg">
+              <label>Name *</label>
+              <input
+                className="lm-input"
+                autoFocus
+                value={formData.name}
+                onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
+                placeholder={`Enter ${catObj.singular.toLowerCase()} name…`}
+              />
             </div>
-
-            <div className="lib-modal-footer">
-              <button className="lib-modal-cancel" onClick={closeModal} disabled={saving}>Cancel</button>
+            <div className="lm-fg">
+              <label>Description</label>
+              <textarea
+                className="lm-textarea"
+                value={formData.description}
+                onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
+                placeholder={`Describe this ${catObj.singular.toLowerCase()}…`}
+              />
+            </div>
+            <div className="lm-foot">
+              <button type="button" className="btn btn-ghost btn-md" onClick={closeModal} disabled={saving}>
+                Cancel
+              </button>
               <button
-                className="lib-modal-save"
+                type="button"
+                className="btn btn-primary btn-md"
                 onClick={handleSave}
                 disabled={saving || !formData.name.trim()}
-                style={{ '--modal-color': tab.color }}
               >
-                {saving ? 'Saving…' : modal.mode === 'create' ? 'Add to Library' : 'Save Changes'}
+                {saving ? 'Saving…' : modal.mode === 'create' ? 'Create' : 'Save'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Delete Confirm Modal ──────────────────────────────────────── */}
       {deleteConfirm && (
-        <div className="lib-modal-overlay" onClick={() => setDeleteConfirm(null)}>
-          <div className="lib-modal lib-modal-sm" onClick={e => e.stopPropagation()}>
-            <div className="lib-modal-header lib-modal-danger-header">
-              <h2>Delete "{deleteConfirm.name}"?</h2>
-              <button className="lib-modal-close" onClick={() => setDeleteConfirm(null)}><IconClose /></button>
+        <div className="lm-ov" onClick={() => setDeleteConfirm(null)} role="presentation">
+          <div className="lm" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+            <div className="lm-head">
+              <h2>Delete &ldquo;{deleteConfirm.name}&rdquo;?</h2>
+              <button type="button" className="x" onClick={() => setDeleteConfirm(null)}>
+                {I.x}
+              </button>
             </div>
-            <div className="lib-modal-body">
-              <p className="lib-delete-warning">
-                This will permanently remove this entry from your library. This action cannot be undone.
-              </p>
-            </div>
-            <div className="lib-modal-footer">
-              <button className="lib-modal-cancel" onClick={() => setDeleteConfirm(null)} disabled={deleting}>Cancel</button>
-              <button className="lib-modal-delete" onClick={handleDelete} disabled={deleting}>
+            <p style={{ color: 'var(--ink-55)', fontSize: 14, margin: '0 0 4px' }}>
+              This will permanently remove this entry from your library.
+            </p>
+            <div className="lm-foot">
+              <button type="button" className="btn btn-ghost btn-md" onClick={() => setDeleteConfirm(null)} disabled={deleting}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-md lm-del" onClick={handleDelete} disabled={deleting}>
                 {deleting ? 'Deleting…' : 'Delete'}
               </button>
             </div>
@@ -427,10 +356,9 @@ function Library() {
         </div>
       )}
 
-      {/* ── Toast ────────────────────────────────────────────────────── */}
-      {toastMsg && (
-        <div className="lib-toast">
-          <span>✓</span> {toastMsg}
+      {toast && (
+        <div className="toast">
+          {I.check} {toast}
         </div>
       )}
     </div>

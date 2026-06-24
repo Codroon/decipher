@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate, useLocation } from 'react-router-dom'
-import './LoginForm.css'
+import { AuthNav, EyeIcon, EyeOff } from './AuthShared'
+import './Auth.css'
 
 function LoginForm() {
   const [email, setEmail] = useState('')
@@ -11,38 +12,17 @@ function LoginForm() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  
+
   const { login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
-  // Check if user was redirected from email verification
   useEffect(() => {
     if (location.state?.verified && location.state?.message) {
       setSuccess(location.state.message)
-      // Clear the state to prevent showing message on refresh
       window.history.replaceState({}, document.title)
     }
   }, [location])
-  
-  const getErrorType = (errorMessage) => {
-    if (errorMessage.includes('verification') || errorMessage.includes('verify')) {
-      return 'verification-error'
-    } else if (errorMessage.includes('password') || errorMessage.includes('credentials') || errorMessage.includes('invalid')) {
-      return 'auth-error'
-    } else if (errorMessage.includes('network') || errorMessage.includes('connection') || errorMessage.includes('fetch')) {
-      return 'network-error'
-    } else if (errorMessage.includes('validation') || errorMessage.includes('required') || errorMessage.includes('format')) {
-      return 'validation-error'
-    }
-    return ''
-  }
-
-  const clearError = () => {
-    if (error) {
-      setError('')
-    }
-  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -52,11 +32,10 @@ function LoginForm() {
 
     try {
       const result = await login(email, password, rememberMe)
-      
+
       if (result.success) {
         navigate('/home')
       } else {
-        // Display the error message from backend
         if (result.error) {
           setError(result.error)
         } else if (result.requiresVerification) {
@@ -66,7 +45,6 @@ function LoginForm() {
         }
       }
     } catch (err) {
-      // Handle network errors or other exceptions
       console.error('Login error:', err)
       if (err.message) {
         setError(err.message)
@@ -83,132 +61,91 @@ function LoginForm() {
   }
 
   return (
-    <div className="signup-container auth-page-bg">
-      <div className="signup-card login-card">
-        <div className="auth-brand">
-          <span className="auth-brand-logo">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" />
-              <path d="M2 17L12 22L22 17" fill="none" stroke="currentColor" strokeWidth="2" />
-              <path d="M2 12L12 17L22 12" fill="none" stroke="currentColor" strokeWidth="2" />
-            </svg>
-          </span>
-          <span className="auth-brand-name">Decipher Engine</span>
-        </div>
-        <div className="form-header">
-          <span className="auth-eyebrow-mini">Welcome back</span>
-          <h1>SIGN IN</h1>
-          <p>Dive into your next AI-crafted adventure.</p>
-        </div>
+    <div className="dz-auth auth-app auth-bg-signin">
+      <div className="auth-bg"></div>
+      <div className="auth-veil"></div>
 
-        {success && (
-          <div className="success-message" style={{
-            background: 'rgba(76, 175, 80, 0.1)',
-            border: '1px solid #4CAF50',
-            borderRadius: '8px',
-            padding: '12px 16px',
-            marginBottom: '20px',
-            color: '#4CAF50',
-            fontFamily: 'Poppins, sans-serif',
-            fontWeight: '500',
-            fontSize: '14px',
-            textAlign: 'center',
-            wordWrap: 'break-word',
-            lineHeight: '1.4'
-          }}>
-            ✓ {success}
+      <AuthNav mode="signin" navigate={navigate} />
+
+      <div className="auth-stage">
+        <div className="auth-card">
+          <div className="auth-form-header">
+            <h1>SIGN IN</h1>
+            <p>Dive into your next AI-crafted adventure.</p>
           </div>
-        )}
 
-        {error && (
-          <div className={`error-message ${getErrorType(error)}`}>
-            {error}
-          </div>
-        )}
+          {success && <div className="auth-msg success">✓ {success}</div>}
+          {error && <div className="auth-msg error">{error}</div>}
 
-        <form className="signup-form" onSubmit={handleSubmit} noValidate>
-          <div className="form-fields">
-            <div className="input-group">
-              <label>Email</label>
-              <div className="input-wrapper">
-                <input 
-                  type="email" 
-                  placeholder="Email" 
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value)
-                    setSuccess('') // Clear success message when typing
-                    // clearError() // Temporarily disabled for debugging
-                  }}
-                  required
-                />
+          <form className="auth-form" onSubmit={handleSubmit} noValidate>
+            <div className="auth-form-fields">
+              <div className="auth-field-group">
+                <label>Email</label>
+                <div className="auth-field">
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); setSuccess('') }}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="auth-field-group">
+                <label>Password</label>
+                <div className="auth-field">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => { setPassword(e.target.value); setSuccess('') }}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="auth-eye"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label="Toggle password visibility"
+                  >
+                    {showPassword ? EyeOff : EyeIcon}
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="input-group">
-              <label>Password</label>
-              <div className="input-wrapper">
-                <input 
-                  type={showPassword ? "text" : "password"} 
-                  placeholder="Password" 
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value)
-                    setSuccess('') // Clear success message when typing
-                    // clearError() // Temporarily disabled for debugging
-                  }}
-                  required
-                />
-                <button 
-                  type="button" 
-                  className="toggle-password"
-                  onClick={() => setShowPassword(!showPassword)}
+            <div className="auth-form-footer">
+              <div className="auth-remember-forgot">
+                <label className="auth-remember-me">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                  />
+                  <span>Remember Me</span>
+                </label>
+                <a
+                  href="#"
+                  className="auth-forget-link"
+                  onClick={(e) => { e.preventDefault(); navigate('/forgot-password') }}
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    {showPassword ? (
-                      <>
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                      </>
-                    ) : (
-                      <>
-                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                        <line x1="1" y1="1" x2="23" y2="23"></line>
-                      </>
-                    )}
-                  </svg>
-                </button>
+                  Forget Password
+                </a>
               </div>
-            </div>
-          </div>
 
-          <div className="form-footer">
-            <div className="remember-forgot">
-              <label className="remember-me">
-                <input 
-                  type="checkbox" 
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                />
-                <span>Remember Me</span>
-              </label>
-              <a href="#" className="forget-password" onClick={(e) => { e.preventDefault(); navigate('/forgot-password'); }}>Forget Password</a>
+              <button type="submit" className="btn btn-primary btn-lg auth-submit-full" disabled={isLoading}>
+                {isLoading ? 'Signing In...' : 'Sign In'}
+              </button>
             </div>
 
-            <button 
-              type="submit" 
-              className="submit-btn"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Signing In...' : 'Sign In'}
-            </button>
-          </div>
-
-          <div className="signin-link">
-            <span>Don't have an account? </span>
-            <a href="#" onClick={(e) => { e.preventDefault(); navigate('/signup'); }}>Sign up →</a>
-          </div>
-        </form>
+            <div className="auth-switch-link">
+              <span>Don't have an account? </span>
+              <a href="#" onClick={(e) => { e.preventDefault(); navigate('/signup') }}>Sign up →</a>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   )

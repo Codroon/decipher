@@ -1,14 +1,15 @@
 import React, { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import './LoginForm.css'
+import { AuthNav } from './AuthShared'
+import './Auth.css'
 
 function ForgotPasswordForm() {
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  
+
   const { forgotPassword } = useAuth()
   const navigate = useNavigate()
 
@@ -26,7 +27,7 @@ function ForgotPasswordForm() {
       } else {
         setError(result.error)
       }
-    } catch (err) {
+    } catch {
       setError('An error occurred. Please try again.')
     } finally {
       setIsLoading(false)
@@ -34,89 +35,61 @@ function ForgotPasswordForm() {
   }
 
   return (
-    <div className="signup-container">
-      <div className="signup-card login-card">
-        <div className="form-header">
-          <h1>FORGOT PASSWORD</h1>
-          <p>Enter your email to receive a password reset link</p>
-        </div>
+    <div className="dz-auth auth-app auth-bg-signin">
+      <div className="auth-bg"></div>
+      <div className="auth-veil"></div>
 
-        {success && (
-          <div className="success-message" style={{ 
-            background: '#d4edda', 
-            color: '#155724', 
-            padding: '12px', 
-            borderRadius: '8px', 
-            marginBottom: '20px',
-            textAlign: 'center'
-          }}>
-            {success}
+      <AuthNav mode="signin" navigate={navigate} />
+
+      <div className="auth-stage">
+        <div className="auth-card">
+          <div className="auth-form-header">
+            <h1>FORGOT PASSWORD</h1>
+            <p>Enter your email to receive a password reset link</p>
           </div>
-        )}
 
-        {error && (
-          <div className="error-message">
-            {error}
-          </div>
-        )}
+          {success && <div className="auth-msg success">{success}</div>}
+          {error && <div className="auth-msg error">{error}</div>}
 
-        <form className="signup-form" onSubmit={handleSubmit}>
-          <div className="form-fields">
-            <div className="input-group">
-              <label>Email Address</label>
-              <div className="input-wrapper">
-                <input 
-                  type="email" 
-                  placeholder="Enter your email" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
+          <form className="auth-form" onSubmit={handleSubmit} noValidate>
+            <div className="auth-form-fields">
+              <div className="auth-field-group">
+                <label>Email Address</label>
+                <div className="auth-field">
+                  <input
+                    type="email"
+                    placeholder="Enter your email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="form-footer">
-            <button 
-              type="submit" 
-              className="submit-btn"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Sending...' : 'Send Reset Link'}
-            </button>
-
-            <div style={{ textAlign: 'center', marginTop: '20px' }}>
-              <p style={{ color: '#999', fontSize: '14px' }}>
-                Remember your password?
-              </p>
-              <button 
-                type="button"
-                onClick={() => navigate('/login')}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid #7738CB',
-                  color: '#7738CB',
-                  padding: '10px 20px',
-                  borderRadius: '20px',
-                  cursor: 'pointer'
-                }}
-              >
-                Back to Login
+            <div className="auth-form-footer">
+              <button type="submit" className="btn btn-primary btn-lg auth-submit-full" disabled={isLoading}>
+                {isLoading ? 'Sending...' : 'Send Reset Link'}
               </button>
-            </div>
-          </div>
 
-          <div className="signin-link">
-            <span>Don't have an account? </span>
-            <a href="#" onClick={(e) => { e.preventDefault(); navigate('/signup'); }}>Sign up →</a>
-          </div>
-        </form>
+              <div className="auth-back-block">
+                <p>Remember your password?</p>
+                <button type="button" className="auth-secondary-btn" onClick={() => navigate('/login')}>
+                  Back to Login
+                </button>
+              </div>
+            </div>
+
+            <div className="auth-switch-link">
+              <span>Don't have an account? </span>
+              <a href="#" onClick={(e) => { e.preventDefault(); navigate('/signup') }}>Sign up →</a>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   )
 }
 
 export default ForgotPasswordForm
-
-
-
