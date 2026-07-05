@@ -49,6 +49,15 @@ export const API_ENDPOINTS = {
     BASE: `${BASE_URL}/api/images`,
     GENERATE: `${BASE_URL}/api/images/generate`,
     GET_ALL: `${BASE_URL}/api/images/`,
+    MODELS: `${BASE_URL}/api/images/models`,
+    BY_ID: (id) => `${BASE_URL}/api/images/${id}`,
+    COPY: (id) => `${BASE_URL}/api/images/${id}/copy`,
+  },
+  // Folder endpoints (Image Library)
+  FOLDERS: {
+    BASE: `${BASE_URL}/api/folders`,
+    GET_ALL: `${BASE_URL}/api/folders`,
+    BY_ID: (id) => `${BASE_URL}/api/folders/${id}`,
   }
 }
 
@@ -125,6 +134,22 @@ export const apiPut = async (url, data, includeAuth = false) => {
     return await response.json()
   } catch (error) {
     console.error('API PUT Error:', error)
+    throw error
+  }
+}
+
+// Helper function for PATCH requests
+export const apiPatch = async (url, data, includeAuth = false) => {
+  try {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: getHeaders(includeAuth),
+      body: JSON.stringify(data)
+    })
+
+    return await response.json()
+  } catch (error) {
+    console.error('API PATCH Error:', error)
     throw error
   }
 }

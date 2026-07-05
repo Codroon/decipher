@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { apiPost, apiGet, API_ENDPOINTS, BASE_URL, getHeaders } from '../services/server'
+import { apiPost, API_ENDPOINTS, BASE_URL, getHeaders } from '../services/server'
+import { imageLibraryStore } from '../utils/imageLibraryStore'
 import SecureImage from './SecureImage'
 import './ImageStudio.css'
 
@@ -94,9 +95,13 @@ const STYLES = [
 ]
 
 const MODELS = [
-  { id: 'pony', apiId: 'pony', name: 'Pony Diffusion', desc: 'Stylised & expressive', badge: 'P' },
-  { id: 'jug', apiId: 'juggernaut', name: 'Juggernaut XL', desc: 'Photoreal detail', badge: 'J' },
-  { id: 'dream', apiId: 'dreamshaper', name: 'DreamShaper', desc: 'Fast · Lightning', badge: 'D' },
+  { id: 'flux-schnell', apiId: 'flux-schnell', name: 'FLUX schnell', desc: 'Fast · low cost', badge: 'S' },
+  { id: 'flux-dev', apiId: 'flux-dev', name: 'FLUX.1 dev', desc: 'Balanced quality', badge: 'D' },
+  { id: 'flux-2-pro', apiId: 'flux-2-pro', name: 'FLUX.2 pro', desc: 'Newest flagship', badge: 'F2' },
+  { id: 'seedream-4', apiId: 'seedream-4', name: 'Seedream 4', desc: 'Cinematic · moody', badge: 'Sd' },
+  { id: 'recraft-v3', apiId: 'recraft-v3', name: 'Recraft V3', desc: 'Vector · graphic', badge: 'R' },
+  { id: 'flux-pro-ultra', apiId: 'flux-pro-ultra', name: 'FLUX 1.1 pro ultra', desc: 'Premium · 2K', badge: 'U' },
+  { id: 'nano-banana', apiId: 'nano-banana', name: 'Nano Banana', desc: 'Character consistency', badge: 'N' },
 ]
 
 const RATIOS = [
@@ -130,9 +135,11 @@ function ImageStudio() {
   const [prompt, setPrompt] = useState('')
   const [subject, setSubject] = useState(null)
   const [style, setStyle] = useState('fantasy')
-  const [model, setModel] = useState('dream')
+  const [model, setModel] = useState('flux-schnell')
   const [ratio, setRatio] = useState('square')
   const [count, setCount] = useState(1)
+  const [folders, setFolders] = useState([])
+  const [folderId, setFolderId] = useState('') // '' = unsorted / no folder
   const [generating, setGenerating] = useState(false)
   const [results, setResults] = useState([])
   const [lightbox, setLightbox] = useState(null)
@@ -142,13 +149,27 @@ function ImageStudio() {
 
   const ratioObj = RATIOS.find((r) => r.id === ratio) || RATIOS[0]
   const styleObj = STYLES.find((s) => s.id === style) || STYLES[0]
-  const modelObj = MODELS.find((m) => m.id === model) || MODELS[2]
+  const modelObj = MODELS.find((m) => m.id === model) || MODELS[0]
 
   useEffect(() => {
     if (!toast) return undefined
     const t = setTimeout(() => setToast(''), 2400)
     return () => clearTimeout(t)
   }, [toast])
+
+  // Load the user's folders so generations can optionally be filed into one.
+  useEffect(() => {
+    let alive = true
+    imageLibraryStore
+      .fetchFolders()
+      .then((fs) => {
+        if (alive) setFolders(fs)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [])
 
   const getDimensions = () => {
     if (ratio === 'landscape') return { width: 1536, height: 1024 }
@@ -183,6 +204,7 @@ function ImageStudio() {
         model: modelObj.apiId,
         width,
         height,
+        ...(folderId ? { folderId } : {}),
       },
       true
     )
@@ -362,6 +384,23 @@ function ImageStudio() {
                     {n}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div className="is-block">
+              <div className="is-label">
+                Save to folder <span className="hint">optional</span>
+              </div>
+              <div className="is-folder">
+                {G.layers}
+                <select value={folderId} onChange={(e) => setFolderId(e.target.value)}>
+                  <option value="">Unsorted (no folder)</option>
+                  {imageLibraryStore.flatten(folders).map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {`${'— '.repeat(f.depth)}${f.name}`}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
