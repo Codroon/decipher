@@ -19,25 +19,53 @@ const BookSectionIcon = () => (
 )
 const PlayIcon = PlaySectionIcon
 
+const prefersReduced = () =>
+  typeof window !== 'undefined' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v))
+
 /* ─────────────────────────────────────────────────────────────
-   Section-level scroll reveal
-   Each <section> with class "scroll-section" starts invisible.
-   The IntersectionObserver adds "revealed" once the section
-   is 15% into the viewport, which triggers the CSS animation.
-   Children (header, grid, cards) then stagger in via CSS delays.
+   Single rAF-driven scroll subscription. Multiple features read
+   from one throttled loop so we never stack scroll listeners.
+───────────────────────────────────────────────────────────── */
+function useRafScroll(onFrame) {
+  useEffect(() => {
+    let raf = 0
+    let ticking = false
+    const run = () => {
+      onFrame(window.scrollY || window.pageYOffset || 0)
+      ticking = false
+    }
+    const onScroll = () => {
+      if (!ticking) {
+        ticking = true
+        raf = requestAnimationFrame(run)
+      }
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll)
+    run()
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+      cancelAnimationFrame(raf)
+    }
+  }, [onFrame])
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Section reveal (blur-to-focus + rise). Adds `.revealed` when a
+   section enters the viewport; children stagger via CSS.
 ───────────────────────────────────────────────────────────── */
 function useSectionReveal(deps) {
   useEffect(() => {
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
     const sections = document.querySelectorAll('.home-page .scroll-section:not(.revealed)')
     if (!sections.length) return
-
-    if (reduced) {
+    if (prefersReduced() || !('IntersectionObserver' in window)) {
       sections.forEach((s) => s.classList.add('revealed'))
       return
     }
-
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -47,68 +75,55 @@ function useSectionReveal(deps) {
           }
         })
       },
-      {
-        threshold: 0.12,
-        rootMargin: '0px 0px -60px 0px',
-      }
+      { threshold: 0.15, rootMargin: '0px 0px -8% 0px' }
     )
-
     sections.forEach((s) => io.observe(s))
     return () => io.disconnect()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps)
 }
 
-/* ─── Scroll progress bar ─── */
-function useScrollProgress() {
-  const [pct, setPct] = useState(0)
-  useEffect(() => {
-    const update = () => {
-      const el = document.scrollingElement || document.documentElement
-      const total = el.scrollHeight - el.clientHeight
-      setPct(total > 0 ? (el.scrollTop / total) * 100 : 0)
-    }
-    window.addEventListener('scroll', update, { passive: true })
-    return () => window.removeEventListener('scroll', update)
-  }, [])
-  return pct
+/* ─────────────────────────────────────────────────────────────
+   Kinetic split-text. Words rise from a mask with blur removal.
+   mode="auto"   → animates on mount (used in hero, re-keyed/slide)
+   mode="scroll" → animates when an ancestor gets `.revealed`
+───────────────────────────────────────────────────────────── */
+function SplitText({ text, className = '', mode = 'scroll', tag: Tag = 'span' }) {
+  const words = String(text).split(' ')
+  return (
+    <Tag className={`split split--${mode} ${className}`} aria-label={text}>
+      {words.map((w, i) => (
+        <span className="w-outer" key={`${w}-${i}`} aria-hidden="true">
+          <span className="w-inner" style={{ '--wi': i }}>{w}</span>
+        </span>
+      ))}
+    </Tag>
+  )
 }
 
-/* ─── Hero parallax ─── */
-function useParallax(ref, speed = 0.28) {
-  useEffect(() => {
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (reduced || !ref.current) return
-    let raf
-    const onScroll = () => {
-      cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(() => {
-        if (ref.current) ref.current.style.transform = `translateY(${window.scrollY * speed}px)`
-      })
-    }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(raf) }
-  }, [ref, speed])
-}
-
-/* ─── 3-D tilt card ─── */
+/* ─── 3-D tilt card (pointer-reactive) ─── */
 function TiltCard({ className, style, onClick, children }) {
   const ref = useRef(null)
 
   const onMove = useCallback((e) => {
     const card = ref.current
-    if (!card) return
+    if (!card || prefersReduced()) return
     const { left, top, width, height } = card.getBoundingClientRect()
     const x = ((e.clientX - left) / width - 0.5) * 2
     const y = ((e.clientY - top) / height - 0.5) * -2
-    card.style.transform = `perspective(900px) rotateY(${x * 8}deg) rotateX(${y * 8}deg) translateY(-8px) scale(1.02)`
-    card.style.boxShadow = `${-x * 14}px ${-y * 14}px 48px rgba(119,56,203,0.38)`
+    card.style.setProperty('--rx', `${y * 7}deg`)
+    card.style.setProperty('--ry', `${x * 7}deg`)
+    card.style.setProperty('--gx', `${((e.clientX - left) / width) * 100}%`)
+    card.style.setProperty('--gy', `${((e.clientY - top) / height) * 100}%`)
+    card.classList.add('tilting')
   }, [])
 
   const onLeave = useCallback(() => {
-    if (!ref.current) return
-    ref.current.style.transform = ''
-    ref.current.style.boxShadow = ''
+    const card = ref.current
+    if (!card) return
+    card.style.setProperty('--rx', '0deg')
+    card.style.setProperty('--ry', '0deg')
+    card.classList.remove('tilting')
   }, [])
 
   return (
@@ -119,14 +134,14 @@ function TiltCard({ className, style, onClick, children }) {
   )
 }
 
-/* ─── Section header ─── */
+/* ─── Section header with kinetic title + draw-in underline ─── */
 function SectionHead({ icon, title, sub, link }) {
   return (
     <div className="section-header zone-head">
-      <div>
+      <div className="section-head-inner">
         <h2 className="section-title zone-title">
           <span className="section-icon">{icon}</span>
-          {title}
+          <SplitText text={title} mode="scroll" />
         </h2>
         <span className="title-underline" aria-hidden="true" />
         {sub && <p className="zone-sub">{sub}</p>}
@@ -176,6 +191,14 @@ const exploreStories = [
   { id: 4, title: 'Moonlit Enchantment', description: 'Journey into a magical realm filled with elves, dragons, and...', author: 'Sarah Chen', genre: 'Fantasy', image: storyImages[0] },
 ]
 
+/* Right-rail section navigator */
+const NAV_SECTIONS = [
+  { id: 'hero', label: 'Featured' },
+  { id: 'played', label: 'Your Stories' },
+  { id: 'scenarios', label: 'Scenarios' },
+  { id: 'explore', label: 'Explore' },
+]
+
 function Home() {
   const navigate = useNavigate()
   const [showBanner, setShowBanner] = useState(true)
@@ -186,11 +209,66 @@ function Home() {
   const [userScenarios, setUserScenarios] = useState([])
   const [loadingStories, setLoadingStories] = useState(true)
   const [loadingScenarios, setLoadingScenarios] = useState(true)
+  const [activeNav, setActiveNav] = useState('hero')
 
-  const heroParallaxRef = useRef(null)
-  const progress = useScrollProgress()
-  useParallax(heroParallaxRef, 0.28)
+  const homeRef = useRef(null)
+  const progressRef = useRef(null)
+  const heroStageRef = useRef(null)
+  const heroZoomRef = useRef(null)
+  const heroBgRef = useRef(null)
+  const spotRef = useRef(null)
 
+  /* ── Unified scroll frame: progress bar, hero zoom-through, parallax ── */
+  const onFrame = useCallback((y) => {
+    const doc = document.documentElement
+    const total = doc.scrollHeight - doc.clientHeight
+    if (progressRef.current) {
+      progressRef.current.style.transform = `scaleX(${total > 0 ? clamp(y / total, 0, 1) : 0})`
+    }
+
+    if (prefersReduced()) return
+
+    const stage = heroStageRef.current
+    const zoom = heroZoomRef.current
+    if (stage && zoom) {
+      const dist = Math.max(stage.offsetHeight - window.innerHeight, 1)
+      const p = clamp((y - stage.offsetTop) / dist, 0, 1)
+      const scale = 1 + p * 0.22
+      const fade = p < 0.35 ? 1 : clamp(1 - (p - 0.35) / 0.5, 0, 1)
+      zoom.style.transform = `translateY(${p * -46}px) scale(${scale})`
+      zoom.style.opacity = fade
+      if (heroBgRef.current) {
+        heroBgRef.current.style.transform = `translateY(${p * 70}px) scale(${1.06 + p * 0.06})`
+      }
+    }
+  }, [])
+
+  useRafScroll(onFrame)
+
+  /* ── Cursor spotlight (ambient light following the pointer) ── */
+  useEffect(() => {
+    if (prefersReduced()) return
+    const el = homeRef.current
+    const spot = spotRef.current
+    if (!el || !spot) return
+    let raf = 0
+    let tx = window.innerWidth / 2
+    let ty = window.innerHeight / 3
+    let cx = tx
+    let cy = ty
+    const onMove = (e) => { tx = e.clientX; ty = e.clientY }
+    const loop = () => {
+      cx += (tx - cx) * 0.12
+      cy += (ty - cy) * 0.12
+      spot.style.transform = `translate3d(${cx}px, ${cy}px, 0)`
+      raf = requestAnimationFrame(loop)
+    }
+    window.addEventListener('pointermove', onMove)
+    raf = requestAnimationFrame(loop)
+    return () => { window.removeEventListener('pointermove', onMove); cancelAnimationFrame(raf) }
+  }, [])
+
+  /* ── Data ── */
   useEffect(() => {
     const fetchStories = async () => {
       setLoadingStories(true)
@@ -208,26 +286,73 @@ function Home() {
     fetchScenarios()
   }, [])
 
+  /* ── Featured carousel autoplay ── */
   useEffect(() => {
-    if (featuredPaused) return
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (featuredPaused || prefersReduced()) return
     const id = setTimeout(() => setActiveFeatured((p) => (p + 1) % FEATURED.length), FEATURED_DURATION)
     return () => clearTimeout(id)
   }, [activeFeatured, featuredPaused])
 
-  /* Re-run observer after dynamic content loads */
   useSectionReveal([loadingStories, loadingScenarios])
 
+  /* ── Active section tracking for the dot navigator ── */
+  useEffect(() => {
+    if (!('IntersectionObserver' in window)) return
+    const ids = NAV_SECTIONS.map((s) => document.getElementById(s.id)).filter(Boolean)
+    if (!ids.length) return
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) setActiveNav(entry.target.id)
+        })
+      },
+      // Thin detection line at viewport middle → whichever section
+      // crosses the centre becomes active (robust for tall sections).
+      { threshold: 0, rootMargin: '-45% 0px -45% 0px' }
+    )
+    ids.forEach((el) => io.observe(el))
+    return () => io.disconnect()
+  }, [loadingStories, loadingScenarios])
+
+  const scrollToSection = (id) => {
+    const el = document.getElementById(id)
+    if (!el) return
+    const navbar = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--navbar-height')) || 72
+    const top = el.getBoundingClientRect().top + window.scrollY - navbar - 8
+    window.scrollTo({ top, behavior: prefersReduced() ? 'auto' : 'smooth' })
+  }
+
+  const feat = FEATURED[activeFeatured]
+
   return (
-    <div className="home-page">
+    <div className="home-page" ref={homeRef}>
+
+      {/* Ambient cursor spotlight */}
+      <div className="cursor-spot" ref={spotRef} aria-hidden="true" />
 
       {/* Scroll progress bar */}
-      <div className="scroll-progress" style={{ width: `${progress}%` }} />
+      <div className="scroll-progress" ref={progressRef} aria-hidden="true" />
 
-      {/* Ambient background orbs */}
+      {/* Ambient background orbs (parallax depth) */}
       <div className="bg-orb orb-1" aria-hidden="true" />
       <div className="bg-orb orb-2" aria-hidden="true" />
       <div className="bg-orb orb-3" aria-hidden="true" />
+
+      {/* Right-rail magnetic dot navigator */}
+      <nav className="dot-nav" aria-label="Sections">
+        {NAV_SECTIONS.map((s) => (
+          <button
+            key={s.id}
+            className={`dot-nav-item ${activeNav === s.id ? 'active' : ''}`}
+            onClick={() => scrollToSection(s.id)}
+            aria-label={s.label}
+            aria-current={activeNav === s.id}
+          >
+            <span className="dot-nav-label">{s.label}</span>
+            <span className="dot-nav-dot" />
+          </button>
+        ))}
+      </nav>
 
       {/* Notification Banner */}
       {showBanner && (
@@ -248,56 +373,69 @@ function Home() {
         </div>
       )}
 
-      {/* ── HERO (always visible on load) ── */}
-      <div className="hero-section">
-        <div
-          className="feat"
-          onMouseEnter={() => setFeaturedPaused(true)}
-          onMouseLeave={() => setFeaturedPaused(false)}
-        >
-          <div className="feat-parallax-wrap" ref={heroParallaxRef}>
-            {FEATURED.map((slide, i) => (
-              <div className={`feat-slide ${i === activeFeatured ? 'show' : ''}`} key={i}>
-                <img src={slide.image} alt={slide.title} />
-                <div className="feat-grad" />
-              </div>
-            ))}
-          </div>
-
-          <div className="feat-body" key={activeFeatured}>
-            <span className="feat-badge"><FlameIcon /> {FEATURED[activeFeatured].rank}</span>
-            <div className="feat-meta">
-              {FEATURED[activeFeatured].tags.map((tag) => (
-                <span className="feat-tag" key={tag}>{tag}</span>
-              ))}
-            </div>
-            <h1 className="feat-title">{FEATURED[activeFeatured].title}</h1>
-            <p className="feat-desc">{FEATURED[activeFeatured].desc}</p>
-            <div className="feat-cta">
-              <button className="btn btn-primary btn-lg" onClick={() => navigate('/story-creator')}>
-                <PlayIcon /> Start Adventure
-              </button>
-              <button className="btn btn-ghost btn-lg">Details</button>
-            </div>
-          </div>
-
-          <div className="feat-dots">
-            {FEATURED.map((_, i) => (
-              <button
-                key={i}
-                className={`feat-dot ${i === activeFeatured ? 'active' : ''} ${featuredPaused ? 'paused' : ''}`}
-                onClick={() => setActiveFeatured(i)}
-                aria-label={`Slide ${i + 1}`}
+      {/* ══ HERO — zoom-through pinned stage ══ */}
+      <section id="hero" className="hero-stage" ref={heroStageRef}>
+        <div className="hero-pin">
+          <div className="hero-zoom" ref={heroZoomRef}>
+            <div className="hero-section">
+              <div
+                className="feat"
+                onMouseEnter={() => setFeaturedPaused(true)}
+                onMouseLeave={() => setFeaturedPaused(false)}
               >
-                <i key={`${i}-${activeFeatured}`} style={{ animationDuration: `${FEATURED_DURATION}ms` }} />
-              </button>
-            ))}
+                <div className="feat-parallax-wrap" ref={heroBgRef}>
+                  {FEATURED.map((slide, i) => (
+                    <div className={`feat-slide ${i === activeFeatured ? 'show' : ''}`} key={i}>
+                      <img src={slide.image} alt={slide.title} />
+                      <div className="feat-grad" />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="feat-body" key={activeFeatured}>
+                  <span className="feat-badge"><FlameIcon /> {feat.rank}</span>
+                  <div className="feat-meta">
+                    {feat.tags.map((tag) => (
+                      <span className="feat-tag" key={tag}>{tag}</span>
+                    ))}
+                  </div>
+                  <h1 className="feat-title">
+                    <SplitText text={feat.title} mode="auto" />
+                  </h1>
+                  <p className="feat-desc">{feat.desc}</p>
+                  <div className="feat-cta">
+                    <button className="btn btn-primary btn-lg" onClick={() => navigate('/story-creator')}>
+                      <PlayIcon /> Start Adventure
+                    </button>
+                    <button className="btn btn-ghost btn-lg">Details</button>
+                  </div>
+                </div>
+
+                <div className="feat-dots">
+                  {FEATURED.map((_, i) => (
+                    <button
+                      key={i}
+                      className={`feat-dot ${i === activeFeatured ? 'active' : ''} ${featuredPaused ? 'paused' : ''}`}
+                      onClick={() => setActiveFeatured(i)}
+                      aria-label={`Slide ${i + 1}`}
+                    >
+                      <i key={`${i}-${activeFeatured}`} style={{ animationDuration: `${FEATURED_DURATION}ms` }} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <button className="scroll-hint" onClick={() => scrollToSection('played')} aria-label="Scroll down">
+              <span>Scroll to explore</span>
+              <span className="scroll-hint-mouse"><i /></span>
+            </button>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* ── SECTION 1: Previously Played Stories ── */}
-      <section className="stories-section scroll-section">
+      {/* ══ SECTION 1: Previously Played Stories ══ */}
+      <section id="played" className="stories-section scroll-section">
         <SectionHead icon={<PlaySectionIcon />} title="Previously Played Stories" sub="Jump back into your adventures" />
 
         {loadingStories ? (
@@ -333,8 +471,8 @@ function Home() {
         )}
       </section>
 
-      {/* ── SECTION 2: My Scenarios ── */}
-      <section className="stories-section scroll-section">
+      {/* ══ SECTION 2: My Scenarios ══ */}
+      <section id="scenarios" className="stories-section scroll-section">
         <SectionHead icon={<MapSectionIcon />} title="My Scenarios" sub="Pre-built worlds, ready to play instantly" />
 
         {loadingScenarios ? (
@@ -370,8 +508,8 @@ function Home() {
         )}
       </section>
 
-      {/* ── SECTION 3: Explore Shared Stories ── */}
-      <section className="stories-section explore-section scroll-section">
+      {/* ══ SECTION 3: Explore Shared Stories ══ */}
+      <section id="explore" className="stories-section explore-section scroll-section">
         <SectionHead icon={<BookSectionIcon />} title="Explore Shared Stories" sub="Stories shared by the community" link="View All" />
 
         <div className="stories-grid">
