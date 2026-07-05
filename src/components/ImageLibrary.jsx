@@ -1,6 +1,7 @@
-import { useState, useEffect, Fragment } from 'react'
+import { useState, useEffect, useCallback, useRef, Fragment } from 'react'
 import { Link } from 'react-router-dom'
 import { imageLibraryStore } from '../utils/imageLibraryStore'
+import SecureImage from './SecureImage'
 import './ImageLibrary.css'
 
 const M = {
@@ -114,11 +115,11 @@ const M = {
 const STYLES = ['Fantasy', 'Anime', 'Realistic', 'Cartoon']
 const DATES = ['Today', 'This week', 'Earlier']
 
-const STORE0 = imageLibraryStore.load()
-
 function ImageLibrary() {
-  const [images, setImages] = useState(STORE0.images)
-  const [folders, setFolders] = useState(STORE0.folders)
+  const [images, setImages] = useState([])
+  const [folders, setFolders] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [view, setView] = useState('all')
   const [styleFilter, setStyleFilter] = useState('All')
   const [sort, setSort] = useState('Newest')
@@ -130,7 +131,10 @@ function ImageLibrary() {
   const [newParent, setNewParent] = useState(null)
   const [moveFor, setMoveFor] = useState(null)
   const [del, setDel] = useState(null)
+  const [delFolder, setDelFolder] = useState(null)
   const [toast, setToast] = useState(null)
+  const [clip, setClip] = useState([]) // images copied to the clipboard
+  const keyRef = useRef({ copy: () => {}, paste: () => {} })
 
   useEffect(() => {
     if (!toast) return undefined
@@ -138,9 +142,42 @@ function ImageLibrary() {
     return () => clearTimeout(t)
   }, [toast])
 
+  // Global Ctrl/⌘ + C / V for copy-paste of images between folders.
+  // Bound once; always calls the latest closures via keyRef.
   useEffect(() => {
-    imageLibraryStore.save({ folders, images })
-  }, [folders, images])
+    const onKey = (e) => {
+      const t = e.target
+      const tag = (t?.tagName || '').toLowerCase()
+      if (tag === 'input' || tag === 'textarea' || t?.isContentEditable) return
+      if (!(e.metaKey || e.ctrlKey)) return
+      const k = e.key.toLowerCase()
+      if (k === 'c') keyRef.current.copy(e)
+      else if (k === 'v') keyRef.current.paste(e)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  const loadAll = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [fs, res] = await Promise.all([
+        imageLibraryStore.fetchFolders(),
+        imageLibraryStore.fetchImages({ limit: 500 }),
+      ])
+      setFolders(fs)
+      setImages(res.images)
+    } catch (e) {
+      setError(e?.message || 'Failed to load your image library')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadAll()
+  }, [loadAll])
 
   const note = (m) => setToast(m)
 
@@ -179,7 +216,20 @@ function ImageLibrary() {
     return [{ label: 'All Images', v: 'all' }, { label: curFolder.name }]
   })()
 
-  const toggleFav = (id) => setImages((ims) => ims.map((i) => (i.id === id ? { ...i, fav: !i.fav } : i)))
+  // Optimistic favorite toggle with rollback on failure.
+  const toggleFav = async (id) => {
+    const target = images.find((i) => i.id === id)
+    if (!target) return
+    const next = !target.fav
+    setImages((ims) => ims.map((i) => (i.id === id ? { ...i, fav: next } : i)))
+    try {
+      await imageLibraryStore.toggleFavorite(id, next)
+    } catch {
+      setImages((ims) => ims.map((i) => (i.id === id ? { ...i, fav: !next } : i)))
+      note('Could not update favorite')
+    }
+  }
+
   const toggleSel = (id) =>
     setSel((s) => {
       const n = new Set(s)
@@ -188,31 +238,106 @@ function ImageLibrary() {
       return n
     })
 
-  const createCol = () => {
+  const createCol = async () => {
     if (!colName.trim()) return
-    const id = `uc${Date.now().toString(36)}`
-    setFolders((fs) => [...fs, { id, name: colName.trim(), parentId: newParent }])
-    note(newParent ? 'Subfolder created' : 'Collection created')
-    setColName('')
-    setNewCol(false)
-    setView(id)
+    try {
+      const folder = await imageLibraryStore.createFolder(colName.trim(), newParent)
+      const fs = await imageLibraryStore.fetchFolders()
+      setFolders(fs)
+      note(newParent ? 'Subfolder created' : 'Collection created')
+      setColName('')
+      setNewCol(false)
+      if (folder?.id) setView(folder.id)
+    } catch (e) {
+      note(e?.message || 'Could not create folder')
+    }
   }
 
-  const doAddTo = (folderId) => {
-    const ids = moveFor.ids
-    setImages((ims) => ims.map((i) => (ids.includes(i.id) ? { ...i, col: folderId } : i)))
-    note(ids.length > 1 ? `Moved ${ids.length} images` : 'Moved to folder')
+  // Handles the "Add to…" / "Copy to…" folder picker for both move and copy.
+  const doAddTo = async (folderId) => {
+    const { ids, mode } = moveFor
     setMoveFor(null)
+    const label = folderId ? imageLibraryStore.folderName(folders, folderId) : 'Unsorted'
+
+    if (mode === 'copy') {
+      try {
+        const created = await Promise.all(ids.map((id) => imageLibraryStore.copyImage(id, folderId)))
+        setImages((ims) => [...created, ...ims])
+        note(created.length > 1 ? `Copied ${created.length} images to ${label}` : `Copied to ${label}`)
+      } catch (e) {
+        note(e?.message || 'Could not copy images')
+      }
+      return
+    }
+
+    // Move (optimistic with rollback).
+    const prev = images
+    setImages((ims) => ims.map((i) => (ids.includes(i.id) ? { ...i, col: folderId } : i)))
     setSel(new Set())
+    try {
+      await Promise.all(ids.map((id) => imageLibraryStore.moveImage(id, folderId)))
+      note(ids.length > 1 ? `Moved ${ids.length} images` : 'Moved to folder')
+    } catch {
+      setImages(prev)
+      note('Could not move images')
+    }
   }
 
-  const doDelete = () => {
+  // Put images on the clipboard so they can be pasted into a folder.
+  const copyToClip = (ids) => {
+    const items = images.filter((i) => ids.includes(i.id))
+    if (!items.length) return
+    setClip(items)
+    note(items.length > 1 ? `${items.length} images copied` : 'Image copied')
+  }
+
+  // Paste clipboard images as independent copies into a folder (null = unsorted).
+  const pasteInto = async (folderId) => {
+    if (!clip.length) return
+    const label = folderId ? imageLibraryStore.folderName(folders, folderId) : 'All Images'
+    try {
+      const created = await Promise.all(clip.map((im) => imageLibraryStore.copyImage(im.id, folderId)))
+      setImages((ims) => [...created, ...ims])
+      note(created.length > 1 ? `Pasted ${created.length} images into ${label}` : `Pasted into ${label}`)
+    } catch (e) {
+      note(e?.message || 'Could not paste images')
+    }
+  }
+
+  const doDelete = async () => {
     const ids = del.ids
+    const prev = images
     setImages((ims) => ims.filter((i) => !ids.includes(i.id)))
-    note(ids.length > 1 ? `Deleted ${ids.length} images` : 'Image deleted')
     setDel(null)
     setSel(new Set())
     if (lb !== null) setLb(null)
+    try {
+      await Promise.all(ids.map((id) => imageLibraryStore.deleteImage(id)))
+      note(ids.length > 1 ? `Deleted ${ids.length} images` : 'Image deleted')
+    } catch {
+      setImages(prev)
+      note('Could not delete images')
+    }
+  }
+
+  // Cascade delete: removes the folder subtree and every image inside it.
+  const doDeleteFolder = async () => {
+    const id = delFolder.id
+    const affected = imageLibraryStore.descendantIds(folders, id)
+    setDelFolder(null)
+    try {
+      await imageLibraryStore.deleteFolder(id)
+      const [fs, res] = await Promise.all([
+        imageLibraryStore.fetchFolders(),
+        imageLibraryStore.fetchImages({ limit: 500 }),
+      ])
+      setFolders(fs)
+      setImages(res.images)
+      note('Folder deleted')
+      if (affected.includes(view)) setView('all')
+    } catch (e) {
+      note(e?.message || 'Could not delete folder')
+    }
   }
 
   const grouped = DATES.map((d) => ({ date: d, items: filtered.filter((i) => i.date === d) })).filter(
@@ -221,9 +346,75 @@ function ImageLibrary() {
   const flat = grouped.flatMap((g) => g.items)
   const lbImg = lb !== null ? flat[lb] : null
 
+  // Keep the keyboard shortcut handlers pointed at the current render's state.
+  keyRef.current.copy = (e) => {
+    if (window.getSelection && String(window.getSelection())) return // let text-copy through
+    const ids = lbImg ? [lbImg.id] : [...sel]
+    if (!ids.length) return
+    e.preventDefault()
+    copyToClip(ids)
+  }
+  keyRef.current.paste = (e) => {
+    if (!clip.length) return
+    e.preventDefault()
+    pasteInto(curFolder ? curFolder.id : null)
+  }
+
   const goView = (v) => {
     setView(v)
     setSel(new Set())
+  }
+
+  // Recursively render the folder subtree in the sidebar (depths 1 and 2).
+  const renderSubtree = (parentId, depth) =>
+    childFolders(parentId).map((f) => (
+      <Fragment key={f.id}>
+        <button
+          type="button"
+          className={`lib-fold ${view === f.id ? 'active' : ''}`}
+          style={{ paddingLeft: 14 + depth * 16 }}
+          onClick={() => goView(f.id)}
+        >
+          {M.folder}
+          <span>{f.name}</span>
+          <span className="ct">{colCount(f.id)}</span>
+        </button>
+        {renderSubtree(f.id, depth + 1)}
+      </Fragment>
+    ))
+
+  if (loading) {
+    return (
+      <div className="image-library-page">
+        <div className="lib-wrap">
+          <div className="lib-main" style={{ display: 'grid', placeItems: 'center', minHeight: 320 }}>
+            <div
+              className="loader"
+              style={{ width: 26, height: 26, border: '3px solid var(--ink-15, rgba(0,0,0,0.15))', borderTopColor: 'currentColor', borderRadius: '50%', animation: 'spin 1s linear infinite' }}
+            />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="image-library-page">
+        <div className="lib-wrap">
+          <div className="lib-main">
+            <div className="lib-empty2">
+              <div className="ei">{M.imgIc}</div>
+              <h3>Couldn&apos;t load your library</h3>
+              <p>{error}</p>
+              <button type="button" className="btn btn-primary btn-md" style={{ gap: 7 }} onClick={loadAll}>
+                {M.refresh} Try again
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -256,20 +447,7 @@ function ImageLibrary() {
                 <span className="ct">{colCount(top.id)}</span>
               </button>
               {childFolders(top.id).length > 0 && (
-                <div className="lib-tree">
-                  {childFolders(top.id).map((sub) => (
-                    <button
-                      key={sub.id}
-                      type="button"
-                      className={`lib-fold ${view === sub.id ? 'active' : ''}`}
-                      onClick={() => goView(sub.id)}
-                    >
-                      {M.folder}
-                      <span>{sub.name}</span>
-                      <span className="ct">{colCount(sub.id)}</span>
-                    </button>
-                  ))}
-                </div>
+                <div className="lib-tree">{renderSubtree(top.id, 0)}</div>
               )}
             </Fragment>
           ))}
@@ -305,7 +483,7 @@ function ImageLibrary() {
               ))}
             </div>
             <div className="spacer" />
-            {curFolder && !curFolder.parentId && (
+            {curFolder && curFolder.depth < 2 && (
               <button
                 type="button"
                 className="btn btn-ghost btn-md"
@@ -317,6 +495,16 @@ function ImageLibrary() {
                 }}
               >
                 {M.folderPlus} New subfolder
+              </button>
+            )}
+            {curFolder && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-md"
+                style={{ gap: 7 }}
+                onClick={() => setDelFolder({ id: curFolder.id, name: curFolder.name })}
+              >
+                {M.trash} Delete folder
               </button>
             )}
             <div className="lib-search2">
@@ -421,18 +609,28 @@ function ImageLibrary() {
                           role="button"
                           tabIndex={0}
                         >
-                          <img src={im.img} alt={im.prompt} />
+                          <SecureImage src={im.img} alt={im.prompt} />
                           <div className="ilib-ov" />
                           {im.fav && <span className="ilib-favdot">{M.star}</span>}
                           <div className="ilib-top" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-                            <button
-                              type="button"
-                              className={`ilib-fav ${im.fav ? 'on' : ''}`}
-                              title="Favorite"
-                              onClick={() => toggleFav(im.id)}
-                            >
-                              {M.star}
-                            </button>
+                            <div className="ilib-actions">
+                              <button
+                                type="button"
+                                className={`ilib-fav ${im.fav ? 'on' : ''}`}
+                                title="Favorite"
+                                onClick={() => toggleFav(im.id)}
+                              >
+                                {M.star}
+                              </button>
+                              <button
+                                type="button"
+                                className="ilib-fav"
+                                title="Copy image"
+                                onClick={() => copyToClip([im.id])}
+                              >
+                                {M.copy}
+                              </button>
+                            </div>
                             <button type="button" className="ilib-check" title="Select" onClick={() => toggleSel(im.id)}>
                               {M.check}
                             </button>
@@ -455,8 +653,11 @@ function ImageLibrary() {
               <span className="n">
                 <b>{sel.size}</b> selected
               </span>
-              <button type="button" className="btn btn-ghost btn-sm" style={{ gap: 6 }} onClick={() => setMoveFor({ ids: [...sel] })}>
+              <button type="button" className="btn btn-ghost btn-sm" style={{ gap: 6 }} onClick={() => setMoveFor({ ids: [...sel], mode: 'move' })}>
                 {M.move} Add to…
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm" style={{ gap: 6 }} onClick={() => setMoveFor({ ids: [...sel], mode: 'copy' })}>
+                {M.copy} Copy to…
               </button>
               <button type="button" className="btn btn-ghost btn-sm" style={{ gap: 6 }} onClick={() => note('Download started')}>
                 {M.download} Download
@@ -503,7 +704,7 @@ function ImageLibrary() {
               {M.x}
             </button>
             <div className="il-lb-img">
-              <img src={lbImg.img} alt={lbImg.prompt} />
+              <SecureImage src={lbImg.img} alt={lbImg.prompt} />
             </div>
             <div className="il-lb-info">
               <span className="stylebadge">{lbImg.style} style</span>
@@ -523,7 +724,7 @@ function ImageLibrary() {
                 </div>
                 <div className="row">
                   <span className="k">Seed</span>
-                  <span className="v">#{(lbImg.id.charCodeAt(2) * 7919) % 100000}</span>
+                  <span className="v">{lbImg.seed != null ? `#${lbImg.seed}` : '—'}</span>
                 </div>
               </div>
               <div className="il-reuse">
@@ -533,8 +734,11 @@ function ImageLibrary() {
                 <button type="button" className="il-usebtn" onClick={() => note('Set as character portrait')}>
                   {M.user} Set as character portrait
                 </button>
-                <button type="button" className="il-usebtn" onClick={() => setMoveFor({ ids: [lbImg.id] })}>
+                <button type="button" className="il-usebtn" onClick={() => setMoveFor({ ids: [lbImg.id], mode: 'move' })}>
                   {M.folder} Add to folder…
+                </button>
+                <button type="button" className="il-usebtn" onClick={() => setMoveFor({ ids: [lbImg.id], mode: 'copy' })}>
+                  {M.copy} Copy to folder…
                 </button>
                 <button type="button" className="il-usebtn" onClick={() => note('Added to story')}>
                   {M.imgIc} Add to story
@@ -598,7 +802,8 @@ function ImageLibrary() {
           <div className="lm" style={{ maxWidth: 440 }} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
             <div className="lm-head">
               <h2>
-                Add {moveFor.ids.length > 1 ? `${moveFor.ids.length} images` : 'image'} to…
+                {moveFor.mode === 'copy' ? 'Copy' : 'Add'}{' '}
+                {moveFor.ids.length > 1 ? `${moveFor.ids.length} images` : 'image'} to…
               </h2>
               <button type="button" className="x" onClick={() => setMoveFor(null)}>
                 {M.x}
@@ -648,6 +853,64 @@ function ImageLibrary() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {delFolder && (
+        <div className="lm-ov" onClick={() => setDelFolder(null)}>
+          <div className="lm" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+            <div className="lm-head">
+              <h2>Delete “{delFolder.name}”?</h2>
+              <button type="button" className="x" onClick={() => setDelFolder(null)}>
+                {M.x}
+              </button>
+            </div>
+            <p style={{ color: 'var(--ink-55)', fontSize: 14, marginBottom: 4 }}>
+              This permanently deletes the folder, every subfolder inside it, and all of their
+              images. This can&apos;t be undone.
+            </p>
+            <div className="lm-foot">
+              <button type="button" className="btn btn-ghost btn-md" onClick={() => setDelFolder(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-md"
+                style={{ background: 'rgba(220,60,60,0.9)', color: '#fff' }}
+                onClick={doDeleteFolder}
+              >
+                Delete everything
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {clip.length > 0 && (
+        <div className="lib-clip">
+          <div className="lib-clip-thumbs">
+            {clip.slice(0, 3).map((c) => (
+              <SecureImage key={c.id} src={c.img} alt="" />
+            ))}
+            {clip.length > 3 && <span className="more">+{clip.length - 3}</span>}
+          </div>
+          <div className="lib-clip-txt">
+            <b>{clip.length} {clip.length > 1 ? 'images' : 'image'} copied</b>
+            <span>
+              Press ⌘/Ctrl + V to paste{curFolder ? ` into “${curFolder.name}”` : ''}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            style={{ gap: 6 }}
+            onClick={() => pasteInto(curFolder ? curFolder.id : null)}
+          >
+            {M.copy} Paste here
+          </button>
+          <button type="button" className="lib-clip-x" title="Clear" onClick={() => setClip([])}>
+            {M.x}
+          </button>
         </div>
       )}
 
