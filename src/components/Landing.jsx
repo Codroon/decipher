@@ -71,12 +71,22 @@ function Hero({ sub, onSignup }) {
   return (
     <header className="hero">
       <div className="hero-bg">
-        <img src="/fantasy-art-style.png" alt="A world unfolding from a glowing book" />
+        <video
+          className="hero-bg-media"
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="metadata"
+          poster="/fantasy-art-style.png"
+          aria-hidden="true"
+        >
+          <source src="/VideoBg.mp4" type="video/mp4" />
+        </video>
       </div>
       <div className="hero-veil"></div>
       <div className="wrap hero-c">
         <img className="hero-logo-mark" src="/decipher-logo.png" alt="" />
-        <span className="eyebrow"><span className="dot"></span>AI Storytelling Engine</span>
         <h1 className="hero-wordmark" style={{ marginTop: 18 }}>
           Decipher <span className="eng grad-text">Engine</span>
         </h1>
