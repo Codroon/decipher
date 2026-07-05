@@ -2,17 +2,17 @@
 
 .image-studio-page {
   width: 100%;
-  min-height: 100vh;
+  min-height: var(--viewport-height, 100vh);
   padding-top: var(--navbar-height, 72px);
   color: #fff;
   font-family: var(--font-body);
 }
 
 .is-content {
-  min-height: calc(100vh - var(--navbar-height, 72px));
-  max-width: 1560px;
+  min-height: calc(var(--viewport-height, 100vh) - var(--navbar-height, 72px));
   width: 100%;
-  margin-inline: auto;
+  max-width: none;
+  margin: 0;
   display: flex;
   align-items: flex-start;
 }
@@ -24,7 +24,7 @@
   flex-direction: column;
   position: sticky;
   top: var(--navbar-height, 72px);
-  max-height: calc(100vh - var(--navbar-height, 72px));
+  max-height: calc(var(--viewport-height, 100vh) - var(--navbar-height, 72px));
   border-right: 1px solid var(--hairline-soft);
   background: rgba(13, 9, 20, 0.4);
 }
@@ -520,7 +520,7 @@
 }
 
 .is-empty {
-  min-height: calc(100vh - var(--navbar-height, 72px) - 120px);
+  min-height: calc(var(--app-height, calc(100vh - var(--navbar-height, 72px))) - 120px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -841,7 +841,8 @@
   }
 
   .is-canvas {
-    min-height: 60vh;
+    min-height: 50vh;
+    min-height: 50dvh;
   }
 }
 
@@ -853,5 +854,69 @@
 
   .is-canvas {
     padding: 18px;
+    min-height: 40vh;
+    min-height: 40dvh;
   }
+
+  .is-comp-scroll {
+    padding: 20px 16px 14px;
+  }
+
+  .is-stage-head {
+    padding: 14px 16px;
+  }
+}
+
+/* Optional "save to folder" selector */
+.is-folder {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: var(--panel, rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--hairline-soft);
+  transition: border-color 0.15s;
+}
+
+.is-folder:focus-within {
+  border-color: var(--hairline);
+}
+
+.is-folder > svg {
+  width: 17px;
+  height: 17px;
+  color: var(--ink-40);
+  flex-shrink: 0;
+}
+
+.is-folder select {
+  flex: 1;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--ink-70);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 12px 4px;
+  cursor: pointer;
+}
+
+.is-folder select option {
+  color: #1a1024;
+}
+
+.is-folder::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-right: 1.5px solid var(--ink-40);
+  border-bottom: 1.5px solid var(--ink-40);
+  transform: rotate(45deg) translateY(-2px);
+  margin-right: 4px;
+  pointer-events: none;
 }

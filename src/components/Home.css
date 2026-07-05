@@ -6,7 +6,7 @@
 .home-page {
   position: relative;
   width: 100%;
-  min-height: 100vh;
+  min-height: var(--viewport-height, 100vh);
   margin-left: 0;
 }
 
@@ -44,8 +44,8 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  max-width: 1320px;
-  padding: 0 30px;
+  max-width: none;
+  padding: 0 24px;
 }
 
 .banner-message {
@@ -91,9 +91,10 @@
 
 /* ---------------- Hero ---------------- */
 .hero-section {
-  max-width: 1320px;
-  margin: 0 auto;
-  padding: calc(var(--navbar-height, 72px) + 30px) 30px 8px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: calc(var(--navbar-height, 72px) + 30px) 24px 8px;
 }
 
 /* Cinematic featured carousel */
@@ -272,17 +273,23 @@
 
 /* ---------------- Sections / Zones ---------------- */
 .stories-section {
-  padding: 44px 30px;
-  max-width: 1320px;
-  margin: 0 auto;
+  padding: 44px 24px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
 }
 
 .section-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: flex-end;
+  position: relative;
   margin-bottom: 20px;
   gap: 16px;
+}
+
+.section-header > div:first-child {
+  text-align: center;
 }
 
 .section-title {
@@ -293,9 +300,10 @@
   letter-spacing: -0.01em;
   color: #fff;
   margin: 0;
-  text-align: left;
+  text-align: center;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 11px;
 }
 
@@ -318,12 +326,15 @@
   font-size: 13.5px;
   color: var(--ink-55);
   margin: 2px 0 0;
-  padding-left: 37px;
+  text-align: center;
 }
 
 .zone-head .section-title { margin-bottom: 0; }
 
 .view-all {
+  position: absolute;
+  right: 0;
+  bottom: 0;
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 13.5px;
@@ -700,4 +711,14 @@
   .feat { height: 340px; }
   .feat-desc { display: none; }
   .feat-cta .btn { padding: 13px 22px; font-size: 12.5px; }
+  .section-header {
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  .view-all {
+    position: static;
+  }
+  .banner-content { padding: 0 16px; }
+  .banner-message span { font-size: 12px; }
 }

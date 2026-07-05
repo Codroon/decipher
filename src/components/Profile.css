@@ -2,7 +2,7 @@
 .profile-container {
   padding: 28px 24px 56px;
   max-width: 760px;
-  margin: 0 auto;
+  margin: 0;
 }
 
 /* Profile Header */
@@ -355,5 +355,24 @@
   .cancel-btn,
   .save-btn {
     width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-container {
+    padding: 12px 12px 40px;
+  }
+
+  .profile-header h1 {
+    font-size: 18px;
+  }
+
+  .profile-avatar-section {
+    padding: 0 14px 18px;
+  }
+
+  .profile-info-section,
+  .profile-section {
+    padding: 14px;
   }
 }
