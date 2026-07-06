@@ -16,9 +16,9 @@ function RegistrationForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [showVerificationPopup, setShowVerificationPopup] = useState(false)
   const [userEmail, setUserEmail] = useState('')
-  const [passwordStrength, setPasswordStrength] = useState({ score: 0, feedback: [] })
-  const [passwordMatch, setPasswordMatch] = useState(true)
   const isSubmitting = useRef(false)
+  const passwordInputRef = useRef(null)
+  const confirmPasswordInputRef = useRef(null)
 
   const { register } = useAuth()
   const navigate = useNavigate()
@@ -39,7 +39,7 @@ function RegistrationForm() {
     if (/\d/.test(password)) score += 1
     else feedback.push('One number')
 
-    if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) score += 1
+    if (/[^A-Za-z0-9]/.test(password)) score += 1
     else feedback.push('One special character')
 
     return { score, feedback }
@@ -49,17 +49,18 @@ function RegistrationForm() {
     return password === confirmPassword && confirmPassword.length > 0
   }
 
+  const passwordStrength = checkPasswordStrength(password)
+  const passwordMatch = checkPasswordMatch(password, confirmPassword)
+  const passwordIsComplete = passwordStrength.score === 5
+
   const handlePasswordChange = (e) => {
-    const newPassword = e.target.value
-    setPassword(newPassword)
-    setPasswordStrength(checkPasswordStrength(newPassword))
-    setPasswordMatch(checkPasswordMatch(newPassword, confirmPassword))
+    setPassword(e.target.value)
+    if (error) setError('')
   }
 
   const handleConfirmPasswordChange = (e) => {
-    const newConfirmPassword = e.target.value
-    setConfirmPassword(newConfirmPassword)
-    setPasswordMatch(checkPasswordMatch(password, newConfirmPassword))
+    setConfirmPassword(e.target.value)
+    if (error) setError('')
   }
 
   const handleSubmit = useCallback(async (e) => {
@@ -67,12 +68,20 @@ function RegistrationForm() {
 
     if (isSubmitting.current) return
 
-    if (passwordStrength.score < 3) {
-      setError('Password is too weak. Please ensure it meets the requirements.')
+    const submittedPassword = passwordInputRef.current?.value || password
+    const submittedConfirmPassword = confirmPasswordInputRef.current?.value || confirmPassword
+    const submittedStrength = checkPasswordStrength(submittedPassword)
+    const submittedPasswordsMatch = checkPasswordMatch(submittedPassword, submittedConfirmPassword)
+
+    if (submittedPassword !== password) setPassword(submittedPassword)
+    if (submittedConfirmPassword !== confirmPassword) setConfirmPassword(submittedConfirmPassword)
+
+    if (submittedStrength.score < 5) {
+      setError(`Password must contain: ${submittedStrength.feedback.join(', ')}.`)
       return
     }
 
-    if (!passwordMatch) {
+    if (!submittedPasswordsMatch) {
       setError('Passwords do not match.')
       return
     }
@@ -84,7 +93,7 @@ function RegistrationForm() {
     const submittedEmail = email
 
     try {
-      const result = await register(name, submittedEmail, password, confirmPassword)
+      const result = await register(name, submittedEmail, submittedPassword, submittedConfirmPassword)
 
       if (result.success) {
         setUserEmail(result.email || submittedEmail)
@@ -98,7 +107,7 @@ function RegistrationForm() {
       setIsLoading(false)
       isSubmitting.current = false
     }
-  }, [email, name, password, confirmPassword, passwordMatch, passwordStrength.score, register])
+  }, [email, name, password, confirmPassword, register])
 
   const closePopup = () => {
     setShowVerificationPopup(false)
@@ -165,7 +174,9 @@ function RegistrationForm() {
                     placeholder="Password"
                     autoComplete="new-password"
                     value={password}
+                    ref={passwordInputRef}
                     onChange={handlePasswordChange}
+                    onInput={handlePasswordChange}
                     required
                   />
                   <button
@@ -209,7 +220,9 @@ function RegistrationForm() {
                     placeholder="Confirm your Password"
                     autoComplete="new-password"
                     value={confirmPassword}
+                    ref={confirmPasswordInputRef}
                     onChange={handleConfirmPasswordChange}
+                    onInput={handleConfirmPasswordChange}
                     required
                   />
                   <button
@@ -249,7 +262,11 @@ function RegistrationForm() {
                 </a>
               </div>
 
-              <button type="submit" className="btn btn-primary btn-lg auth-submit-full" disabled={isLoading}>
+              <button
+                type="submit"
+                className="btn btn-primary btn-lg auth-submit-full"
+                disabled={isLoading || (password.length > 0 && !passwordIsComplete) || (confirmPassword.length > 0 && !passwordMatch)}
+              >
                 {isLoading ? 'Signing Up...' : 'Sign Up'}
               </button>
             </div>

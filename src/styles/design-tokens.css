@@ -1,0 +1,78 @@
+:root {
+  /* Homepage color system: white/purple brand family, dark atmospheric base */
+  --hp-bg-base: #07050d;
+  --hp-bg-deep: #0d0718;
+  --hp-bg-elevated: #151022;
+  --hp-bg-overlay: rgba(10, 7, 18, 0.78);
+  --hp-surface: rgba(255, 255, 255, 0.065);
+  --hp-surface-strong: rgba(255, 255, 255, 0.105);
+  --hp-surface-hover: rgba(165, 112, 255, 0.16);
+  --hp-border-subtle: rgba(255, 255, 255, 0.105);
+  --hp-border-strong: rgba(204, 176, 255, 0.32);
+
+  --hp-text-primary: #ffffff;
+  --hp-text-secondary: rgba(255, 255, 255, 0.76);
+  --hp-text-muted: rgba(255, 255, 255, 0.54);
+  --hp-text-faint: rgba(255, 255, 255, 0.38);
+
+  --hp-accent-primary: #9b5cff;
+  --hp-accent-primary-strong: #b98cff;
+  --hp-accent-secondary: #6f8cff;
+  --hp-accent-tertiary: #f2ecff;
+  --hp-accent-glow: rgba(155, 92, 255, 0.48);
+  --hp-accent-glow-soft: rgba(155, 92, 255, 0.2);
+
+  --hp-success: #6ee7b7;
+  --hp-warning: #f6c177;
+  --hp-error: #fb7185;
+
+  /* Typography */
+  --hp-font-display: 'Poppins', 'Inter', system-ui, sans-serif;
+  --hp-font-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --hp-font-story: 'Spectral', Georgia, serif;
+
+  --hp-display-size: clamp(3.35rem, 7vw, 6.95rem);
+  --hp-display-line: 0.93;
+  --hp-display-tracking: -0.055em;
+  --hp-section-size: clamp(2rem, 4vw, 4.25rem);
+  --hp-section-line: 1.02;
+  --hp-body-size: 1rem;
+  --hp-body-line: 1.7;
+  --hp-label-size: 0.74rem;
+  --hp-button-size: 0.82rem;
+
+  /* Spacing scale */
+  --hp-space-1: 4px;
+  --hp-space-2: 8px;
+  --hp-space-3: 12px;
+  --hp-space-4: 16px;
+  --hp-space-5: 20px;
+  --hp-space-6: 24px;
+  --hp-space-8: 32px;
+  --hp-space-10: 40px;
+  --hp-space-12: 48px;
+  --hp-space-16: 64px;
+  --hp-space-20: 80px;
+  --hp-space-24: 96px;
+
+  /* Radius */
+  --hp-radius-sm: 8px;
+  --hp-radius-md: 12px;
+  --hp-radius-lg: 18px;
+  --hp-radius-xl: 24px;
+  --hp-radius-hero: 32px;
+
+  /* Shadow and glow */
+  --hp-shadow-soft: 0 18px 54px rgba(0, 0, 0, 0.36);
+  --hp-shadow-card: 0 24px 80px rgba(0, 0, 0, 0.42);
+  --hp-shadow-purple: 0 18px 64px rgba(155, 92, 255, 0.32);
+  --hp-inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+
+  /* Motion */
+  --hp-ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --hp-ease-emphatic: cubic-bezier(0.16, 1, 0.3, 1);
+  --hp-duration-fast: 160ms;
+  --hp-duration-standard: 260ms;
+  --hp-duration-entrance: 620ms;
+}
+

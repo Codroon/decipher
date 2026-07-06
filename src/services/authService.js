@@ -29,10 +29,14 @@ const isDevTestLogin = (email, password) => {
  * @returns {Promise<Object>} Registration result
  */
 export const registerUser = async (name, email, password, confirmPassword) => {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 20000)
+
   try {
     const response = await fetch(API_ENDPOINTS.AUTH.REGISTER, {
       method: 'POST',
       headers: getHeaders(false),
+      signal: controller.signal,
       body: JSON.stringify({
         name,
         email,
@@ -55,7 +59,12 @@ export const registerUser = async (name, email, password, confirmPassword) => {
     }
   } catch (error) {
     console.error('Registration Error:', error)
+    if (error.name === 'AbortError') {
+      return { success: false, error: 'Registration timed out. Please check your connection and try again.' }
+    }
     return { success: false, error: 'Network error. Please try again.' }
+  } finally {
+    clearTimeout(timeoutId)
   }
 }
 
@@ -280,7 +289,7 @@ export const verifyToken = async (token) => {
  */
 export const logoutUser = async (token) => {
   try {
-    const response = await fetch(API_ENDPOINTS.AUTH.LOGOUT, {
+    await fetch(API_ENDPOINTS.AUTH.LOGOUT, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -296,4 +305,3 @@ export const logoutUser = async (token) => {
     return { success: true }
   }
 }
-
