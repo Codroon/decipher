@@ -4,15 +4,10 @@ import './StoryCreator.css'
 import * as storyService from '../services/storyService'
 import * as libraryService from '../services/libraryService'
 
-/** Render a story chunk as plain paragraphs (split on blank lines). */
-function renderChunkParagraphs(chunk) {
-  const paraStrings = chunk.content.split(/\n\n/).filter((p) => p.trim())
-  if (paraStrings.length === 0) {
-    return <p key={`para-${chunk.index}-0`}>{chunk.content}</p>
-  }
-  return paraStrings.map((para, pi) => (
-    <p key={`para-${chunk.index}-${pi}`}>{para.trim()}</p>
-  ))
+/** Split a story chunk into paragraphs (blank-line separated). */
+function splitParagraphs(content) {
+  const paras = content.split(/\n\n/).filter((p) => p.trim())
+  return paras.length ? paras.map((p) => p.trim()) : [content]
 }
 
 const I = {
@@ -24,6 +19,12 @@ const I = {
   up: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 19V5M5 12l7-7 7 7" />
+    </svg>
+  ),
+  mic: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="2" width="6" height="12" rx="3" />
+      <path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4M8 22h8" />
     </svg>
   ),
   pen: (
@@ -136,14 +137,13 @@ function StoryCreator() {
   const [clarificationAnswer, setClarificationAnswer] = useState('')
   const [clarificationLoading, setClarificationLoading] = useState(false)
 
-  // Manual chunk editing states
-  const [showChunkEditor, setShowChunkEditor] = useState(false)
-  const [editingChunkIndex, setEditingChunkIndex] = useState(null)
-  const [chunkEditContent, setChunkEditContent] = useState('')
-
-  // Inline editing states (for clicking on chunks in display)
-  const [inlineEditingChunkIndex, setInlineEditingChunkIndex] = useState(null)
+  // Inline editing states (for clicking a single paragraph in the story)
+  const [editingPara, setEditingPara] = useState(null) // { chunkIndex, paraIndex }
   const [inlineEditContent, setInlineEditContent] = useState('')
+
+  // Voice dictation for the action input
+  const [isListening, setIsListening] = useState(false)
+  const recognitionRef = useRef(null)
 
   // Library entity selection states
   const [selectedEntity, setSelectedEntity] = useState(null)
@@ -240,18 +240,50 @@ function StoryCreator() {
 
   const handleEraseLastChunk = async () => {
     if (!generatedStory?._id || !generatedStory.MainStory?.length) return
-    if (!window.confirm('Remove the last story chunk?')) return
+    if (!window.confirm('Undo the last passage? Only the most recent addition to the story will be removed — everything before it stays.')) return
     const lastChunk = generatedStory.MainStory[generatedStory.MainStory.length - 1]
     setActionLoading('editChunk')
     const result = await storyService.editChunk(generatedStory._id, lastChunk.index, '')
     setActionLoading(null)
     if (result.success) {
       setGeneratedStory(result.story)
-      setInlineEditingChunkIndex(null)
+      setEditingPara(null)
     } else {
       alert(result.error || 'Failed to remove chunk')
     }
   }
+
+  // Voice dictation (Web Speech API) for the action input
+  const toggleDictation = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SR) {
+      alert('Voice input is not supported in this browser. Try Chrome or Edge.')
+      return
+    }
+    if (isListening) {
+      recognitionRef.current?.stop()
+      return
+    }
+    const rec = new SR()
+    rec.lang = 'en-US'
+    rec.continuous = true
+    rec.interimResults = true
+    const base = userAction.trim() ? `${userAction.trim()} ` : ''
+    rec.onresult = (e) => {
+      let transcript = ''
+      for (let i = 0; i < e.results.length; i++) {
+        transcript += e.results[i][0].transcript
+      }
+      setUserAction(base + transcript.trimStart())
+    }
+    rec.onend = () => setIsListening(false)
+    rec.onerror = () => setIsListening(false)
+    recognitionRef.current = rec
+    setIsListening(true)
+    rec.start()
+  }
+
+  useEffect(() => () => recognitionRef.current?.abort(), [])
 
   const growActionInput = useCallback((el) => {
     if (!el) return
@@ -353,96 +385,34 @@ function StoryCreator() {
   }
 
 
-  // Handle manual chunk editing
-  const handleOpenChunkEditor = () => {
-    setShowChunkEditor(true)
+  // Inline paragraph editing (click one paragraph to edit just that paragraph)
+  const handleEditPara = (chunkIndex, paraIndex, text) => {
+    setEditingPara({ chunkIndex, paraIndex })
+    setInlineEditContent(text)
   }
 
-  const handleEditChunk = (chunkIndex, currentContent) => {
-    setEditingChunkIndex(chunkIndex)
-    setChunkEditContent(currentContent)
-  }
+  const handleSavePara = async (chunk) => {
+    if (!generatedStory?._id || !editingPara) return
 
-  const handleSaveChunk = async () => {
-    if (!generatedStory?._id || editingChunkIndex === null) return
+    const paras = splitParagraphs(chunk.content)
+    paras[editingPara.paraIndex] = inlineEditContent.trim()
+    const newContent = paras.filter(Boolean).join('\n\n')
 
     setActionLoading('editChunk')
-    const result = await storyService.editChunk(
-      generatedStory._id,
-      editingChunkIndex,
-      chunkEditContent.trim()
-    )
+    const result = await storyService.editChunk(generatedStory._id, chunk.index, newContent)
     setActionLoading(null)
 
     if (result.success) {
       setGeneratedStory(result.story)
-      setEditingChunkIndex(null)
-      setChunkEditContent('')
-      setShowChunkEditor(false)
-    } else {
-      alert(result.error || 'Failed to edit chunk')
-    }
-  }
-
-  const handleDeleteChunk = async () => {
-    if (!generatedStory?._id || editingChunkIndex === null) return
-
-    if (!confirm('Are you sure you want to delete this chunk? This cannot be undone.')) {
-      return
-    }
-
-    setActionLoading('editChunk')
-    // Send empty string to delete
-    const result = await storyService.editChunk(
-      generatedStory._id,
-      editingChunkIndex,
-      ''
-    )
-    setActionLoading(null)
-
-    if (result.success) {
-      setGeneratedStory(result.story)
-      setEditingChunkIndex(null)
-      setChunkEditContent('')
-      setShowChunkEditor(false)
-    } else {
-      alert(result.error || 'Failed to delete chunk')
-    }
-  }
-
-  const handleCancelChunkEdit = () => {
-    setEditingChunkIndex(null)
-    setChunkEditContent('')
-  }
-
-  // Handle inline chunk editing (click on chunk to edit)
-  const handleInlineEditChunk = (chunkIndex, currentContent) => {
-    setInlineEditingChunkIndex(chunkIndex)
-    setInlineEditContent(currentContent)
-  }
-
-  const handleSaveInlineChunk = async () => {
-    if (!generatedStory?._id || inlineEditingChunkIndex === null) return
-
-    setActionLoading('editChunk')
-    const result = await storyService.editChunk(
-      generatedStory._id,
-      inlineEditingChunkIndex,
-      inlineEditContent.trim()
-    )
-    setActionLoading(null)
-
-    if (result.success) {
-      setGeneratedStory(result.story)
-      setInlineEditingChunkIndex(null)
+      setEditingPara(null)
       setInlineEditContent('')
     } else {
-      alert(result.error || 'Failed to edit chunk')
+      alert(result.error || 'Failed to edit paragraph')
     }
   }
 
   const handleCancelInlineEdit = () => {
-    setInlineEditingChunkIndex(null)
+    setEditingPara(null)
     setInlineEditContent('')
   }
 
@@ -955,89 +925,87 @@ function StoryCreator() {
                     <div className="chapter-acts">
                       <button
                         type="button"
-                        className="cact"
-                        title="Regenerate last chunk"
-                        onClick={handleRegenerateChunk}
-                        disabled={isStoryBusy || !generatedStory?.MainStory?.length}
-                      >
-                        {I.refresh}
-                      </button>
-                      <button
-                        type="button"
-                        className="cact danger"
-                        title="Erase last chunk"
+                        className="cact-undo"
+                        title="Removes only the most recent passage — earlier story stays untouched"
                         onClick={handleEraseLastChunk}
                         disabled={isStoryBusy || !generatedStory?.MainStory?.length}
                       >
-                        {I.trash}
+                        {I.trash} Undo last passage
                       </button>
                     </div>
                   </div>
 
                   <div className="story-history">
                     {generatedStory?.MainStory?.length > 0 ? (
-                      generatedStory.MainStory.map((chunk, idx) => {
-                        const isEditing = inlineEditingChunkIndex === chunk.index
-
-                        if (isEditing) {
-                          return (
-                            <div key={`chunk-edit-${chunk.index}`} className="chunk chunk-edit">
-                              <textarea
-                                value={inlineEditContent}
-                                onChange={(e) => {
-                                  setInlineEditContent(e.target.value)
-                                  growActionInput(e.target)
-                                }}
-                                ref={(el) => growActionInput(el)}
-                                autoFocus
-                              />
-                              <div className="row">
-                                <button
-                                  type="button"
-                                  className="btn btn-primary btn-sm"
-                                  onClick={handleSaveInlineChunk}
-                                  disabled={actionLoading !== null || !inlineEditContent.trim()}
-                                >
-                                  {actionLoading === 'editChunk' ? 'Saving…' : 'Save'}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn btn-ghost btn-sm"
-                                  onClick={handleCancelInlineEdit}
-                                  disabled={actionLoading !== null}
-                                >
-                                  Cancel
-                                </button>
-                              </div>
+                      generatedStory.MainStory.map((chunk, idx) => (
+                        <div key={`chunk-${chunk.index}`} className="chunk">
+                          {idx > 0 && (
+                            <div className="chunk-mark">
+                              <span className="ln" />
+                              <span className="b">Continued</span>
+                              <span className="ln" />
                             </div>
-                          )
-                        }
+                          )}
+                          {splitParagraphs(chunk.content).map((para, pi) => {
+                            const isEditingThis =
+                              editingPara &&
+                              editingPara.chunkIndex === chunk.index &&
+                              editingPara.paraIndex === pi
 
-                        return (
-                          <div
-                            key={`chunk-${chunk.index}`}
-                            className="chunk editable"
-                            onClick={() => handleInlineEditChunk(chunk.index, chunk.content)}
-                            title="Click to edit"
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                handleInlineEditChunk(chunk.index, chunk.content)
-                              }
-                            }}
-                          >
-                            {idx > 0 && (
-                              <div className="chunk-mark">
-                                <span className="ln" />
-                                <span className="b">Continued</span>
-                                <span className="ln" />
-                              </div>
-                            )}
-                            {renderChunkParagraphs(chunk)}
-                          </div>
-                        )
-                      })
+                            if (isEditingThis) {
+                              return (
+                                <div key={`para-edit-${chunk.index}-${pi}`} className="chunk-edit">
+                                  <textarea
+                                    value={inlineEditContent}
+                                    onChange={(e) => {
+                                      setInlineEditContent(e.target.value)
+                                      growActionInput(e.target)
+                                    }}
+                                    ref={(el) => growActionInput(el)}
+                                    autoFocus
+                                  />
+                                  <div className="row">
+                                    <button
+                                      type="button"
+                                      className="btn btn-primary btn-sm"
+                                      onClick={() => handleSavePara(chunk)}
+                                      disabled={actionLoading !== null || !inlineEditContent.trim()}
+                                    >
+                                      {actionLoading === 'editChunk' ? 'Saving…' : 'Save'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn btn-ghost btn-sm"
+                                      onClick={handleCancelInlineEdit}
+                                      disabled={actionLoading !== null}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              )
+                            }
+
+                            return (
+                              <p
+                                key={`para-${chunk.index}-${pi}`}
+                                className="para"
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => handleEditPara(chunk.index, pi, para)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleEditPara(chunk.index, pi, para)
+                                }}
+                              >
+                                {para}
+                                <span className="para-edit-hint" aria-hidden="true">
+                                  {I.pen} Edit
+                                </span>
+                              </p>
+                            )
+                          })}
+                        </div>
+                      ))
                     ) : (
                       <p>Your story will appear here…</p>
                     )}
@@ -1107,12 +1075,13 @@ function StoryCreator() {
                     />
                     <button
                       type="button"
-                      className="sc-send"
-                      onClick={handleContinueStory}
+                      className={`sc-mic ${isListening ? 'on' : ''}`}
+                      onClick={toggleDictation}
                       disabled={isStoryBusy}
-                      aria-label="Continue"
+                      aria-label={isListening ? 'Stop dictation' : 'Dictate your action'}
+                      title={isListening ? 'Listening… click to stop' : 'Speak your action'}
                     >
-                      {I.up}
+                      {I.mic}
                     </button>
                   </div>
                   <div className="sc-actions">

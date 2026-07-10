@@ -339,7 +339,9 @@
   overflow: hidden;
 }
 
-.orb {
+/* Scoped to the landing hero — a bare `.orb` would leak into
+   Image Studio's `.is-empty .orb` (all component CSS loads globally). */
+.hero-atmosphere .orb {
   position: absolute;
   border-radius: 999px;
   filter: blur(18px);
@@ -347,7 +349,7 @@
   animation: hpFloat 12s ease-in-out infinite;
 }
 
-.orb-a {
+.hero-atmosphere .orb-a {
   width: 440px;
   height: 440px;
   top: 16%;
@@ -355,7 +357,7 @@
   background: radial-gradient(circle, rgba(155, 92, 255, 0.18), transparent 68%);
 }
 
-.orb-b {
+.hero-atmosphere .orb-b {
   width: 360px;
   height: 360px;
   left: 8%;
@@ -451,7 +453,9 @@
 
 .hero-copy > p {
   max-width: 760px;
-  margin: 24px 0 0;
+  /* auto inline margins: .hero-copy shrink-wraps to the (wider) h1,
+     so the paragraph box must self-center inside it */
+  margin: 24px auto 0;
   color: var(--hp-text-secondary);
   font-size: clamp(1.08rem, 1.45vw, 1.32rem);
   font-weight: 500;
@@ -1439,6 +1443,9 @@
 
   .hero-copy h1 {
     font-size: clamp(2.85rem, 10.5vw, 4.85rem);
+    /* nowrap overflows narrow screens — let the title stack instead */
+    white-space: normal;
+    line-height: 0.95;
   }
 
   .metric-row {
