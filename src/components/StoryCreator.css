@@ -2910,9 +2910,12 @@
 /* ===== Story workspace (sc-*) — design port =====
    Viewport-height workspace: the story panel scrolls internally,
    the page itself does not scroll (desktop). */
-.story-creator .sc-content { padding: 18px 24px 16px; max-width: none; margin: 0; height: var(--app-height, calc(100vh - 72px)); overflow: hidden; display: flex; flex-direction: column; }
-.story-creator .sc-grid { display: grid; grid-template-columns: minmax(0, 1fr) 342px; grid-template-rows: minmax(0, 1fr); gap: 24px; flex: 1; min-height: 0; }
-.story-creator .sc-center { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
+.story-creator .sc-content { padding: 18px 24px 16px; max-width: none; margin: 0; min-height: var(--app-height, calc(100vh - 72px)); display: flex; flex-direction: column; }
+.story-creator .sc-grid { display: grid; grid-template-columns: minmax(0, 1fr) 342px; gap: 24px; flex: 1; min-height: 0; }
+/* Story column is viewport-capped and scrolls internally; the page
+   itself only grows (and scrolls) when the rail is taller than the
+   screen, so the full rail is always reachable. */
+.story-creator .sc-center { display: flex; flex-direction: column; height: calc(var(--app-height, calc(100vh - 72px)) - 168px); min-height: 460px; overflow-y: auto; position: sticky; top: calc(var(--navbar-height, 72px) + 12px); }
 
 /* center header */
 .story-creator .sc-head { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
@@ -3127,7 +3130,7 @@
 /* ---------------- Right rail cards ---------------- */
 /* The rail fills the full column height with no internal scroll:
    compact cards + the last card stretches to absorb leftover space. */
-.story-creator .sc-rail { display: flex; flex-direction: column; gap: 14px; min-height: 0; padding-right: 2px; overflow-y: auto; scrollbar-width: thin; }
+.story-creator .sc-rail { display: flex; flex-direction: column; gap: 14px; padding-right: 2px; }
 .story-creator .sc-rail > .sc-card:last-child { flex: 1; }
 .story-creator .sc-card { border-radius: 18px; padding: 16px 18px; background: linear-gradient(180deg, rgba(26,17,42,0.7), rgba(16,11,26,0.78)); border: 1px solid var(--hairline-soft); }
 .story-creator .sc-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
@@ -3175,7 +3178,7 @@
 @media (max-width: 1100px) {
 .story-creator .sc-content { height: auto; min-height: 0; overflow: visible; display: block; padding: 18px 20px 28px; }
 .story-creator .sc-grid { grid-template-columns: 1fr; grid-template-rows: none; }
-.story-creator .sc-center { display: block; overflow: visible; }
+.story-creator .sc-center { display: block; overflow: visible; height: auto; min-height: 0; position: static; }
 .story-creator .chapter-card { display: block; }
 .story-creator .story-history { overflow: visible; }
 .story-creator .sc-rail { position: static; overflow: visible; max-height: none; }
