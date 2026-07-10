@@ -192,6 +192,7 @@ button {
   /* Gentle on-mount fade-up for primary content (also acts as a soft
      page-transition between routes). */
   .hero-section,
+  .home-hero,
   .stories-section,
   .settings-content,
   .profile-content,
