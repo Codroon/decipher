@@ -4,6 +4,7 @@ import './ScenarioCreator.css'
 import * as scenarioService from '../services/scenarioService'
 import * as libraryService from '../services/libraryService'
 import { initializeStoryFromScenario } from '../services/storyService'
+import ReportModal from './ReportModal'
 
 const I = {
   back: (
@@ -181,6 +182,7 @@ function ScenarioCreator() {
   const { scenarioId } = useParams()
   const isEditMode = !!scenarioId
 
+  const [showReport, setShowReport] = useState(false)
   const [section, setSection] = useState('basic')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -399,6 +401,20 @@ function ScenarioCreator() {
             {isEditMode && (
               <button
                 type="button"
+                className="report-trigger"
+                onClick={() => setShowReport(true)}
+                title="Report this scenario"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                  <line x1="4" y1="22" x2="4" y2="15" />
+                </svg>
+                Report
+              </button>
+            )}
+            {isEditMode && (
+              <button
+                type="button"
                 className="btn btn-ghost btn-md"
                 onClick={handleCreateStory}
                 disabled={isCreatingStory || isLoading}
@@ -418,6 +434,15 @@ function ScenarioCreator() {
             </button>
           </div>
         </div>
+
+        {showReport && scenarioId && (
+          <ReportModal
+            resourceType="scenario"
+            resourceId={scenarioId}
+            title={title}
+            onClose={() => setShowReport(false)}
+          />
+        )}
 
         {error && (
           <div className="sb-banner err" style={{ marginTop: 16 }}>

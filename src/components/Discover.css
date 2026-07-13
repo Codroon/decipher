@@ -1,0 +1,166 @@
+/* Public (community) read/play views for shared stories & scenarios.
+   These render standalone (shareable links work logged-out), so they carry the
+   same cinematic dark background + tokens as the in-app shell. */
+.discover-page {
+  min-height: 100vh;
+  color: var(--ink, #fff);
+  font-family: var(--font-body, 'Spectral', Georgia, serif);
+  background:
+    radial-gradient(1100px 700px at 82% -10%, rgba(119, 56, 203, 0.30), transparent 58%),
+    radial-gradient(800px 600px at -5% 6%, rgba(77, 112, 255, 0.16), transparent 55%),
+    linear-gradient(160deg, #160B26 -4%, #0B0A10 60%);
+  background-attachment: fixed;
+}
+
+/* Content is width-capped and centred, but the background is full-bleed. */
+.discover-wrap {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 30px 24px 90px;
+}
+
+.discover-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 26px;
+}
+.discover-back,
+.discover-report {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--hairline-soft, rgba(255, 255, 255, 0.08));
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink-70, rgba(255, 255, 255, 0.7));
+  padding: 9px 15px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: var(--font-display, 'Poppins', sans-serif);
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.discover-back:hover { color: #fff; border-color: var(--hairline, rgba(119, 56, 203, 0.35)); }
+.discover-report:hover { color: #fca5a5; border-color: rgba(220, 60, 60, 0.4); background: rgba(220, 60, 60, 0.12); }
+.discover-spacer { flex: 1; }
+
+.discover-header { margin-bottom: 26px; }
+.discover-title {
+  font-family: var(--font-display, 'Poppins', sans-serif);
+  font-size: 40px;
+  line-height: 1.12;
+  margin: 0 0 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #fff;
+}
+.discover-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  font-family: var(--font-display, 'Poppins', sans-serif);
+  font-size: 14px;
+  color: var(--ink-55, rgba(255, 255, 255, 0.55));
+}
+.discover-author { display: inline-flex; align-items: center; gap: 9px; color: var(--ink-70, rgba(255, 255, 255, 0.7)); }
+.discover-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--grad, linear-gradient(135deg, #7738CB, #4D70FF));
+}
+.discover-badge {
+  font-size: 12px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline, rgba(119, 56, 203, 0.35));
+  background: rgba(119, 56, 203, 0.14);
+  color: var(--ink-70, rgba(255, 255, 255, 0.7));
+  text-transform: capitalize;
+}
+
+.discover-tags { display: flex; flex-wrap: wrap; gap: 9px; margin: 20px 0; }
+.discover-tag {
+  font-family: var(--font-display, 'Poppins', sans-serif);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 13px;
+  border-radius: 999px;
+  background: rgba(119, 56, 203, 0.18);
+  border: 1px solid var(--hairline, rgba(119, 56, 203, 0.35));
+  color: #d9c7ff;
+}
+
+.discover-desc {
+  font-size: 18px;
+  line-height: 1.65;
+  color: var(--ink-70, rgba(255, 255, 255, 0.7));
+  margin: 0 0 24px;
+}
+
+.discover-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 24px;
+  border: none;
+  border-radius: 14px;
+  background: var(--grad, linear-gradient(100deg, #7738CB, #4D70FF));
+  color: #fff;
+  font-family: var(--font-display, 'Poppins', sans-serif);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 12px 32px rgba(119, 56, 203, 0.34);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+.discover-play:hover { transform: translateY(-2px); filter: brightness(1.06); box-shadow: 0 16px 40px rgba(119, 56, 203, 0.42); }
+.discover-play:disabled { opacity: 0.6; cursor: default; transform: none; box-shadow: none; }
+
+.discover-section { margin-top: 36px; }
+.discover-section h2 {
+  font-family: var(--font-display, 'Poppins', sans-serif);
+  font-size: 19px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--hairline-soft, rgba(255, 255, 255, 0.08));
+}
+
+.discover-entities { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+.discover-entity {
+  border: 1px solid var(--hairline-soft, rgba(255, 255, 255, 0.08));
+  background: rgba(255, 255, 255, 0.035);
+  border-radius: 14px;
+  padding: 14px 16px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.discover-entity:hover { border-color: var(--hairline, rgba(119, 56, 203, 0.35)); background: rgba(119, 56, 203, 0.08); }
+.discover-entity h3 {
+  font-family: var(--font-display, 'Poppins', sans-serif);
+  margin: 0 0 6px; font-size: 15px; font-weight: 600; color: #fff;
+}
+.discover-entity p { margin: 0; font-size: 14px; color: var(--ink-55, rgba(255, 255, 255, 0.55)); line-height: 1.55; }
+
+.discover-prose { font-size: 18px; line-height: 1.8; color: var(--ink-70, rgba(255, 255, 255, 0.82)); }
+.discover-prose p { margin: 0 0 20px; white-space: pre-wrap; }
+
+.discover-opening {
+  border-left: 3px solid var(--accent, #925ED5);
+  background: rgba(119, 56, 203, 0.08);
+  border-radius: 0 12px 12px 0;
+  padding: 14px 18px;
+  font-style: italic;
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--ink-70, rgba(255, 255, 255, 0.78));
+}
+
+.discover-status {
+  text-align: center;
+  padding: 90px 24px;
+  font-family: var(--font-display, 'Poppins', sans-serif);
+  color: var(--ink-55, rgba(255, 255, 255, 0.55));
+}
+.discover-error { color: #fca5a5; }

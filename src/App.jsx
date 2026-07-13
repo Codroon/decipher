@@ -18,11 +18,20 @@ import VerifyEmail from './components/VerifyEmail'
 import Profile from './components/Profile'
 import Library from './components/Library'
 import Landing from './components/Landing'
+import PublicStory from './components/PublicStory'
+import PublicScenario from './components/PublicScenario'
+import AdminLayout from './components/admin/AdminLayout'
+import AdminDashboard from './components/admin/AdminDashboard'
+import UsersTable from './components/admin/UsersTable'
+import UserDetail from './components/admin/UserDetail'
+import Reports from './components/admin/Reports'
+import AuditLog from './components/admin/AuditLog'
+import Activity from './components/admin/Activity'
 
 function AppContent() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, isAuthenticated, logout, isLoading } = useAuth()
+  const { user, isAuthenticated, isAdmin, logout, isLoading } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
@@ -66,8 +75,9 @@ function AppContent() {
       // Check if current path is an auth page
       const isOnAuthPage = authPages.some(page => location.pathname.startsWith(page))
 
-      // The landing page ('/') is public — never force a redirect away from it
-      const isOnPublicPage = isOnAuthPage || location.pathname === '/'
+      // The landing page ('/') and community discovery pages are public — never
+      // force a redirect away from them (shared links open without an account).
+      const isOnPublicPage = isOnAuthPage || location.pathname === '/' || location.pathname.startsWith('/discover')
 
       // If not authenticated and trying to access protected route → redirect to login
       if (!isAuthenticated && !isOnPublicPage) {
@@ -93,6 +103,33 @@ function AppContent() {
   // The marketing landing page renders standalone (its own nav/footer, no app shell)
   if (isLandingPage) {
     return <Landing />
+  }
+
+  // Community discovery pages render standalone so shared links work for anyone,
+  // signed in or not (each has its own back button + report control).
+  if (location.pathname.startsWith('/discover')) {
+    return (
+      <Routes>
+        <Route path="/discover/story/:id" element={<PublicStory />} />
+        <Route path="/discover/scenario/:id" element={<PublicScenario />} />
+      </Routes>
+    )
+  }
+
+  // The admin panel renders in its own standalone shell (AdminLayout gates on role)
+  if (location.pathname.startsWith('/admin')) {
+    return (
+      <Routes>
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<AdminDashboard />} />
+          <Route path="users" element={<UsersTable />} />
+          <Route path="users/:id" element={<UserDetail />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="activity" element={<Activity />} />
+          <Route path="audit" element={<AuditLog />} />
+        </Route>
+      </Routes>
+    )
   }
 
   // Sign in / Create account render standalone with their own branded nav + backdrop
@@ -235,6 +272,16 @@ function AppContent() {
                       </svg>
                       <span>Settings</span>
                     </button>
+
+                    {/* Admin panel entry — only rendered for admins */}
+                    {isAdmin && (
+                      <button className="dropdown-item" onClick={() => { setShowProfileDropdown(false); navigate('/admin') }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                          <path d="M12 2l7 4v6c0 4-3 7-7 8-4-1-7-4-7-8V6l7-4z"></path>
+                        </svg>
+                        <span>Admin Panel</span>
+                      </button>
+                    )}
                     
                   
               

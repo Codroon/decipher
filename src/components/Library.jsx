@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import './Library.css'
 import * as libraryService from '../services/libraryService'
 import { BASE_URL, getHeaders } from '../services/server'
+import SecureImage from './SecureImage'
+import { imageLibraryStore } from '../utils/imageLibraryStore'
 
 const I = {
   search: (
@@ -83,6 +85,11 @@ function Library() {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [toast, setToast] = useState(null)
+  // Image picker (attach an image from the Image Library to an entity)
+  const [imgPicker, setImgPicker] = useState(null) // { type, entity }
+  const [pickerImages, setPickerImages] = useState([])
+  const [pickerLoading, setPickerLoading] = useState(false)
+  const [attaching, setAttaching] = useState(false)
 
   const catObj = CATS.find((c) => c.id === cat) || CATS[0]
 
@@ -106,13 +113,19 @@ function Library() {
   const showToast = (msg) => setToast(msg)
 
   const openCreate = () => {
-    setFormData({ name: '', description: '' })
+    // `image` holds a full display URL for the preview; `imageId` is what we send.
+    setFormData({ name: '', description: '', imageId: null, image: null })
     setFormError('')
     setModal({ mode: 'create', type: cat })
   }
 
   const openEdit = (entity) => {
-    setFormData({ name: entity.name, description: entity.description || '' })
+    setFormData({
+      name: entity.name,
+      description: entity.description || '',
+      imageId: entity.imageId || null,
+      image: entity.image ? `${BASE_URL}${entity.image}` : null,
+    })
     setFormError('')
     setModal({ mode: 'edit', type: cat, data: entity })
   }
@@ -137,6 +150,7 @@ function Library() {
         body: JSON.stringify({
           name: formData.name.trim(),
           description: formData.description.trim(),
+          imageId: formData.imageId || null,
         }),
       })
       const json = await res.json()
@@ -165,6 +179,51 @@ function Library() {
     } finally {
       setDeleting(false)
       setDeleteConfirm(null)
+    }
+  }
+
+  // Open the picker and lazily load the user's image library. `mode` is either
+  // 'attach' (immediately PATCH an existing entity) or 'select' (feed the choice
+  // back into the create/edit form).
+  const openImagePicker = async ({ mode, entity } = { mode: 'select' }) => {
+    setImgPicker({ mode, type: cat, entity })
+    setPickerLoading(true)
+    try {
+      const { images } = await imageLibraryStore.fetchImages({ limit: 200 })
+      setPickerImages(images)
+    } catch {
+      setPickerImages([])
+    } finally {
+      setPickerLoading(false)
+    }
+  }
+
+  // A cell was clicked (or "remove" chosen → img=null). Route by picker mode.
+  const handlePickImage = async (img) => {
+    if (!imgPicker) return
+    if (imgPicker.mode === 'select') {
+      // Feed the selection into the open create/edit form (no API call yet).
+      setFormData((p) => ({ ...p, imageId: img ? img.id : null, image: img ? img.img : null }))
+      setImgPicker(null)
+      return
+    }
+    // 'attach' mode — PATCH the existing entity immediately.
+    const { entity, type } = imgPicker
+    setAttaching(true)
+    try {
+      const res = await fetch(`${BASE_URL}${ENDPOINTS[type]}/${entity._id}/image`, {
+        method: 'PATCH',
+        headers: getHeaders(true),
+        body: JSON.stringify({ imageId: img ? img.id : null }),
+      })
+      if (!res.ok) throw new Error('Failed')
+      await fetchEntities(type)
+      setImgPicker(null)
+      showToast(img ? 'Image attached' : 'Image removed')
+    } catch {
+      showToast('Could not update image. Try again.')
+    } finally {
+      setAttaching(false)
     }
   }
 
@@ -249,8 +308,16 @@ function Library() {
                 <>
                   {filtered.map((entity) => (
                     <div className="libc" key={entity._id}>
-                      <div className="libc-cover">
-                        {catObj.icon}
+                      <div className={`libc-cover ${entity.image ? 'has-img' : ''}`}>
+                        {entity.image ? (
+                          <SecureImage
+                            src={`${BASE_URL}${entity.image}`}
+                            alt={entity.name}
+                            className="libc-cover-img"
+                          />
+                        ) : (
+                          catObj.icon
+                        )}
                         <span className="libc-badge">{catObj.singular}</span>
                       </div>
                       <div className="libc-body">
@@ -258,6 +325,14 @@ function Library() {
                         <p>{entity.description?.trim() || 'No description'}</p>
                       </div>
                       <div className="libc-acts">
+                        <button type="button" className="libc-act" onClick={() => openImagePicker({ mode: 'attach', entity })}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <path d="M21 15l-5-5L5 21" />
+                          </svg>
+                          {entity.image ? 'Change' : 'Image'}
+                        </button>
                         <button type="button" className="libc-act" onClick={() => openEdit(entity)}>
                           {I.edit} Edit
                         </button>
@@ -315,6 +390,33 @@ function Library() {
                 placeholder={`Describe this ${catObj.singular.toLowerCase()}…`}
               />
             </div>
+            <div className="lm-fg">
+              <label>Image <span className="lm-optional">(from your Image Library)</span></label>
+              <div className="lm-image-row">
+                <div className="lm-image-preview">
+                  {formData.image ? (
+                    <SecureImage src={formData.image} alt="Selected" className="lm-image-thumb" />
+                  ) : (
+                    <span className="lm-image-empty">No image</span>
+                  )}
+                </div>
+                <div className="lm-image-actions">
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => openImagePicker({ mode: 'select' })} disabled={saving}>
+                    {formData.image ? 'Change image' : 'Select image'}
+                  </button>
+                  {formData.image && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setFormData((p) => ({ ...p, imageId: null, image: null }))}
+                      disabled={saving}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
             <div className="lm-foot">
               <button type="button" className="btn btn-ghost btn-md" onClick={closeModal} disabled={saving}>
                 Cancel
@@ -352,6 +454,60 @@ function Library() {
                 {deleting ? 'Deleting…' : 'Delete'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {imgPicker && (
+        <div className="lm-ov" onClick={() => setImgPicker(null)} role="presentation">
+          <div className="lm lm-imgpick" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+            <div className="lm-imgpick-head">
+              <div>
+                <h2>Select image</h2>
+                <p className="lm-imgpick-sub">
+                  Pick from your Image Library
+                  {imgPicker.mode === 'attach' && imgPicker.entity ? ` for “${imgPicker.entity.name}”` : ''}
+                </p>
+              </div>
+              <button type="button" className="x" onClick={() => setImgPicker(null)}>×</button>
+            </div>
+
+            {(imgPicker.mode === 'attach' ? imgPicker.entity?.image : formData.imageId) && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm imgpick-remove"
+                onClick={() => handlePickImage(null)}
+                disabled={attaching}
+              >
+                {I.trash} Remove current image
+              </button>
+            )}
+
+            {pickerLoading ? (
+              <div className="lib-loading"><div className="spin" /><span>Loading your images…</span></div>
+            ) : pickerImages.length === 0 ? (
+              <div className="imgpick-empty">
+                No images in your library yet. Generate some in Image Studio first.
+              </div>
+            ) : (
+              <div className="imgpick-grid">
+                {pickerImages.map((img) => {
+                  const currentId = imgPicker.mode === 'attach' ? imgPicker.entity?.imageId : formData.imageId
+                  return (
+                  <button
+                    key={img.id}
+                    type="button"
+                    className={`imgpick-cell ${currentId === img.id ? 'sel' : ''}`}
+                    onClick={() => handlePickImage(img)}
+                    disabled={attaching}
+                    title={img.prompt}
+                  >
+                    <SecureImage src={img.img} alt={img.prompt} className="imgpick-thumb" />
+                  </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

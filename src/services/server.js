@@ -30,9 +30,18 @@ export const API_ENDPOINTS = {
     DELETE: (id) => `${BASE_URL}/api/story/${id}`,
     REGENERATE: (id) => `${BASE_URL}/api/story/regenerate/${id}`,
     CONTINUE: (id) => `${BASE_URL}/api/story/continue/${id}`,
+    NEW_CHAPTER: (id) => `${BASE_URL}/api/story/${id}/chapter`,
     EDIT: (id) => `${BASE_URL}/api/story/edit/${id}`,
     EDIT_CHUNK: (id) => `${BASE_URL}/api/story/edit-chunk/${id}`,
+    VISIBILITY: (id) => `${BASE_URL}/api/story/${id}/visibility`,
     MODELS: `${BASE_URL}/api/story/models`,
+  },
+  // Public discovery (unauthenticated) — content owners have chosen to share
+  PUBLIC: {
+    SCENARIOS: `${BASE_URL}/api/public/scenarios`,
+    SCENARIO_BY_ID: (id) => `${BASE_URL}/api/public/scenarios/${id}`,
+    STORIES: `${BASE_URL}/api/public/stories`,
+    STORY_BY_ID: (id) => `${BASE_URL}/api/public/stories/${id}`,
   },
   // Scenario endpoints
   SCENARIO: {

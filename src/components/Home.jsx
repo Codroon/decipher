@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import './Home.css'
 import * as storyService from '../services/storyService'
 import * as scenarioService from '../services/scenarioService'
+import * as publicService from '../services/publicService'
+import ReportModal from './ReportModal'
 
 const FlameIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1 3-1 5-2 6-1.5 1.5-2 3-2 4a4 4 0 0 0 8 0c0-1.2-.5-2.3-1-3 2 1 3 3 3 5a6 6 0 0 1-12 0c0-4 3-6 4-8 1-1.6 2-2.8 2-4z"/></svg>
@@ -68,55 +70,34 @@ function Home() {
   const [showBanner, setShowBanner] = useState(true)
   const [activeFeatured, setActiveFeatured] = useState(0)
   const [featuredPaused, setFeaturedPaused] = useState(false)
-  const [currentPage, setCurrentPage] = useState(1)
   const [userStories, setUserStories] = useState([])
   const [userScenarios, setUserScenarios] = useState([])
   const [loadingStories, setLoadingStories] = useState(true)
   const [loadingScenarios, setLoadingScenarios] = useState(true)
 
-  // Sample story data for explore section
+  // Community (public) discovery
+  const [publicStories, setPublicStories] = useState([])
+  const [publicScenarios, setPublicScenarios] = useState([])
+  const [loadingPublicStories, setLoadingPublicStories] = useState(true)
+  const [loadingPublicScenarios, setLoadingPublicScenarios] = useState(true)
+
+  // Content-report dialog: { resourceType, resourceId, title } | null
+  const [report, setReport] = useState(null)
+
+  // Decorative fallback covers (public content has no cover image of its own yet)
   const storyImages = [
     "/Frame 18588.png",
     "/image 7 (1).png",
     "/image 7.png",
     "/image 9.png"
   ]
+  const coverFor = (id = '', i = 0) => {
+    const key = String(id)
+    let sum = i
+    for (let c = 0; c < key.length; c++) sum += key.charCodeAt(c)
+    return storyImages[sum % storyImages.length]
+  }
 
-  const exploreStories = [
-    {
-      id: 1,
-      title: "Beneath the Obsidian Moon",
-      description: "A dark romance unfolds in a world cloaked in eternal twilight",
-      author: "Sarah Chen",
-      genre: "Mystery",
-      image: storyImages[3] // image 9.png
-    },
-    {
-      id: 2,
-      title: "Whispers of the Crystal City",
-      description: "A thrilling detective story set in a dystopian future where",
-      author: "Sarah Chen",
-      genre: "Adventure",
-      image: storyImages[1] // image 7 (1).png
-    },
-    {
-      id: 3,
-      title: "The Last Starship Captain",
-      description: "An epic space opera spanning galaxies, following the journey..",
-      author: "Sarah Chen",
-      genre: "Fantasy",
-      image: storyImages[2] // image 7.png
-    },
-    {
-      id: 4,
-      title: "Moonlit Enchantment",
-      description: "Journey into a magical realm filled with elves, dragons, and...",
-      author: "Sarah Chen",
-      genre: "Fantasy",
-      image: storyImages[0] // Frame 18588.png
-    }
-  ]
-  
   // Fetch user's stories and scenarios on component mount
   useEffect(() => {
     const fetchUserStories = async () => {
@@ -129,7 +110,7 @@ function Home() {
       }
       setLoadingStories(false)
     }
-    
+
     const fetchUserScenarios = async () => {
       setLoadingScenarios(true)
       const result = await scenarioService.getAllScenarios()
@@ -140,9 +121,27 @@ function Home() {
       }
       setLoadingScenarios(false)
     }
-    
+
+    const fetchPublicStories = async () => {
+      setLoadingPublicStories(true)
+      const result = await publicService.listPublicStories({ limit: 8 })
+      if (result.success) setPublicStories(result.stories || [])
+      else console.error('Failed to fetch public stories:', result.error)
+      setLoadingPublicStories(false)
+    }
+
+    const fetchPublicScenarios = async () => {
+      setLoadingPublicScenarios(true)
+      const result = await publicService.listPublicScenarios({ limit: 8 })
+      if (result.success) setPublicScenarios(result.scenarios || [])
+      else console.error('Failed to fetch public scenarios:', result.error)
+      setLoadingPublicScenarios(false)
+    }
+
     fetchUserStories()
     fetchUserScenarios()
+    fetchPublicStories()
+    fetchPublicScenarios()
   }, [])
 
   // Auto-advance the featured hero carousel (pauses on hover / reduced motion)
@@ -162,6 +161,9 @@ function Home() {
   const handleViewScenario = (scenarioId) => {
     navigate(`/scenario-creator/${scenarioId}`)
   }
+
+  const openPublicStory = (id) => navigate(`/discover/story/${id}`)
+  const openPublicScenario = (id) => navigate(`/discover/scenario/${id}`)
 
   return (
     <div className="home-page">
@@ -307,72 +309,110 @@ function Home() {
         )}
       </section>
 
-      {/* Explore Shared Stories */}
+      {/* Explore Shared Scenarios — public, playable worlds from the community */}
+      <section className="stories-section explore-section zone">
+        <SectionHead
+          icon={<MapSectionIcon />}
+          title="Explore Shared Scenarios"
+          sub="Community-built worlds you can play instantly"
+        />
+        {loadingPublicScenarios ? (
+          <div className="loading-stories">
+            <div className="loading-spinner"></div>
+            <p>Loading shared scenarios...</p>
+          </div>
+        ) : publicScenarios.length > 0 ? (
+          <div className="stories-grid">
+            {publicScenarios.map((s, i) => (
+              <div key={s._id} className="story-card shared-card" onClick={() => openPublicScenario(s._id)}>
+                <div className="card-overlay"></div>
+                <div className="card-content">
+                  <img src={coverFor(s._id, i)} alt={s.title} className="story-image" />
+                  <button
+                    className="report-flag"
+                    title="Report this scenario"
+                    onClick={(e) => { e.stopPropagation(); setReport({ resourceType: 'scenario', resourceId: s._id, title: s.title }) }}
+                  >⚑</button>
+                  <div className="story-info">
+                    <h3>{s.title || 'Untitled Scenario'}</h3>
+                    <p>{s.description || 'Explore this scenario...'}</p>
+                    <button className="play-btn">Play Scenario</button>
+                  </div>
+                  <div className="story-meta">
+                    <div className="story-author">
+                      <div className="author-avatar"></div>
+                      <span>By {s.author?.name || 'Unknown'}</span>
+                    </div>
+                    {s.tags?.[0] && <span className="story-genre">{s.tags[0]}</span>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-stories">
+            <p>No shared scenarios yet. Publish one to see it here!</p>
+          </div>
+        )}
+      </section>
+
+      {/* Explore Shared Stories — public, read-only stories from the community */}
       <section className="stories-section explore-section zone">
         <SectionHead
           icon={<BookSectionIcon />}
           title="Explore Shared Stories"
           sub="Stories shared by the community"
-          link="View All"
         />
-        
-        <div className="stories-grid">
-          {exploreStories.map((story) => (
-            <div key={story.id} className="story-card shared-card">
-              <div className="card-overlay"></div>
-              <div className="card-content">
-                <img src={story.image} alt={story.title} className="story-image" />
-                <div className="story-info">
-                  <h3>{story.title}</h3>
-                  <p>{story.description}</p>
-                  <button className="play-btn">Play Now</button>
-                </div>
-                <div className="story-meta">
-                  <div className="story-author">
-                    <div className="author-avatar"></div>
-                    <span>By {story.author}</span>
+        {loadingPublicStories ? (
+          <div className="loading-stories">
+            <div className="loading-spinner"></div>
+            <p>Loading shared stories...</p>
+          </div>
+        ) : publicStories.length > 0 ? (
+          <div className="stories-grid">
+            {publicStories.map((story, i) => (
+              <div key={story._id} className="story-card shared-card" onClick={() => openPublicStory(story._id)}>
+                <div className="card-overlay"></div>
+                <div className="card-content">
+                  <img src={coverFor(story._id, i)} alt={story.title} className="story-image" />
+                  <button
+                    className="report-flag"
+                    title="Report this story"
+                    onClick={(e) => { e.stopPropagation(); setReport({ resourceType: 'story', resourceId: story._id, title: story.title }) }}
+                  >⚑</button>
+                  <div className="story-info">
+                    <h3>{story.title || 'Untitled Story'}</h3>
+                    <p>{story.excerpt ? `${story.excerpt}…` : 'Read this shared story...'}</p>
+                    <button className="play-btn">Read Story</button>
                   </div>
-                  <span className="story-genre">{story.genre}</span>
+                  <div className="story-meta">
+                    <div className="story-author">
+                      <div className="author-avatar"></div>
+                      <span>By {story.author?.name || 'Unknown'}</span>
+                    </div>
+                    {story.storyStats?.readingTime ? (
+                      <span className="story-genre">{story.storyStats.readingTime} min</span>
+                    ) : null}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="stories-grid" style={{ marginTop: '70px' }}>
-          {exploreStories.map((story) => (
-            <div key={`second-${story.id}`} className="story-card shared-card">
-              <div className="card-overlay"></div>
-              <div className="card-content">
-                <img src={story.image} alt={story.title} className="story-image" />
-                <div className="story-info">
-                  <h3>{story.title}</h3>
-                  <p>{story.description}</p>
-                  <button className="play-btn">Play Now</button>
-                </div>
-                <div className="story-meta">
-                  <div className="story-author">
-                    <div className="author-avatar"></div>
-                    <span>By {story.author}</span>
-                  </div>
-                  <span className="story-genre">{story.genre}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Pagination */}
-        <div className="pagination">
-          {[1, 2, 3, 4, 5].map((page) => (
-            <button
-              key={page}
-              className={`page-dot ${currentPage === page ? 'active' : ''}`}
-              onClick={() => setCurrentPage(page)}
-            />
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-stories">
+            <p>No shared stories yet. Publish one to see it here!</p>
+          </div>
+        )}
       </section>
+
+      {report && (
+        <ReportModal
+          resourceType={report.resourceType}
+          resourceId={report.resourceId}
+          title={report.title}
+          onClose={() => setReport(null)}
+        />
+      )}
     </div>
   )
 }

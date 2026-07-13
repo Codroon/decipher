@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, Fragment } from 'react'
 import { Link } from 'react-router-dom'
 import { imageLibraryStore } from '../utils/imageLibraryStore'
 import SecureImage from './SecureImage'
+import ReportModal from './ReportModal'
 import './ImageLibrary.css'
 
 const M = {
@@ -126,6 +127,7 @@ function ImageLibrary() {
   const [search, setSearch] = useState('')
   const [sel, setSel] = useState(new Set())
   const [lb, setLb] = useState(null)
+  const [reportImg, setReportImg] = useState(null)
   const [newCol, setNewCol] = useState(false)
   const [colName, setColName] = useState('')
   const [newParent, setNewParent] = useState(null)
@@ -750,6 +752,18 @@ function ImageLibrary() {
                   <button type="button" className="btn btn-ghost btn-md" style={{ gap: 7 }} onClick={() => note('Prompt copied')}>
                     {M.copy} Prompt
                   </button>
+                  <button
+                    type="button"
+                    className="report-trigger"
+                    onClick={() => setReportImg(lbImg)}
+                    title="Report this image"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                      <line x1="4" y1="22" x2="4" y2="15" />
+                    </svg>
+                    Report
+                  </button>
                 </div>
                 <button type="button" className="btn btn-primary btn-md" style={{ gap: 7 }} onClick={() => note('Download started')}>
                   {M.download} Download
@@ -912,6 +926,15 @@ function ImageLibrary() {
             {M.x}
           </button>
         </div>
+      )}
+
+      {reportImg && (
+        <ReportModal
+          resourceType="image"
+          resourceId={reportImg.id}
+          title={reportImg.prompt}
+          onClose={() => setReportImg(null)}
+        />
       )}
 
       {toast && (

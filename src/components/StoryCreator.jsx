@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import './StoryCreator.css'
 import * as storyService from '../services/storyService'
 import * as libraryService from '../services/libraryService'
+import ShareModal from './ShareModal'
 
 /** Split a story chunk into paragraphs (blank-line separated). */
 function splitParagraphs(content) {
@@ -116,6 +117,9 @@ function StoryCreator() {
   const [model, setModel] = useState('google/gemini-3.1-flash-lite')
   const [availableModels, setAvailableModels] = useState([])
 
+  // Report modal
+  const [showShare, setShowShare] = useState(false)
+
   // Story creation states
   const [isCreating, setIsCreating] = useState(!storyId)
   const [creationStep, setCreationStep] = useState(1)
@@ -133,6 +137,9 @@ function StoryCreator() {
   const [actionLoading, setActionLoading] = useState(null)
   const [aiInstruction, setAiInstruction] = useState('')
   const [userAction, setUserAction] = useState('') // Player action input for continue story
+  const [activeChapterOrder, setActiveChapterOrder] = useState(null) // null = follow the writing head
+  const [chapterModalOpen, setChapterModalOpen] = useState(false)
+  const [chapterTitleInput, setChapterTitleInput] = useState('')
   const [clarificationData, setClarificationData] = useState(null) // { questionId, text }
   const [clarificationAnswer, setClarificationAnswer] = useState('')
   const [clarificationLoading, setClarificationLoading] = useState(false)
@@ -313,6 +320,30 @@ function StoryCreator() {
       }
     } else {
       alert(result.error || 'Failed to continue story')
+    }
+  }
+
+  // Start a new chapter. Closes the current one; the next passage opens the new
+  // chapter with a fresh scene. Jump the view to the new (empty) writing head.
+  const handleStartChapter = () => {
+    if (!generatedStory?._id) return
+    setChapterTitleInput('')
+    setChapterModalOpen(true)
+  }
+
+  const confirmStartChapter = async () => {
+    if (!generatedStory?._id) return
+    const title = chapterTitleInput
+    setChapterModalOpen(false)
+    setActionLoading('chapter')
+    const result = await storyService.startChapter(generatedStory._id, title, model)
+    setActionLoading(null)
+
+    if (result.success) {
+      setGeneratedStory(result.story)
+      setActiveChapterOrder(null) // follow the new writing head
+    } else {
+      alert(result.error || 'Failed to start a new chapter')
     }
   }
 
@@ -829,7 +860,32 @@ function StoryCreator() {
   const isStoryBusy =
     actionLoading === 'continue' ||
     actionLoading === 'regenerate' ||
+    actionLoading === 'chapter' ||
     clarificationLoading
+
+  // ── Chapter model ─────────────────────────────────────────────────────────
+  // storyChapters is a real per-chapter list; each chunk's `chapter` says which
+  // one it belongs to. Legacy/empty stories collapse to a single chapter 0.
+  const chapterList = (() => {
+    const list = Array.isArray(generatedStory?.storyChapters) ? generatedStory.storyChapters : []
+    const real = list.filter((c) => typeof c.order === 'number')
+    if (real.length === 0) {
+      return [{ order: 0, title: generatedStory?.title || 'Chapter 1', status: 'writing' }]
+    }
+    return [...real].sort((a, b) => a.order - b.order)
+  })()
+  const writingOrder = chapterList[chapterList.length - 1]?.order ?? 0
+  const viewingOrder = activeChapterOrder ?? writingOrder
+  const viewingIsHead = viewingOrder === writingOrder
+  const activeChapterMeta = chapterList.find((c) => c.order === viewingOrder) || chapterList[0]
+  const visibleChunks = (generatedStory?.MainStory || []).filter(
+    (c) => (typeof c.chapter === 'number' ? c.chapter : 0) === viewingOrder
+  )
+  // A bare "Chapter N" title is provisional — don't echo it after the prefix.
+  const activeChapterTitle =
+    activeChapterMeta?.title && !/^chapter\s*\d+$/i.test(activeChapterMeta.title)
+      ? activeChapterMeta.title
+      : ''
 
   const TAB_EMPTY = {
     character: 'Characters you create and meet will be tracked here with their traits and memories.',
@@ -881,6 +937,58 @@ function StoryCreator() {
 
   return (
     <div className="story-creator">
+      {chapterModalOpen && (
+        <div
+          className="chap-modal-overlay"
+          role="presentation"
+          onClick={() => setChapterModalOpen(false)}
+        >
+          <div
+            className="chap-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="chap-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="chap-modal-head">
+              <span className="ic">{I.pen}</span>
+              <h3 id="chap-modal-title">Start a new chapter</h3>
+            </div>
+            <p className="chap-modal-sub">
+              Give it a title, or leave this blank — the AI will predict one now and finalize it
+              from the chapter’s content once it’s complete.
+            </p>
+            <input
+              className="chap-modal-input"
+              value={chapterTitleInput}
+              placeholder="Chapter title (optional)…"
+              maxLength={80}
+              autoFocus
+              onChange={(e) => setChapterTitleInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  confirmStartChapter()
+                } else if (e.key === 'Escape') {
+                  setChapterModalOpen(false)
+                }
+              }}
+            />
+            <div className="chap-modal-acts">
+              <button
+                type="button"
+                className="btn btn-ghost btn-md"
+                onClick={() => setChapterModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button type="button" className="btn btn-primary btn-md" onClick={confirmStartChapter}>
+                {I.spark} Start chapter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="sc-content">
         <div className="sc-head">
           <button type="button" className="sc-back" onClick={handleBack} aria-label="Back">
@@ -894,10 +1002,41 @@ function StoryCreator() {
               </span>
             )}
           </div>
+          {(generatedStory?._id || storyId) && (
+            <button
+              type="button"
+              className="report-trigger"
+              onClick={() => setShowShare(true)}
+              title="Share this story"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+              </svg>
+              {generatedStory?.visibility && generatedStory.visibility !== 'private' ? 'Shared' : 'Share'}
+            </button>
+          )}
           <button type="button" className="btn btn-ghost btn-md" onClick={handleNewStory} style={{ gap: 7 }}>
             {I.spark} New
           </button>
         </div>
+
+        {showShare && (generatedStory?._id || storyId) && (
+          <ShareModal
+            resourceType="story"
+            resource={{
+              _id: generatedStory?._id || storyId,
+              title: storyTitle,
+              visibility: generatedStory?.visibility || 'private',
+              contentRating: generatedStory?.contentRating || 'unrated',
+            }}
+            onClose={() => setShowShare(false)}
+            onUpdated={(fields) => setGeneratedStory((prev) => (prev ? { ...prev, ...fields } : prev))}
+          />
+        )}
 
         <div className="sc-tabs">
           {WORKSPACE_TABS.map((tab) => (
@@ -916,11 +1055,43 @@ function StoryCreator() {
           <div className="sc-center">
             {activeTab === 'story' ? (
               <>
+                {generatedStory?.MainStory?.length > 0 && (
+                  <div className="chapter-rail" role="tablist" aria-label="Chapters">
+                    {chapterList.map((ch) => (
+                      <button
+                        key={ch.order}
+                        type="button"
+                        role="tab"
+                        aria-selected={ch.order === viewingOrder}
+                        className={`chap-chip ${ch.order === viewingOrder ? 'active' : ''}`}
+                        onClick={() => setActiveChapterOrder(ch.order)}
+                        title={ch.title || `Chapter ${ch.order + 1}`}
+                      >
+                        <span className="chap-chip-n">Ch {ch.order + 1}</span>
+                        {ch.title && !/^chapter\s*\d+$/i.test(ch.title) && (
+                          <span className="chap-chip-t">{ch.title}</span>
+                        )}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className="chap-chip chap-chip-new"
+                      onClick={handleStartChapter}
+                      disabled={isStoryBusy || !generatedStory?.MainStory?.length}
+                      title="Close the current chapter and start a fresh one"
+                    >
+                      {actionLoading === 'chapter' ? 'Starting…' : '+ New chapter'}
+                    </button>
+                  </div>
+                )}
+
                 <div className="chapter-card">
                   <div className="chapter-head">
                     <div>
-                      <h2>Chapter 1: The Beginning</h2>
-                      <div className="upd">Last updated · Just now</div>
+                      <h2>Chapter {viewingOrder + 1}{activeChapterTitle ? `: ${activeChapterTitle}` : ''}</h2>
+                      <div className="upd">
+                        {viewingIsHead ? 'Writing now' : 'Completed chapter · read-only'}
+                      </div>
                     </div>
                     <div className="chapter-acts">
                       <button
@@ -928,7 +1099,7 @@ function StoryCreator() {
                         className="cact-undo"
                         title="Removes only the most recent passage — earlier story stays untouched"
                         onClick={handleEraseLastChunk}
-                        disabled={isStoryBusy || !generatedStory?.MainStory?.length}
+                        disabled={isStoryBusy || !viewingIsHead || !generatedStory?.MainStory?.length}
                       >
                         {I.trash} Undo last passage
                       </button>
@@ -936,8 +1107,8 @@ function StoryCreator() {
                   </div>
 
                   <div className="story-history">
-                    {generatedStory?.MainStory?.length > 0 ? (
-                      generatedStory.MainStory.map((chunk, idx) => (
+                    {visibleChunks.length > 0 ? (
+                      visibleChunks.map((chunk, idx) => (
                         <div key={`chunk-${chunk.index}`} className="chunk">
                           {idx > 0 && (
                             <div className="chunk-mark">
@@ -1006,6 +1177,10 @@ function StoryCreator() {
                           })}
                         </div>
                       ))
+                    ) : generatedStory?.MainStory?.length > 0 ? (
+                      <p className="chapter-empty-note">
+                        This chapter is empty — use the composer below to write its opening scene.
+                      </p>
                     ) : (
                       <p>Your story will appear here…</p>
                     )}
@@ -1056,53 +1231,64 @@ function StoryCreator() {
                   </div>
                 </div>
 
-                <div className="sc-dock">
-                  <div className="sc-input">
-                    <span className="lead">Do</span>
-                    <textarea
-                      ref={actionInputRef}
-                      value={userAction}
-                      placeholder="What does your character do next?  (optional)"
-                      onChange={(e) => setUserAction(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault()
-                          if (!isStoryBusy) handleContinueStory()
-                        }
-                      }}
-                      rows={1}
-                      disabled={isStoryBusy}
-                    />
-                    <button
-                      type="button"
-                      className={`sc-mic ${isListening ? 'on' : ''}`}
-                      onClick={toggleDictation}
-                      disabled={isStoryBusy}
-                      aria-label={isListening ? 'Stop dictation' : 'Dictate your action'}
-                      title={isListening ? 'Listening… click to stop' : 'Speak your action'}
-                    >
-                      {I.mic}
-                    </button>
+                {viewingIsHead ? (
+                  <div className="sc-dock">
+                    <div className="sc-input">
+                      <span className="lead">Do</span>
+                      <textarea
+                        ref={actionInputRef}
+                        value={userAction}
+                        placeholder="What does your character do next?  (optional)"
+                        onChange={(e) => setUserAction(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault()
+                            if (!isStoryBusy) handleContinueStory()
+                          }
+                        }}
+                        rows={1}
+                        disabled={isStoryBusy}
+                      />
+                      <button
+                        type="button"
+                        className={`sc-mic ${isListening ? 'on' : ''}`}
+                        onClick={toggleDictation}
+                        disabled={isStoryBusy}
+                        aria-label={isListening ? 'Stop dictation' : 'Dictate your action'}
+                        title={isListening ? 'Listening… click to stop' : 'Speak your action'}
+                      >
+                        {I.mic}
+                      </button>
+                    </div>
+                    <div className="sc-actions">
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-md"
+                        onClick={handleContinueStory}
+                        disabled={isStoryBusy}
+                      >
+                        {actionLoading === 'continue' ? 'Weaving…' : 'Continue story'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-md"
+                        onClick={handleRegenerateChunk}
+                        disabled={isStoryBusy || !generatedStory?.MainStory?.length}
+                      >
+                        {I.refresh} Regenerate
+                      </button>
+                    </div>
                   </div>
-                  <div className="sc-actions">
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-md"
-                      onClick={handleContinueStory}
-                      disabled={isStoryBusy}
-                    >
-                      {actionLoading === 'continue' ? 'Weaving…' : 'Continue story'}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-md"
-                      onClick={handleRegenerateChunk}
-                      disabled={isStoryBusy || !generatedStory?.MainStory?.length}
-                    >
-                      {I.refresh} Regenerate
-                    </button>
+                ) : (
+                  <div className="sc-dock sc-dock-readonly">
+                    <p className="readonly-note">
+                      You’re viewing a past chapter — the story only continues from the latest one.
+                      <button type="button" className="linklike" onClick={() => setActiveChapterOrder(null)}>
+                        Jump to Chapter {writingOrder + 1} →
+                      </button>
+                    </p>
                   </div>
-                </div>
+                )}
               </>
             ) : activeTab === 'character' ? (
               renderCodexTab(generatedStory?.characters, 'character', I.user, '👤')

@@ -724,3 +724,27 @@
   .banner-content { padding: 0 16px; }
   .banner-message span { font-size: 12px; }
 }
+
+/* Report flag on public/community cards */
+.report-flag {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease, background 0.2s ease, transform 0.15s ease;
+}
+.story-card:hover .report-flag { opacity: 1; }
+.report-flag:hover { background: #dc2626; transform: scale(1.08); }

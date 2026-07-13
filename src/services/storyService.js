@@ -680,6 +680,66 @@ export const editChunk = async (storyId, chunkIndex, newContent) => {
 }
 
 /**
+ * Change a story's sharing state (private / unlisted / published)
+ * @param {string} storyId - The story ID
+ * @param {'private'|'unlisted'|'published'} visibility
+ * @param {string} [contentRating] - Optional content rating
+ * @returns {Promise<Object>} Update result
+ */
+export const setStoryVisibility = async (storyId, visibility, contentRating) => {
+  try {
+    const body = { visibility }
+    if (contentRating !== undefined) body.contentRating = contentRating
+
+    const response = await fetch(API_ENDPOINTS.STORY.VISIBILITY(storyId), {
+      method: 'PATCH',
+      headers: getHeaders(true),
+      body: JSON.stringify(body)
+    })
+
+    const data = await response.json()
+
+    if (response.ok) {
+      return { success: true, message: data.message, story: data.story }
+    }
+    return { success: false, error: data.message || 'Failed to update visibility' }
+  } catch (error) {
+    console.error('Set Story Visibility Error:', error)
+    return { success: false, error: 'Network error. Please try again.' }
+  }
+}
+
+/**
+ * Start a new chapter. Closes + finalizes the current chapter and opens a fresh
+ * writing head; the next continuation opens the new chapter with a fresh scene.
+ * @param {string} storyId
+ * @param {string} [title] Optional chapter title; the AI predicts one when blank.
+ * @param {string} [model]
+ */
+export const startChapter = async (storyId, title = '', model = 'google/gemini-3.1-flash-lite') => {
+  try {
+    const body = { model }
+    if (title && title.trim()) body.title = title.trim()
+
+    const response = await fetch(API_ENDPOINTS.STORY.NEW_CHAPTER(storyId), {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify(body)
+    })
+
+    const data = await response.json()
+
+    if (response.ok) {
+      return { success: true, message: data.message, story: data.story }
+    }
+    return { success: false, error: data.message || 'Failed to start a new chapter' }
+  } catch (error) {
+    console.error('Start Chapter Error:', error)
+    return { success: false, error: 'Network error. Please try again.' }
+  }
+}
+
+/**
  * Get available models from backend
  * @returns {Promise<Object>} List of models
  */

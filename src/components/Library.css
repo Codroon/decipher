@@ -554,3 +554,60 @@
 @media (max-width: 420px) {
   .my-library-page .lib-grid { grid-template-columns: 1fr; }
 }
+
+/* ── Attached image on entity cover ───────────────────────────────── */
+.my-library-page .libc-cover.has-img { background: #0d0a16; }
+.my-library-page .libc-cover-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ── Image picker modal ───────────────────────────────────────────── */
+.my-library-page .lm-imgpick { max-width: 640px; width: 100%; }
+.my-library-page .lm-imgpick-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.my-library-page .lm-imgpick-sub { color: rgba(255, 255, 255, 0.55); font-size: 13px; margin: 4px 0 0; }
+.my-library-page .imgpick-remove { margin: 14px 0 2px; display: inline-flex; align-items: center; gap: 6px; }
+.my-library-page .imgpick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(94px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+  max-height: 52vh;
+  overflow-y: auto;
+  padding: 2px;
+}
+.my-library-page .imgpick-cell {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  padding: 0;
+}
+.my-library-page .imgpick-cell:hover { border-color: rgba(255, 255, 255, 0.28); }
+.my-library-page .imgpick-cell.sel { border-color: #7c5cff; }
+.my-library-page .imgpick-cell:disabled { opacity: 0.6; cursor: default; }
+.my-library-page .imgpick-thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
+.my-library-page .imgpick-empty {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.55);
+  padding: 34px 12px;
+  font-size: 14px;
+}
+
+/* ── Image field inside the create/edit modal ─────────────────────── */
+.my-library-page .lm-optional { color: rgba(255, 255, 255, 0.4); font-weight: 400; font-size: 12px; }
+.my-library-page .lm-image-row { display: flex; align-items: center; gap: 14px; }
+.my-library-page .lm-image-preview {
+  width: 84px;
+  height: 84px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: grid;
+  place-items: center;
+}
+.my-library-page .lm-image-thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
+.my-library-page .lm-image-empty { font-size: 11px; color: rgba(255, 255, 255, 0.4); }
+.my-library-page .lm-image-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
