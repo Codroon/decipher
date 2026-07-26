@@ -426,6 +426,12 @@ export const continueStory = async (storyId, model = 'google/gemini-3.1-flash-li
       return {
         success: true,
         message: data.message,
+        // Set when this turn also opened a new chapter — either because the
+        // author asked for one in the composer ('author') or the AI detected a
+        // scene break ('auto'). Lets the UI follow the story to the new chapter.
+        chapterStarted: !!data.chapterStarted,
+        chapterStartedBy: data.chapterStartedBy || null,
+        chapterOrder: data.chapterOrder,
         story: data.story
       }
     } else {

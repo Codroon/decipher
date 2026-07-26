@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { AuthNav, EyeIcon, EyeOff } from './AuthShared'
+import GoogleSignInButton from './GoogleSignInButton'
 import './Auth.css'
 
 function LoginForm() {
@@ -13,7 +14,7 @@ function LoginForm() {
   const [success, setSuccess] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  const { login } = useAuth()
+  const { login, loginWithGoogle } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -55,6 +56,27 @@ function LoginForm() {
       } else {
         setError('An error occurred during login. Please check your connection and try again.')
       }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Google sign-in and sign-up are the same call — the backend decides whether
+  // this creates an account, links Google to an existing one, or just logs in.
+  const handleGoogleCode = async (code) => {
+    setError('')
+    setSuccess('')
+    setIsLoading(true)
+    try {
+      const result = await loginWithGoogle({ code })
+      if (result.success) {
+        navigate('/home')
+      } else {
+        setError(result.error || 'Google sign-in failed. Please try again.')
+      }
+    } catch (err) {
+      console.error('Google sign-in error:', err)
+      setError('An error occurred during Google sign-in. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -139,6 +161,15 @@ function LoginForm() {
                 {isLoading ? 'Signing In...' : 'Sign In'}
               </button>
             </div>
+
+            <div className="auth-or">OR</div>
+
+            <GoogleSignInButton
+              label="Sign in with Google"
+              disabled={isLoading}
+              onCode={handleGoogleCode}
+              onError={setError}
+            />
 
             <div className="auth-switch-link">
               <span>Don't have an account? </span>

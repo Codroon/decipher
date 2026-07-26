@@ -1,15 +1,69 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import './StoryCreator.css'
 import * as storyService from '../services/storyService'
 import * as libraryService from '../services/libraryService'
 import ShareModal from './ShareModal'
+import { NarrationSession, scriptRangeToChunk } from '../utils/chapterAudio'
 
 /** Split a story chunk into paragraphs (blank-line separated). */
 function splitParagraphs(content) {
   const paras = content.split(/\n\n/).filter((p) => p.trim())
   return paras.length ? paras.map((p) => p.trim()) : [content]
 }
+
+/**
+ * Where each paragraph begins inside its passage.
+ *
+ * The narration script is built from the passage's trimmed content, so
+ * highlight offsets are relative to that — we walk the original string to find
+ * each rendered paragraph and record its position.
+ */
+function paragraphOffsets(content) {
+  const trimmed = content.trim()
+  const paras = splitParagraphs(content)
+  const offsets = []
+  let cursor = 0
+  for (const para of paras) {
+    const at = trimmed.indexOf(para, cursor)
+    const start = at === -1 ? cursor : at
+    offsets.push(start)
+    cursor = start + para.length
+  }
+  return offsets
+}
+
+/**
+ * Break a paragraph into word tokens and the whitespace between them.
+ *
+ * The narrated word used to be highlighted by slicing the paragraph into
+ * before/word/after around it, which meant every word rebuilt the paragraph's
+ * text nodes — the highlight could never animate, because the element carrying
+ * it was destroyed and recreated each time. Tokenizing once instead gives every
+ * word a span that persists for the whole passage, so moving the highlight is a
+ * class change on two elements and CSS can transition it.
+ *
+ * `start` is passage-relative (rebased by `paraStart`) to match the alignment
+ * coordinates the backend's `parts` map into.
+ */
+function tokenizeParagraph(para, paraStart) {
+  const tokens = []
+  const wordRe = /\S+/g
+  let cursor = 0
+  let match
+  while ((match = wordRe.exec(para)) !== null) {
+    if (match.index > cursor) {
+      tokens.push({ type: 'gap', text: para.slice(cursor, match.index) })
+    }
+    tokens.push({ type: 'word', text: match[0], start: paraStart + match.index })
+    cursor = match.index + match[0].length
+  }
+  if (cursor < para.length) tokens.push({ type: 'gap', text: para.slice(cursor) })
+  return tokens
+}
+
+/** Identifies one word span in the DOM: passage index + offset within it. */
+const wordKey = (chunkIndex, start) => `${chunkIndex}:${start}`
 
 const I = {
   back: (
@@ -75,6 +129,17 @@ const I = {
   trash: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 6h18M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </svg>
+  ),
+  speaker: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 5 6 9H2v6h4l5 4V5z" />
+      <path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14" />
+    </svg>
+  ),
+  pause: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 4v16M14 4v16" />
     </svg>
   ),
   sliders: (
@@ -151,6 +216,24 @@ function StoryCreator() {
   // Voice dictation for the action input
   const [isListening, setIsListening] = useState(false)
   const recognitionRef = useRef(null)
+
+  // Narration playback (ElevenLabs). One session at a time; switching chapters
+  // or leaving the page aborts it, which also stops generation server-side.
+  const audioElRef = useRef(null)
+  const narrationRef = useRef(null)
+  const alignmentRef = useRef(null)
+  const partsRef = useRef([])
+  const [narrationState, setNarrationState] = useState('idle')
+  const [narrationError, setNarrationError] = useState('')
+  // What is being narrated: { scope: 'chapter'|'chunk', ref } — drives which
+  // button shows the playing state, and which passages get word spans.
+  const [narrationTarget, setNarrationTarget] = useState(null)
+  // The highlight is moved imperatively (see the rAF loop) rather than held in
+  // state: at several words a second, re-rendering the chapter per word was the
+  // stutter. These track the DOM node currently lit so it can be un-lit.
+  const storyBodyRef = useRef(null)
+  const activeWordRef = useRef(null)
+  const activeWordKeyRef = useRef(null)
 
   // Library entity selection states
   const [selectedEntity, setSelectedEntity] = useState(null)
@@ -292,6 +375,140 @@ function StoryCreator() {
 
   useEffect(() => () => recognitionRef.current?.abort(), [])
 
+  /** Un-light the currently highlighted word, if any. */
+  const clearHighlight = useCallback(() => {
+    activeWordRef.current?.classList.remove('story-tts-segment--active')
+    activeWordRef.current = null
+    activeWordKeyRef.current = null
+  }, [])
+
+  const stopNarration = useCallback(() => {
+    narrationRef.current?.stop()
+    narrationRef.current = null
+    alignmentRef.current = null
+    partsRef.current = []
+    setNarrationState('idle')
+    setNarrationTarget(null)
+    clearHighlight()
+  }, [clearHighlight])
+
+  // Never leave a session running past the component.
+  useEffect(() => () => narrationRef.current?.stop(), [])
+
+  // Switching chapters must not leave one chapter's audio playing over
+  // another's text — the highlight offsets would point into the wrong passages.
+  useEffect(() => {
+    stopNarration()
+  }, [activeChapterOrder, stopNarration])
+
+  /**
+   * Follow the alignment as the audio plays. Driving this from rAF rather than
+   * the element's `timeupdate` event matters: timeupdate fires about 4x/second,
+   * which is visibly behind the speech.
+   *
+   * The move itself is two classList calls on spans that already exist, so a
+   * word change costs no React render and no layout of the surrounding text —
+   * which is what lets the CSS transition actually read as a glide.
+   */
+  useEffect(() => {
+    if (narrationState !== 'playing') return
+    let frame
+
+    const follow = (el) => {
+      // Only chase the word when it has left the viewport, so ordinary reading
+      // isn't interrupted by the page pulling itself around every line.
+      const box = el.getBoundingClientRect()
+      const margin = 96
+      if (box.top >= margin && box.bottom <= window.innerHeight - margin) return
+      const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+      el.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' })
+    }
+
+    const tick = () => {
+      const audio = audioElRef.current
+      const alignment = alignmentRef.current
+      const body = storyBodyRef.current
+      if (audio && body && alignment?.length) {
+        const range = alignment.wordRangeAt(audio.currentTime)
+        const mapped = range ? scriptRangeToChunk(range, partsRef.current) : null
+        const key = mapped ? wordKey(mapped.chunkIndex, mapped.start) : null
+
+        if (key !== activeWordKeyRef.current) {
+          const next = key
+            ? body.querySelector(`[data-w="${CSS.escape(key)}"]`)
+            : null
+          // A miss means the alignment and the rendered text disagree about
+          // where this word starts; hold the current highlight rather than
+          // dropping it, which would read as a flicker.
+          if (next || !key) {
+            activeWordRef.current?.classList.remove('story-tts-segment--active')
+            next?.classList.add('story-tts-segment--active')
+            activeWordRef.current = next
+            activeWordKeyRef.current = key
+            if (next) follow(next)
+          }
+        }
+      }
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [narrationState])
+
+  /** Is this exactly what's loaded right now — the chapter, or one passage? */
+  const isNarrating = (scope, ref) =>
+    narrationTarget?.scope === scope && narrationTarget?.ref === ref
+
+  /**
+   * Play, pause or resume narration for a target. Only one session exists at a
+   * time, so asking for a different target replaces the current one — starting a
+   * passage while the chapter is playing stops the chapter.
+   */
+  const toggleNarration = async (scope, ref) => {
+    const el = audioElRef.current
+    if (!el) return
+
+    // Pause/resume the target that is already loaded rather than regenerating.
+    if (isNarrating(scope, ref)) {
+      if (narrationState === 'playing') {
+        el.pause()
+        return
+      }
+      if (narrationState === 'paused' && narrationRef.current) {
+        el.play().catch(() => setNarrationState('paused'))
+        return
+      }
+    }
+
+    stopNarration()
+    setNarrationError('')
+    setNarrationTarget({ scope, ref })
+
+    const session = new NarrationSession({
+      storyId: generatedStory._id,
+      scope,
+      ref,
+      audioEl: el,
+      onState: (state) => {
+        setNarrationState(state)
+        // Nothing is loaded any more once it finishes or fails, so release the
+        // target: the buttons drop back to "Listen" and the word spans go away.
+        if (state === 'ended' || state === 'error') {
+          clearHighlight()
+          setNarrationTarget(null)
+        }
+      },
+      onAlignment: (alignment) => {
+        alignmentRef.current = alignment
+        partsRef.current = session.parts
+      },
+      onError: (message) => setNarrationError(message),
+    })
+    narrationRef.current = session
+    await session.start()
+    partsRef.current = session.parts
+  }
+
   const growActionInput = useCallback((el) => {
     if (!el) return
     el.style.height = 'auto'
@@ -317,6 +534,10 @@ function StoryCreator() {
       } else {
         setGeneratedStory(result.story)
         setUserAction('') // Clear action input on success
+        // The turn may have opened a new chapter (the author asked for one in the
+        // composer, or the AI broke on a scene jump) — follow the writing head so
+        // the passage that was just written is the one on screen.
+        if (result.chapterStarted) setActiveChapterOrder(null)
       }
     } else {
       alert(result.error || 'Failed to continue story')
@@ -549,6 +770,70 @@ function StoryCreator() {
     setError('')
     setGeneratedStory(null)
   }
+
+  // ── Chapter model ─────────────────────────────────────────────────────────
+  // storyChapters is a real per-chapter list; each chunk's `chapter` says which
+  // one it belongs to. Legacy/empty stories collapse to a single chapter 0.
+  // Derived above the loading/wizard/creation returns below, because the
+  // narration memo is a hook and hooks cannot sit after a conditional return.
+  const chapterList = (() => {
+    const list = Array.isArray(generatedStory?.storyChapters) ? generatedStory.storyChapters : []
+    const real = list.filter((c) => typeof c.order === 'number')
+    if (real.length === 0) {
+      return [{ order: 0, title: generatedStory?.title || 'Chapter 1', status: 'writing' }]
+    }
+    return [...real].sort((a, b) => a.order - b.order)
+  })()
+  const writingOrder = chapterList[chapterList.length - 1]?.order ?? 0
+  const viewingOrder = activeChapterOrder ?? writingOrder
+  const viewingIsHead = viewingOrder === writingOrder
+  const activeChapterMeta = chapterList.find((c) => c.order === viewingOrder) || chapterList[0]
+  const visibleChunks = (generatedStory?.MainStory || []).filter(
+    (c) => (typeof c.chapter === 'number' ? c.chapter : 0) === viewingOrder
+  )
+  // A bare "Chapter N" title is provisional — don't echo it after the prefix.
+  const activeChapterTitle =
+    activeChapterMeta?.title && !/^chapter\s*\d+$/i.test(activeChapterMeta.title)
+      ? activeChapterMeta.title
+      : ''
+
+  /**
+   * Paragraph text for the visible passages, split once per change instead of on
+   * every render — this used to re-scan every passage's text several times a
+   * second while narrating.
+   *
+   * Word spans are built only for passages the current narration can actually
+   * highlight (the whole chapter, or the single passage being read), so a story
+   * that isn't being narrated renders as plain text.
+   */
+  const renderedChunks = useMemo(() => {
+    const narratedIndexes =
+      narrationTarget?.scope === 'chapter'
+        ? new Set(visibleChunks.map((c) => c.index))
+        : narrationTarget?.scope === 'chunk'
+          ? new Set([narrationTarget.ref])
+          : new Set()
+
+    return visibleChunks.map((chunk) => {
+      const paras = splitParagraphs(chunk.content)
+      const starts = paragraphOffsets(chunk.content)
+      return {
+        chunk,
+        paragraphs: paras.map((text, i) => ({
+          text,
+          tokens: narratedIndexes.has(chunk.index) ? tokenizeParagraph(text, starts[i]) : null,
+        })),
+      }
+    })
+    // visibleChunks is rebuilt on every render; its contents are what matter,
+    // and those change with MainStory and the chapter being viewed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    generatedStory?.MainStory,
+    viewingOrder,
+    narrationTarget?.scope,
+    narrationTarget?.ref,
+  ])
 
   // Show loading state when fetching existing story
   if (isLoading && storyId) {
@@ -863,30 +1148,6 @@ function StoryCreator() {
     actionLoading === 'chapter' ||
     clarificationLoading
 
-  // ── Chapter model ─────────────────────────────────────────────────────────
-  // storyChapters is a real per-chapter list; each chunk's `chapter` says which
-  // one it belongs to. Legacy/empty stories collapse to a single chapter 0.
-  const chapterList = (() => {
-    const list = Array.isArray(generatedStory?.storyChapters) ? generatedStory.storyChapters : []
-    const real = list.filter((c) => typeof c.order === 'number')
-    if (real.length === 0) {
-      return [{ order: 0, title: generatedStory?.title || 'Chapter 1', status: 'writing' }]
-    }
-    return [...real].sort((a, b) => a.order - b.order)
-  })()
-  const writingOrder = chapterList[chapterList.length - 1]?.order ?? 0
-  const viewingOrder = activeChapterOrder ?? writingOrder
-  const viewingIsHead = viewingOrder === writingOrder
-  const activeChapterMeta = chapterList.find((c) => c.order === viewingOrder) || chapterList[0]
-  const visibleChunks = (generatedStory?.MainStory || []).filter(
-    (c) => (typeof c.chapter === 'number' ? c.chapter : 0) === viewingOrder
-  )
-  // A bare "Chapter N" title is provisional — don't echo it after the prefix.
-  const activeChapterTitle =
-    activeChapterMeta?.title && !/^chapter\s*\d+$/i.test(activeChapterMeta.title)
-      ? activeChapterMeta.title
-      : ''
-
   const TAB_EMPTY = {
     character: 'Characters you create and meet will be tracked here with their traits and memories.',
     world: 'Locations and lore you establish will be collected here as your world grows.',
@@ -1094,6 +1355,31 @@ function StoryCreator() {
                       </div>
                     </div>
                     <div className="chapter-acts">
+                      {(() => {
+                        // The chapter button reflects playback only when the
+                        // chapter is what's loaded — narrating a single passage
+                        // must not make this read "Pause".
+                        const mine = isNarrating('chapter', viewingOrder)
+                        const state = mine ? narrationState : 'idle'
+                        return (
+                          <button
+                            type="button"
+                            className={`cact-listen ${state === 'playing' ? 'on' : ''}`}
+                            title="Read this chapter aloud"
+                            onClick={() => toggleNarration('chapter', viewingOrder)}
+                            disabled={!visibleChunks.length || (mine && narrationState === 'loading')}
+                          >
+                            {state === 'playing' ? I.pause : I.speaker}
+                            {state === 'loading'
+                              ? 'Preparing…'
+                              : state === 'playing'
+                                ? 'Pause'
+                                : state === 'paused'
+                                  ? 'Resume'
+                                  : 'Listen'}
+                          </button>
+                        )
+                      })()}
                       <button
                         type="button"
                         className="cact-undo"
@@ -1106,10 +1392,24 @@ function StoryCreator() {
                     </div>
                   </div>
 
-                  <div className="story-history">
-                    {visibleChunks.length > 0 ? (
-                      visibleChunks.map((chunk, idx) => (
-                        <div key={`chunk-${chunk.index}`} className="chunk">
+                  {narrationError && (
+                    <div className="narration-error" role="alert">
+                      {narrationError}
+                    </div>
+                  )}
+                  {/* Driven entirely by NarrationSession; never shown directly. */}
+                  <audio ref={audioElRef} hidden preload="none" />
+
+                  <div className="story-history" ref={storyBodyRef}>
+                    {renderedChunks.length > 0 ? (
+                      renderedChunks.map(({ chunk, paragraphs }, idx) => {
+                        const chunkPlaying = isNarrating('chunk', chunk.index)
+                        const chunkState = chunkPlaying ? narrationState : 'idle'
+                        return (
+                        <div
+                          key={`chunk-${chunk.index}`}
+                          className={`chunk ${chunkPlaying && narrationState === 'playing' ? 'is-narrating' : ''}`}
+                        >
                           {idx > 0 && (
                             <div className="chunk-mark">
                               <span className="ln" />
@@ -1117,7 +1417,31 @@ function StoryCreator() {
                               <span className="ln" />
                             </div>
                           )}
-                          {splitParagraphs(chunk.content).map((para, pi) => {
+                          <button
+                            type="button"
+                            className={`chunk-listen ${chunkState !== 'idle' ? 'on' : ''}`}
+                            title={
+                              chunkState === 'playing'
+                                ? 'Pause this passage'
+                                : 'Read just this passage aloud'
+                            }
+                            aria-label={
+                              chunkState === 'playing'
+                                ? 'Pause this passage'
+                                : 'Read just this passage aloud'
+                            }
+                            onClick={() => toggleNarration('chunk', chunk.index)}
+                            disabled={chunkPlaying && narrationState === 'loading'}
+                          >
+                            {chunkState === 'loading' ? (
+                              <span className="chunk-listen-spin" aria-hidden="true" />
+                            ) : chunkState === 'playing' ? (
+                              I.pause
+                            ) : (
+                              I.speaker
+                            )}
+                          </button>
+                          {paragraphs.map(({ text: para, tokens }, pi) => {
                             const isEditingThis =
                               editingPara &&
                               editingPara.chunkIndex === chunk.index &&
@@ -1168,7 +1492,21 @@ function StoryCreator() {
                                   if (e.key === 'Enter') handleEditPara(chunk.index, pi, para)
                                 }}
                               >
-                                {para}
+                                {tokens
+                                  ? tokens.map((tok, ti) =>
+                                      tok.type === 'word' ? (
+                                        <span
+                                          key={ti}
+                                          className="story-tts-segment"
+                                          data-w={wordKey(chunk.index, tok.start)}
+                                        >
+                                          {tok.text}
+                                        </span>
+                                      ) : (
+                                        tok.text
+                                      )
+                                    )
+                                  : para}
                                 <span className="para-edit-hint" aria-hidden="true">
                                   {I.pen} Edit
                                 </span>
@@ -1176,7 +1514,8 @@ function StoryCreator() {
                             )
                           })}
                         </div>
-                      ))
+                        )
+                      })
                     ) : generatedStory?.MainStory?.length > 0 ? (
                       <p className="chapter-empty-note">
                         This chapter is empty — use the composer below to write its opening scene.
@@ -1238,7 +1577,7 @@ function StoryCreator() {
                       <textarea
                         ref={actionInputRef}
                         value={userAction}
-                        placeholder="What does your character do next?  (optional)"
+                        placeholder="What does your character do next?  (optional — or ask: “start a new chapter”)"
                         onChange={(e) => setUserAction(e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && !e.shiftKey) {

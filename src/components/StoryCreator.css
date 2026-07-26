@@ -793,18 +793,39 @@
   transform: none;
 }
 
+/* Narration highlight. Now tracks the spoken word (ElevenLabs character
+   timings) rather than a whole sentence, so it must not animate — at ~3 words a
+   second a transition reads as smear. */
+/* One span per word, present for the whole passage while it is narrated. Only
+   the active class moves, so these transitions animate a real element instead
+   of a node that is destroyed and rebuilt on every word. */
 .story-tts-segment {
   border-radius: 4px;
   padding: 0.06em 0.12em;
   margin: 0 -0.02em;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
-  transition: background 0.2s ease, box-shadow 0.2s ease;
+  background: rgba(119, 56, 203, 0);
+  box-shadow: 0 0 0 1px rgba(119, 56, 203, 0);
+  color: inherit;
+  /* Out-transition is slower than the in: the word being left fades away while
+     the next lights up, which reads as the highlight travelling rather than
+     blinking from word to word. */
+  transition: background-color 260ms ease-out, box-shadow 260ms ease-out, color 260ms ease-out;
 }
 
 .story-tts-segment--active {
   background: rgba(119, 56, 203, 0.35);
   box-shadow: 0 0 0 1px rgba(119, 56, 203, 0.45);
+  color: #fff;
+  transition-duration: 90ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .story-tts-segment,
+  .story-tts-segment--active {
+    transition-duration: 0ms;
+  }
 }
 
 .chunk-audio-btn {
@@ -2978,6 +2999,28 @@
 .story-creator .cact-undo:disabled { opacity: 0.35; cursor: default; }
 .story-creator .cact-undo svg { width: 15px; height: 15px; }
 
+/* Narration toggle — same pill as Undo, accented instead of destructive. */
+.story-creator .cact-listen {
+  display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 15px;
+  border-radius: 10px; cursor: pointer; flex-shrink: 0;
+  font-family: var(--font-display); font-weight: 600; font-size: 12px; letter-spacing: 0.04em;
+  color: var(--ink-70); background: rgba(255,255,255,0.05); border: 1px solid var(--hairline-soft);
+  transition: all .2s;
+}
+.story-creator .cact-listen:hover:not(:disabled) { color: #fff; background: rgba(119,56,203,0.28); border-color: transparent; }
+.story-creator .cact-listen:disabled { opacity: 0.35; cursor: default; }
+.story-creator .cact-listen svg { width: 15px; height: 15px; }
+.story-creator .cact-listen.on {
+  color: #fff; background: var(--grad); border-color: transparent;
+  animation: ttsPulse 1.8s ease-in-out infinite;
+}
+
+.story-creator .narration-error {
+  margin: 10px 0 0; padding: 9px 13px; border-radius: 9px;
+  font-size: 12.5px; color: #ffb4b4;
+  background: rgba(220,60,60,0.12); border: 1px solid rgba(220,60,60,0.28);
+}
+
 /* ── Chapter rail (switch between chapters) ─────────────────────────────── */
 .story-creator .chapter-rail {
   display: flex; align-items: center; gap: 8px;
@@ -3077,7 +3120,56 @@
 .story-creator .story-history::-webkit-scrollbar-thumb { background: rgba(119,56,203,0.35); border-radius: 100px; border: 3px solid transparent; background-clip: padding-box; }
 .story-creator .story-history::-webkit-scrollbar-thumb:hover { background: rgba(119,56,203,0.55); background-clip: padding-box; }
 
+/* The right gutter is reserved so the per-passage narration button never sits
+   on top of the prose it belongs to. */
+.story-creator .chunk { position: relative; padding-right: 38px; }
 .story-creator .chunk + .chunk { margin-top: 22px; padding-top: 22px; border-top: 1px dashed var(--hairline-soft); }
+
+/* ── Per-passage narration ──────────────────────────────────────────────────
+   Sits in the passage's top-right gutter. Hidden until the passage is hovered
+   or focused so it doesn't clutter the page, but pinned visible whenever this
+   passage is the one being read. */
+.story-creator .chunk-listen {
+  position: absolute; top: 0; right: 0; z-index: 4;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
+  color: var(--ink-70); background: rgba(255,255,255,0.06);
+  border: 1px solid var(--hairline-soft);
+  opacity: 0; transform: scale(0.9);
+  transition: opacity .18s ease, transform .18s ease, background .18s ease, color .18s ease;
+}
+.story-creator .chunk + .chunk .chunk-listen { top: 22px; }
+.story-creator .chunk:hover .chunk-listen,
+.story-creator .chunk-listen:focus-visible,
+.story-creator .chunk-listen.on {
+  opacity: 1; transform: scale(1);
+}
+.story-creator .chunk-listen:hover:not(:disabled) {
+  color: #fff; background: rgba(119,56,203,0.85); border-color: transparent;
+}
+.story-creator .chunk-listen.on {
+  color: #fff; background: var(--grad); border-color: transparent;
+}
+.story-creator .chunk-listen:disabled { cursor: default; }
+.story-creator .chunk-listen svg { width: 14px; height: 14px; }
+
+.story-creator .chunk-listen-spin {
+  width: 13px; height: 13px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.28); border-top-color: #fff;
+  animation: audio-spin .9s linear infinite;
+}
+
+/* A passage being read gets a quiet marker so it's clear which one is playing
+   even when the highlight has scrolled out of view. */
+.story-creator .chunk.is-narrating::before {
+  content: ''; position: absolute; left: -14px; top: 2px; bottom: 2px;
+  width: 2px; border-radius: 2px; background: var(--grad);
+}
+.story-creator .chunk + .chunk.is-narrating::before { top: 22px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .story-creator .chunk-listen { transition-duration: 0ms; }
+}
 .story-creator .chunk-mark { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .story-creator .chunk-mark .b { font-family: var(--font-display); font-weight: 700; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-40); }
 .story-creator .chunk-mark .ln { flex: 1; height: 1px; background: var(--hairline-soft); }

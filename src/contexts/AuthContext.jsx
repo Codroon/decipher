@@ -87,6 +87,21 @@ export const AuthProvider = ({ children }) => {
     return result
   }
 
+  // Sign in with Google. Deliberately mirrors login(): a Google session is the
+  // same app session, stored the same way — nothing downstream knows or cares
+  // which button the user pressed.
+  const loginWithGoogle = async (payload) => {
+    const result = await authService.loginWithGoogle(payload)
+
+    if (result.success) {
+      setUser(result.user)
+      localStorage.setItem('user', JSON.stringify(result.user))
+      localStorage.setItem('token', result.token)
+    }
+
+    return result
+  }
+
   // Verify OTP
   const verifyOTP = async (email, otp) => {
     setIsLoading(true)
@@ -165,6 +180,7 @@ export const AuthProvider = ({ children }) => {
     isLoading,
     register,
     login,
+    loginWithGoogle,
     verifyOTP,
     resendVerification,
     forgotPassword,

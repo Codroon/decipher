@@ -10,6 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@grafana/faro-react": "^2.8.2",
+    "@grafana/faro-web-sdk": "^2.8.2",
+    "@grafana/faro-web-tracing": "^2.8.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.9.4"

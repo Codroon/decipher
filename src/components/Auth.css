@@ -226,6 +226,16 @@
 .dz-auth .auth-social button:hover { background: rgba(119,56,203,0.16); border-color: var(--hairline); transform: translateY(-1px); }
 .dz-auth .auth-social svg { width: 19px; height: 19px; }
 
+/* The Google button is one of ours (see GoogleSignInButton.jsx), so it inherits
+   .auth-social above and matches the submit button. These only cover the states
+   that button needs: waiting for Google's script, and a request in flight. */
+.dz-auth .auth-social button:disabled {
+  opacity: 0.55; cursor: default; transform: none;
+}
+.dz-auth .auth-social button:disabled:hover {
+  background: rgba(255,255,255,0.05); border-color: var(--hairline-soft);
+}
+
 /* Divider */
 .dz-auth .auth-or {
   display: flex; align-items: center; gap: 14px; margin: 22px 0 18px;

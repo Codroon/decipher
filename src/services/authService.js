@@ -130,6 +130,60 @@ export const loginUser = async (email, password, rememberMe = false) => {
 }
 
 /**
+ * Exchange a Google authorization code for an app session.
+ *
+ * Sign-in and sign-up are the same call — the backend decides whether to create
+ * an account, link Google to an existing one, or just log in. Returns the same
+ * { success, user, token } shape as loginUser so callers are interchangeable.
+ *
+ * The code is single-use and can only be redeemed by the backend (it needs the
+ * client secret), so there is nothing sensitive in flight here. `credential` is
+ * accepted too for the ID-token flow the backend still supports.
+ *
+ * @param {{ code?: string, credential?: string }} payload
+ * @returns {Promise<Object>} Login result
+ */
+export const loginWithGoogle = async (payload) => {
+  try {
+    const body = typeof payload === 'string' ? { credential: payload } : payload
+
+    const response = await fetch(API_ENDPOINTS.AUTH.GOOGLE, {
+      method: 'POST',
+      headers: getHeaders(false),
+      body: JSON.stringify(body)
+    })
+
+    const data = await response.json()
+
+    if (data.success) {
+      return {
+        success: true,
+        user: data.data.user,
+        token: data.data.token,
+        message: data.message
+      }
+    }
+
+    return {
+      success: false,
+      error: data.message || 'Google sign-in failed'
+    }
+  } catch (error) {
+    console.error('Google Sign-In Error:', error)
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      return {
+        success: false,
+        error: 'Cannot connect to server. Please check if the backend is running and the URL is correct.'
+      }
+    }
+    return {
+      success: false,
+      error: `Network error: ${error.message}. Please check your connection and try again.`
+    }
+  }
+}
+
+/**
  * Verify OTP for email verification
  * @param {string} email - User's email
  * @param {string} otp - One-time password

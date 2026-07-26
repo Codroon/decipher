@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { AuthNav, EyeIcon, EyeOff } from './AuthShared'
+import GoogleSignInButton from './GoogleSignInButton'
 import './Auth.css'
 
 function RegistrationForm() {
@@ -20,7 +21,7 @@ function RegistrationForm() {
   const passwordInputRef = useRef(null)
   const confirmPasswordInputRef = useRef(null)
 
-  const { register } = useAuth()
+  const { register, loginWithGoogle } = useAuth()
   const navigate = useNavigate()
 
   const checkPasswordStrength = (password) => {
@@ -108,6 +109,27 @@ function RegistrationForm() {
       isSubmitting.current = false
     }
   }, [email, name, password, confirmPassword, register])
+
+  // Signing up with Google skips the whole OTP round trip — Google has already
+  // proven the address, so the backend marks the account verified and returns a
+  // session immediately. Straight to the app, no verification popup.
+  const handleGoogleCode = async (code) => {
+    setError('')
+    setIsLoading(true)
+    try {
+      const result = await loginWithGoogle({ code })
+      if (result.success) {
+        navigate('/home')
+      } else {
+        setError(result.error || 'Google sign-up failed. Please try again.')
+      }
+    } catch (err) {
+      console.error('Google sign-up error:', err)
+      setError('An error occurred during Google sign-up. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const closePopup = () => {
     setShowVerificationPopup(false)
@@ -270,6 +292,15 @@ function RegistrationForm() {
                 {isLoading ? 'Signing Up...' : 'Sign Up'}
               </button>
             </div>
+
+            <div className="auth-or">OR</div>
+
+            <GoogleSignInButton
+              label="Sign up with Google"
+              disabled={isLoading}
+              onCode={handleGoogleCode}
+              onError={setError}
+            />
 
             <div className="auth-switch-link">
               <span>Already have an account? </span>
