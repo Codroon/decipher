@@ -188,6 +188,17 @@ function StoryCreator() {
   // Story creation states
   const [isCreating, setIsCreating] = useState(!storyId)
   const [creationStep, setCreationStep] = useState(1)
+  // Which setting tile was chosen ('magic' | … | 'custom'). `setting` holds the
+  // display text; this holds the key the character roster is looked up by.
+  const [settingId, setSettingId] = useState('')
+  // Model-suggested roster for a custom setting: string[] | null
+  const [suggested, setSuggested] = useState(null)
+  const [suggestLoading, setSuggestLoading] = useState(false)
+  const [suggestFellBack, setSuggestFellBack] = useState(false)
+  const [suggestError, setSuggestError] = useState('')
+  // "Write your own" character, parallel to customSetting
+  const [customCharacter, setCustomCharacter] = useState('')
+  const [pickingCustomCharacter, setPickingCustomCharacter] = useState(false)
   const [setting, setSetting] = useState('')
   const [customSetting, setCustomSetting] = useState('')
   const [character, setCharacter] = useState('')
@@ -214,7 +225,8 @@ function StoryCreator() {
   const [inlineEditContent, setInlineEditContent] = useState('')
 
   // Voice dictation for the action input
-  const [isListening, setIsListening] = useState(false)
+  // Which input the microphone is currently feeding: 'action' | 'clarify' | null
+  const [listeningFor, setListeningFor] = useState(null)
   const recognitionRef = useRef(null)
 
   // Narration playback (ElevenLabs). One session at a time; switching chapters
@@ -232,6 +244,7 @@ function StoryCreator() {
   // state: at several words a second, re-rendering the chapter per word was the
   // stutter. These track the DOM node currently lit so it can be un-lit.
   const storyBodyRef = useRef(null)
+  const clarifyInputRef = useRef(null)
   const activeWordRef = useRef(null)
   const activeWordKeyRef = useRef(null)
 
@@ -301,15 +314,67 @@ function StoryCreator() {
     { id: 'custom', name: 'Custom Setting', custom: true },
   ]
 
-  // Predefined characters
-  const characterOptions = [
-    { id: 'warrior', name: 'Warrior', img: '/ai_storytelling_platform_balanced 1.png' },
-    { id: 'wizard', name: 'Wizard', img: '/fantasy-art-style.png' },
-    { id: 'rogue', name: 'Rogue', img: '/image 9.png' },
-    { id: 'explorer', name: 'Explorer', img: '/ai_storytelling_platform_balanced 5.png' },
-    { id: 'hero', name: 'Hero', img: '/realistic-art-style-52592d.png' },
-    { id: 'barbarian', name: 'Barbarian', img: '/recent-image-3.png' },
+  // Who you can play depends on where the story happens — a Void Marine has
+  // no business in Mystery Manor. Five archetypes per built-in setting, keyed
+  // by the setting's id; a custom setting gets its five from the model instead
+  // (see loadCharactersForCustomSetting). A 6th "write your own" tile is added
+  // to every roster at render time.
+  const charactersBySetting = {
+    magic: [
+      { id: 'archmage', name: 'Archmage', img: '/fantasy-art-style.png' },
+      { id: 'hedge-witch', name: 'Hedge Witch', img: '/anime-art-style.png' },
+      { id: 'runesmith', name: 'Runesmith', img: '/ai_storytelling_platform_balanced 1.png' },
+      { id: 'beast-charmer', name: 'Beast Charmer', img: '/recent-image-3.png' },
+      { id: 'spellbreaker', name: 'Spellbreaker', img: '/image 9.png' },
+    ],
+    medieval: [
+      { id: 'knight-errant', name: 'Knight Errant', img: '/Group 7.png' },
+      { id: 'court-spy', name: 'Court Spy', img: '/image 9.png' },
+      { id: 'blacksmith', name: 'Blacksmith', img: '/realistic-art-style-52592d.png' },
+      { id: 'fallen-noble', name: 'Disgraced Noble', img: '/story-card-image-4ea8ab.png' },
+      { id: 'sellsword', name: 'Sellsword', img: '/ai_storytelling_platform_balanced 1.png' },
+    ],
+    space: [
+      { id: 'captain', name: 'Starship Captain', img: '/fantasy-art-style.png' },
+      { id: 'void-marine', name: 'Void Marine', img: '/ai_storytelling_platform_balanced 5.png' },
+      { id: 'xenobiologist', name: 'Xenobiologist', img: '/storytelling_hero_background_modern 2.png' },
+      { id: 'salvage-runner', name: 'Salvage Runner', img: '/recent-image-2.png' },
+      { id: 'ship-ai', name: 'Ship AI', img: '/image 7.png' },
+    ],
+    fantasy: [
+      { id: 'ranger', name: 'Ranger', img: '/recent-image-3.png' },
+      { id: 'dwarven-warden', name: 'Dwarven Warden', img: '/realistic-art-style-52592d.png' },
+      { id: 'elven-duelist', name: 'Elven Duelist', img: '/anime-art-style.png' },
+      { id: 'dragon-rider', name: 'Dragon Rider', img: '/recent-image-1-52dd4f.png' },
+      { id: 'bard', name: 'Bard', img: '/cartoon-art-style.png' },
+    ],
+    mystery: [
+      { id: 'detective', name: 'Detective', img: '/image 9.png' },
+      { id: 'reluctant-heir', name: 'Reluctant Heir', img: '/story-card-image-4ea8ab.png' },
+      { id: 'housekeeper', name: 'Housekeeper', img: '/Frame 18588.png' },
+      { id: 'medium', name: 'Séance Medium', img: '/image 7 (1).png' },
+      { id: 'journalist', name: 'Journalist', img: '/realistic-art-style-52592d.png' },
+    ],
+  }
+
+  // Stand-in art for model-suggested characters, which arrive as names only.
+  const generatedArt = [
+    '/fantasy-art-style.png',
+    '/recent-image-3.png',
+    '/image 9.png',
+    '/anime-art-style.png',
+    '/ai_storytelling_platform_balanced 5.png',
   ]
+
+  // The five tiles shown on the character step, for whichever setting is live.
+  const characterOptions =
+    settingId === 'custom'
+      ? (suggested || []).map((name, i) => ({
+          id: `suggested-${i}`,
+          name,
+          img: generatedArt[i % generatedArt.length],
+        }))
+      : charactersBySetting[settingId] || []
 
   const handleTabChange = (tabId) => setActiveTab(tabId)
 
@@ -343,37 +408,87 @@ function StoryCreator() {
     }
   }
 
-  // Voice dictation (Web Speech API) for the action input
-  const toggleDictation = () => {
+  /**
+   * Voice dictation (Web Speech API), shared by the action composer and the
+   * inline clarifying-question field. `field` names which input receives the
+   * transcript, and only that field's mic shows the listening state — one
+   * recogniser is live at a time.
+   */
+  const toggleDictation = (field = 'action') => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SR) {
       alert('Voice input is not supported in this browser. Try Chrome or Edge.')
       return
     }
-    if (isListening) {
+
+    const wasListeningTo = listeningFor
+    if (wasListeningTo) {
       recognitionRef.current?.stop()
-      return
+      // Tapping the mic you're already dictating into just stops.
+      if (wasListeningTo === field) return
     }
-    const rec = new SR()
-    rec.lang = 'en-US'
-    rec.continuous = true
-    rec.interimResults = true
-    const base = userAction.trim() ? `${userAction.trim()} ` : ''
-    rec.onresult = (e) => {
-      let transcript = ''
-      for (let i = 0; i < e.results.length; i++) {
-        transcript += e.results[i][0].transcript
+
+    const setters = { action: setUserAction, clarify: setClarificationAnswer }
+    const current = field === 'clarify' ? clarificationAnswer : userAction
+    const write = setters[field]
+    const base = current.trim() ? `${current.trim()} ` : ''
+
+    const begin = () => {
+      const rec = new SR()
+      rec.lang = 'en-US'
+      rec.continuous = true
+      rec.interimResults = true
+      rec.onresult = (e) => {
+        let transcript = ''
+        for (let i = 0; i < e.results.length; i++) {
+          transcript += e.results[i][0].transcript
+        }
+        write(base + transcript.trimStart())
       }
-      setUserAction(base + transcript.trimStart())
+      // Only clear the indicator if this recogniser is still the live one —
+      // otherwise a previous session's `onend` would switch off the new mic.
+      const settle = () => {
+        if (recognitionRef.current === rec) setListeningFor(null)
+      }
+      rec.onend = settle
+      rec.onerror = settle
+      recognitionRef.current = rec
+      setListeningFor(field)
+      try {
+        rec.start()
+      } catch {
+        settle()
+      }
     }
-    rec.onend = () => setIsListening(false)
-    rec.onerror = () => setIsListening(false)
-    recognitionRef.current = rec
-    setIsListening(true)
-    rec.start()
+
+    // Handing the microphone from one field to the other needs the previous
+    // session to finish releasing it first.
+    if (wasListeningTo) setTimeout(begin, 150)
+    else begin()
   }
 
   useEffect(() => () => recognitionRef.current?.abort(), [])
+
+  /**
+   * The clarifying question is appended to the end of a story that is usually
+   * taller than the pane, so it can arrive off-screen. Whenever one appears,
+   * ride the story pane to the bottom and put the cursor in the field so it
+   * can be answered without hunting for it.
+   */
+  useEffect(() => {
+    if (!clarificationData || clarificationLoading) return
+    const body = storyBodyRef.current
+    if (!body) return
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+
+    // Wait for the block to be laid out, or scrollHeight is measured stale.
+    const frame = requestAnimationFrame(() => {
+      body.scrollTo({ top: body.scrollHeight, behavior: reduced ? 'auto' : 'smooth' })
+      // preventScroll: focusing must not fight the smooth scroll above.
+      clarifyInputRef.current?.focus({ preventScroll: true })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [clarificationData, clarificationLoading])
 
   /** Un-light the currently highlighted word, if any. */
   const clearHighlight = useCallback(() => {
@@ -668,29 +783,74 @@ function StoryCreator() {
     setInlineEditContent('')
   }
 
+  // Choosing a different setting invalidates whoever was picked for the old
+  // one, so the character step always opens on a roster that matches.
+  const resetCharacterChoice = () => {
+    setCharacter('')
+    setCustomCharacter('')
+    setPickingCustomCharacter(false)
+  }
+
   // Handle setting selection
   const handleSettingSelect = (settingId) => {
+    resetCharacterChoice()
     if (settingId === 'custom') {
       setSetting('custom')
+      setSuggested(null)
+      setSuggestError('')
+      setSuggestFellBack(false)
     } else {
       const selectedSetting = settingOptions.find(s => s.id === settingId)
+      setSettingId(settingId)
       setSetting(selectedSetting.name)
       setCreationStep(2)
     }
   }
 
+  /** Ask the fast model for five archetypes that suit a typed setting. */
+  const loadCharactersForCustomSetting = async (text) => {
+    setSuggestLoading(true)
+    setSuggestError('')
+    setSuggestFellBack(false)
+    const result = await storyService.suggestCharacters(text)
+    setSuggestLoading(false)
+    if (result.success) {
+      setSuggested(result.characters)
+      setSuggestFellBack(!result.generated)
+    } else {
+      setSuggested(null)
+      setSuggestError(result.error)
+    }
+  }
+
   // Handle custom setting submission
   const handleCustomSettingSubmit = () => {
-    if (customSetting.trim()) {
-      setSetting(customSetting.trim())
-      setCreationStep(2)
-    }
+    const text = customSetting.trim()
+    if (!text) return
+    resetCharacterChoice()
+    setSettingId('custom')
+    setSetting(text)
+    setCreationStep(2)
+    loadCharactersForCustomSetting(text)
   }
 
   // Handle character selection
   const handleCharacterSelect = (characterId) => {
+    if (characterId === 'custom') {
+      setPickingCustomCharacter(true)
+      return
+    }
     const selectedCharacter = characterOptions.find(c => c.id === characterId)
+    if (!selectedCharacter) return
+    setPickingCustomCharacter(false)
     setCharacter(selectedCharacter.name)
+    setCreationStep(3)
+  }
+
+  const handleCustomCharacterSubmit = () => {
+    const text = customCharacter.trim()
+    if (!text) return
+    setCharacter(text)
     setCreationStep(3)
   }
 
@@ -952,9 +1112,17 @@ function StoryCreator() {
     if (creationStep > 1) {
       if (creationStep === 2) {
         setSetting('')
+        setSettingId('')
         setCustomSetting('')
+        setSuggested(null)
+        setSuggestError('')
+        setSuggestFellBack(false)
+        resetCharacterChoice()
       }
-      if (creationStep === 3) setCharacter('')
+      if (creationStep === 3) {
+        setCharacter('')
+        setPickingCustomCharacter(false)
+      }
       setCreationStep(creationStep - 1)
     } else {
       window.history.back()
@@ -1031,7 +1199,7 @@ function StoryCreator() {
                     />
                     <button
                       type="button"
-                      className="btn btn-primary"
+                      className="btn btn-primary btn-md"
                       onClick={handleCustomSettingSubmit}
                       disabled={!customSetting.trim()}
                     >
@@ -1045,23 +1213,93 @@ function StoryCreator() {
             {creationStep === 2 && (
               <div className="wizard-step step-character">
                 <h2 className="wz-h">Choose your character</h2>
-                <p className="wz-sub">Who will be the hero of your story?</p>
+                <p className="wz-sub">
+                  {settingId === 'custom'
+                    ? <>Who could carry a story set in <strong>{setting}</strong>?</>
+                    : <>Who will be the hero of your {setting.toLowerCase()} story?</>}
+                </p>
 
-                <div className="wz-tiles">
-                  {characterOptions.map((option) => (
+                {suggestLoading ? (
+                  <>
+                    <div className="wz-tiles">
+                      {Array.from({ length: 6 }, (_, i) => (
+                        <div className="wz-tile wz-tile-skel" key={i} aria-hidden="true" />
+                      ))}
+                    </div>
+                    <p className="wz-note wz-note-busy">
+                      <span className="loading-spinner" />
+                      Casting for characters who belong in {setting}…
+                    </p>
+                  </>
+                ) : suggestError ? (
+                  <div className="wz-retry">
+                    <p>{suggestError}</p>
                     <button
-                      key={option.id}
                       type="button"
-                      className={`wz-tile ${character === option.name ? 'selected' : ''}`}
-                      onClick={() => handleCharacterSelect(option.id)}
+                      className="btn btn-ghost btn-md"
+                      onClick={() => loadCharactersForCustomSetting(setting)}
                     >
-                      <img src={option.img} alt="" />
-                      <span className="shade" />
-                      <span className="check">{I.check}</span>
-                      <span className="label">{option.name}</span>
+                      Try again
                     </button>
-                  ))}
-                </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="wz-tiles">
+                      {characterOptions.map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          className={`wz-tile ${character === option.name ? 'selected' : ''}`}
+                          onClick={() => handleCharacterSelect(option.id)}
+                        >
+                          <img src={option.img} alt="" />
+                          <span className="shade" />
+                          <span className="check">{I.check}</span>
+                          <span className="label">{option.name}</span>
+                        </button>
+                      ))}
+
+                      {/* Sixth tile: none of the above. */}
+                      <button
+                        type="button"
+                        className={`wz-tile custom ${pickingCustomCharacter ? 'selected' : ''}`}
+                        onClick={() => handleCharacterSelect('custom')}
+                      >
+                        <span className="ci">{I.pen}</span>
+                        <span className="check">{I.check}</span>
+                        <span className="label">Write your own</span>
+                      </button>
+                    </div>
+
+                    {suggestFellBack && (
+                      <p className="wz-note">
+                        Couldn&apos;t reach the model for tailored characters, so these are general
+                        archetypes — or write your own.
+                      </p>
+                    )}
+
+                    {pickingCustomCharacter && (
+                      <div className="wz-custom-row">
+                        <input
+                          type="text"
+                          placeholder="Describe your character… (e.g. exiled cartographer)"
+                          value={customCharacter}
+                          onChange={(e) => setCustomCharacter(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleCustomCharacterSubmit()}
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-md"
+                          onClick={handleCustomCharacterSubmit}
+                          disabled={!customCharacter.trim()}
+                        >
+                          Next
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
 
@@ -1527,12 +1765,13 @@ function StoryCreator() {
                     {clarificationData && !clarificationLoading && (
                       <div className="ai-ask chunk-appear">
                         <div className="ai-ask-head">
-                          {I.ai}
+                          <span className="ai-ask-mark">{I.ai}</span>
                           <span>Decipher needs a detail</span>
                         </div>
                         <p className="ai-ask-q">{clarificationData.text}</p>
                         <div className="ai-ask-field">
                           <input
+                            ref={clarifyInputRef}
                             value={clarificationAnswer}
                             placeholder="Answer in your own words…"
                             disabled={clarificationLoading}
@@ -1546,14 +1785,29 @@ function StoryCreator() {
                           />
                           <button
                             type="button"
+                            className={`ai-ask-mic ${listeningFor === 'clarify' ? 'on' : ''}`}
+                            onClick={() => toggleDictation('clarify')}
+                            disabled={clarificationLoading}
+                            aria-label={listeningFor === 'clarify' ? 'Stop dictation' : 'Answer out loud'}
+                            title={listeningFor === 'clarify' ? 'Listening… click to stop' : 'Answer out loud'}
+                          >
+                            {I.mic}
+                          </button>
+                          <button
+                            type="button"
                             className="ai-ask-go"
                             disabled={clarificationLoading || !clarificationAnswer.trim()}
                             onClick={handleSubmitClarification}
-                            aria-label="Answer"
+                            aria-label="Send answer"
                           >
                             {I.up}
                           </button>
                         </div>
+                        <p className="ai-ask-hint">
+                          {listeningFor === 'clarify'
+                            ? 'Listening — speak your answer, then tap the mic to stop.'
+                            : 'Press Enter to send. Your answer goes straight into the scene.'}
+                        </p>
                       </div>
                     )}
 
@@ -1590,11 +1844,11 @@ function StoryCreator() {
                       />
                       <button
                         type="button"
-                        className={`sc-mic ${isListening ? 'on' : ''}`}
-                        onClick={toggleDictation}
+                        className={`sc-mic ${listeningFor === 'action' ? 'on' : ''}`}
+                        onClick={() => toggleDictation('action')}
                         disabled={isStoryBusy}
-                        aria-label={isListening ? 'Stop dictation' : 'Dictate your action'}
-                        title={isListening ? 'Listening… click to stop' : 'Speak your action'}
+                        aria-label={listeningFor === 'action' ? 'Stop dictation' : 'Dictate your action'}
+                        title={listeningFor === 'action' ? 'Listening… click to stop' : 'Speak your action'}
                       >
                         {I.mic}
                       </button>

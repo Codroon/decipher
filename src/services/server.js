@@ -36,6 +36,7 @@ export const API_ENDPOINTS = {
     EDIT_CHUNK: (id) => `${BASE_URL}/api/story/edit-chunk/${id}`,
     VISIBILITY: (id) => `${BASE_URL}/api/story/${id}/visibility`,
     MODELS: `${BASE_URL}/api/story/models`,
+    SUGGEST_CHARACTERS: `${BASE_URL}/api/story/characters`,
   },
   // Public discovery (unauthenticated) — content owners have chosen to share
   PUBLIC: {

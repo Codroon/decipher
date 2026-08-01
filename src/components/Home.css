@@ -8,6 +8,19 @@
   width: 100%;
   min-height: var(--viewport-height, 100vh);
   margin-left: 0;
+
+  /* Library-shelf metrics. Two card shapes carry the taxonomy:
+     a story is a book (portrait plate), a scenario is a place
+     (panoramic card). Widths drive the carousel stride. */
+  --ui: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --plate-w: 208px;
+  --world-w: 336px;
+  --shelf-gap: 20px;
+  --card-r: 16px;
+  --shelf-fade: 60px;
+  /* How far the carousel buttons hang past the track. Must stay under the
+     shelf's own side padding or the row overflows the page. */
+  --shelf-nav-inset: 22px;
 }
 
 /* ---------------- Notification Banner ---------------- */
@@ -273,480 +286,883 @@
   to { width: 100%; }
 }
 
-/* ---------------- Sections / Zones ---------------- */
-.stories-section {
-  padding: 44px 24px;
-  width: 100%;
-  max-width: none;
-  margin: 0;
+/* ============================================================
+   Library bar — one search for every shelf on the page.
+   Sticks under the app chrome so the field stays reachable while
+   you scroll the shelves.
+   ============================================================ */
+.library-bar {
+  position: sticky;
+  top: var(--navbar-height, 72px);
+  z-index: 28;
+  padding: 18px 24px 16px;
+  background: rgba(11, 10, 16, 0.74);
+  backdrop-filter: blur(16px) saturate(1.25);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.section-header {
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  position: relative;
-  margin-bottom: 20px;
-  gap: 16px;
+.has-banner .library-bar {
+  top: calc(var(--navbar-height, 72px) + 46px);
 }
 
-.section-header > div:first-child {
-  text-align: center;
-}
-
-.section-title {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 22px;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-  color: #fff;
-  margin: 0;
-  text-align: center;
+.library-bar-inner {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 11px;
-}
-
-.section-icon {
-  width: 26px;
-  height: 26px;
-  color: var(--grad-b);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.section-icon svg {
-  width: 26px;
-  height: 26px;
-}
-
-.zone-sub {
-  font-size: 13.5px;
-  color: var(--ink-55);
-  margin: 2px 0 0;
-  text-align: center;
-}
-
-.zone-head .section-title { margin-bottom: 0; }
-
-.view-all {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 13.5px;
-  text-decoration: none;
-  color: var(--ink-70);
-  transition: color 0.2s ease;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.view-all:hover { color: #fff; }
-
-/* ---------------- Grid + Cards ---------------- */
-.stories-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 18px;
+  gap: 14px;
   width: 100%;
 }
 
-/* ---------------- Card carousel ---------------- */
-.card-carousel {
+.lib-search {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  width: 100%;
-}
-
-.card-carousel-track {
-  display: flex;
-  gap: 18px;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scroll-behavior: smooth;
+  gap: 12px;
   flex: 1;
   min-width: 0;
-  padding: 10px 2px 18px;
+  height: 52px;
+  padding: 0 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid var(--hairline-soft);
+  transition: border-color 0.22s ease, background 0.22s ease, box-shadow 0.22s ease;
+}
+
+.lib-search:focus-within {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--grad-a);
+  box-shadow: 0 0 0 4px rgba(119, 56, 203, 0.18);
+}
+
+.lib-search-icon {
+  display: inline-flex;
+  color: var(--ink-40);
+  flex-shrink: 0;
+  transition: color 0.22s ease;
+}
+
+.lib-search-icon svg { width: 19px; height: 19px; }
+.lib-search:focus-within .lib-search-icon { color: var(--grad-b); }
+
+.lib-search input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  font-family: var(--ui);
+  font-size: 14.5px;
+  font-weight: 450;
+  letter-spacing: -0.005em;
+  color: #fff;
+}
+
+.lib-search input::placeholder { color: var(--ink-40); }
+.lib-search input::-webkit-search-cancel-button { display: none; }
+
+.lib-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink-70);
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.lib-clear svg { width: 13px; height: 13px; }
+.lib-clear:hover { background: rgba(255, 255, 255, 0.16); color: #fff; }
+
+/* Segmented scope control */
+.lib-scopes {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid var(--hairline-soft);
+}
+
+.lib-scope {
+  padding: 9px 17px;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  font-family: var(--ui);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--ink-55);
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.lib-scope:hover { color: #fff; }
+
+.lib-scope.is-active {
+  background: var(--grad-135);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(119, 56, 203, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+/* ============================================================
+   Shelves
+   ============================================================ */
+.shelves {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0 64px;
+}
+
+.shelf {
+  padding: 22px 24px 8px;
+  width: 100%;
+}
+
+.shelf-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.shelf-heading {
+  display: flex;
+  align-items: stretch;
+  gap: 13px;
+  min-width: 0;
+}
+
+/* The one structural marker: a gradient rule standing in for a shelf
+   edge. Card shape already says what kind of thing a row holds, so the
+   header stays quiet. */
+.shelf-heading::before {
+  content: "";
+  width: 3px;
+  border-radius: 100px;
+  background: var(--grad-135);
+  flex-shrink: 0;
+}
+
+.shelf-titles { min-width: 0; }
+
+.shelf-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 19px;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  color: #fff;
+  margin: 0;
+}
+
+.shelf-sub {
+  font-family: var(--ui);
+  font-size: 13px;
+  font-weight: 450;
+  line-height: 1.45;
+  color: var(--ink-40);
+  margin: 3px 0 0;
+}
+
+.shelf-meta {
+  flex-shrink: 0;
+  font-family: var(--ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+  white-space: nowrap;
+  padding-bottom: 3px;
+}
+
+/* ---------------- Carousel ----------------
+   No scrollbar anywhere: the track hides it on every engine and the
+   only controls are the two round buttons pinned over the track edges.
+   Each button disappears when its direction has nothing left to show. */
+.shelf-viewport {
+  position: relative;
+}
+
+.shelf-track {
+  display: flex;
+  column-gap: var(--shelf-gap);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  scroll-behavior: smooth;
+  /* A horizontal scroller forces overflow-y to clip, so the hover lift and
+     its shadow have to live inside this padding or they get sheared off. */
+  padding: 18px 2px 34px;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  overscroll-behavior-x: contain;
 }
 
-.card-carousel-track::-webkit-scrollbar {
+.shelf-track::-webkit-scrollbar {
   display: none;
+  width: 0;
+  height: 0;
 }
 
-.card-carousel-track > .story-card {
-  flex: 0 0 min(260px, 78vw);
-  width: min(260px, 78vw);
-  scroll-snap-align: start;
+/* Cards dissolve into the page at whichever edge can still scroll,
+   which is what tells you the row continues. */
+.shelf-viewport.is-prev:not(.is-next) .shelf-track {
+  mask-image: linear-gradient(90deg, transparent 0, #000 var(--shelf-fade));
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 var(--shelf-fade));
 }
 
-.carousel-arrow {
-  flex-shrink: 0;
-  width: 42px;
-  height: 42px;
+.shelf-viewport.is-next:not(.is-prev) .shelf-track {
+  mask-image: linear-gradient(90deg, #000 calc(100% - var(--shelf-fade)), transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - var(--shelf-fade)), transparent 100%);
+}
+
+.shelf-viewport.is-prev.is-next .shelf-track {
+  mask-image: linear-gradient(90deg, transparent 0, #000 var(--shelf-fade), #000 calc(100% - var(--shelf-fade)), transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 var(--shelf-fade), #000 calc(100% - var(--shelf-fade)), transparent 100%);
+}
+
+.shelf-nav {
+  position: absolute;
+  /* Sits on artwork, not on type: 34% clears the plate's bottom caption and
+     lands above the world card's provenance line inside its 16:9 image. */
+  top: 34%;
+  transform: translateY(-50%);
+  z-index: 6;
+  width: 46px;
+  height: 46px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  border: 1px solid var(--hairline);
-  background: rgba(16, 11, 26, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(18, 13, 30, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   color: #fff;
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.15s ease;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.24s ease, background 0.24s ease, border-color 0.24s ease, transform 0.18s ease;
 }
 
-.carousel-arrow svg {
-  width: 18px;
-  height: 18px;
+.shelf-nav svg { width: 19px; height: 19px; }
+
+/* Half in the page gutter, half over the fading card edge — enough overlap
+   to read as attached to the row without covering a card's content. */
+.shelf-nav-prev { left: calc(-1 * var(--shelf-nav-inset)); }
+.shelf-nav-next { right: calc(-1 * var(--shelf-nav-inset)); }
+
+/* Resting at partial opacity keeps them discoverable without
+   competing with the artwork; hover brings them fully forward. */
+.shelf-viewport.is-prev .shelf-nav-prev,
+.shelf-viewport.is-next .shelf-nav-next {
+  opacity: 0.6;
+  pointer-events: auto;
 }
 
-.carousel-arrow:hover:not(:disabled) {
-  background: rgba(119, 56, 203, 0.35);
-  border-color: rgba(255, 255, 255, 0.28);
-  transform: scale(1.05);
+.shelf-viewport.is-prev:hover .shelf-nav-prev,
+.shelf-viewport.is-next:hover .shelf-nav-next,
+.shelf-nav:focus-visible {
+  opacity: 1;
 }
 
-.carousel-arrow:disabled {
-  opacity: 0.28;
-  cursor: default;
+.shelf-nav:hover {
+  background: rgba(119, 56, 203, 0.6);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-50%) scale(1.07);
 }
 
-.card-actions {
+.shelf-nav:active { transform: translateY(-50%) scale(0.97); }
+
+.shelf-nav:focus-visible {
+  outline: 2px solid var(--grad-b);
+  outline-offset: 3px;
+}
+
+/* ============================================================
+   Card tools (delete / edit / report) — shared by both shapes
+   ============================================================ */
+/* Always present — a control you can't see is a control you don't have.
+   Resting at partial opacity keeps them off the artwork's toes, and any
+   hover or keyboard focus on the card brings them fully forward. */
+.card-tools {
   position: absolute;
   top: 10px;
   right: 10px;
   z-index: 4;
   display: flex;
   gap: 6px;
-  opacity: 0;
+  opacity: 0.72;
   transition: opacity 0.2s ease;
 }
 
-.story-card:hover .card-actions,
-.story-card:focus-within .card-actions {
+.plate:hover .card-tools,
+.plate:focus-within .card-tools,
+.world:hover .card-tools,
+.world:focus-within .card-tools {
   opacity: 1;
 }
 
-.card-action-btn {
+.card-tool {
   width: 30px;
   height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: none;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
+  background: rgba(8, 6, 14, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   color: #fff;
   cursor: pointer;
-  transition: background 0.2s ease, transform 0.15s ease;
+  transition: background 0.18s ease, transform 0.15s ease, border-color 0.18s ease;
 }
 
-.card-action-btn svg {
-  width: 14px;
-  height: 14px;
-}
+.card-tool svg { width: 14px; height: 14px; }
 
-.card-action-btn:hover {
-  background: rgba(119, 56, 203, 0.85);
+.card-tool:hover {
+  background: rgba(119, 56, 203, 0.9);
+  border-color: rgba(255, 255, 255, 0.28);
   transform: scale(1.08);
 }
 
-.card-action-btn.card-action-danger:hover {
+.card-tool.card-tool-danger:hover {
   background: #dc2626;
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
-.story-card {
+.card-tool:focus-visible {
+  outline: 2px solid var(--grad-b);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   StoryPlate — a story is a book, so it gets a book's proportions.
+   Title sits on the art; the story's own prose surfaces on hover.
+   ============================================================ */
+.plate {
   position: relative;
-  width: 100%;
-  border-radius: 18px;
+  flex: 0 0 var(--plate-w);
+  width: var(--plate-w);
+  aspect-ratio: 2 / 3;
+  border-radius: var(--card-r);
   overflow: hidden;
   cursor: pointer;
-  background: linear-gradient(180deg, rgba(26, 17, 42, 0.9), rgba(16, 11, 26, 0.92));
+  scroll-snap-align: start;
+  background: #140e22;
   border: 1px solid var(--hairline-soft);
-  transition: transform 0.3s ease, border-color 0.3s ease;
+  transition: transform 0.32s var(--hp-ease-standard, cubic-bezier(0.2, 0.7, 0.2, 1)),
+              border-color 0.32s ease,
+              box-shadow 0.32s ease;
 }
 
-.story-card:hover {
-  transform: translateY(-6px);
+.plate:hover {
+  transform: translateY(-8px);
   border-color: var(--hairline);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(119, 56, 203, 0.28);
 }
 
-/* Decorative legacy overlay no longer needed with the new card surface */
-.card-overlay { display: none; }
+.plate:focus-visible {
+  outline: 2px solid var(--grad-b);
+  outline-offset: 3px;
+}
 
-.card-content {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
+/* The binding edge — full height so it reads as part of the book rather
+   than a stray mark on the artwork. Hover widens and lights it. */
+.plate-spine {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  z-index: 3;
+  background: linear-gradient(180deg, var(--grad-a) 0%, var(--grad-b) 55%, rgba(77, 112, 255, 0.35) 100%);
+  opacity: 0.5;
+  transition: width 0.32s ease, opacity 0.32s ease;
+}
+
+.plate:hover .plate-spine {
+  width: 5px;
+  opacity: 1;
+}
+
+.plate-art {
+  position: absolute;
+  inset: 0;
+}
+
+.plate-art img {
   width: 100%;
   height: 100%;
-  background: transparent;
-  border-radius: 18px;
+  object-fit: cover;
+  object-position: center;
+  transition: transform 0.6s var(--hp-ease-standard, cubic-bezier(0.2, 0.7, 0.2, 1));
+}
+
+.plate:hover .plate-art img { transform: scale(1.06); }
+
+/* Covers come from a shared decorative pool, so a brand wash pulls a
+   mixed shelf into one palette. */
+.plate-wash {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(165deg, rgba(119, 56, 203, 0.34), rgba(77, 112, 255, 0.16) 60%, transparent);
+  mix-blend-mode: soft-light;
+}
+
+.plate-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgba(6, 4, 12, 0.95) 6%, rgba(6, 4, 12, 0.72) 34%, rgba(6, 4, 12, 0.1) 62%, transparent 100%);
+  transition: opacity 0.3s ease;
+}
+
+.plate-kicker {
+  position: absolute;
+  top: 11px;
+  left: 11px;
+  z-index: 3;
+  font-family: var(--ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #fff;
+  padding: 5px 9px;
+  border-radius: 7px;
+  background: rgba(8, 6, 14, 0.66);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.plate-body {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 2;
+  padding: 14px 14px 15px;
+}
+
+/* Reserved at two lines so titles sit on a common baseline across the
+   shelf — a bottom-anchored body would otherwise ride up on every card
+   whose title wraps, and the row reads ragged. */
+.plate-title {
+  font-family: var(--font-display);
+  font-weight: 650;
+  font-size: 15px;
+  line-height: 1.28;
+  letter-spacing: -0.012em;
+  color: #fff;
+  margin: 0;
+  min-height: calc(2 * 1.28em);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-.story-image {
-  width: 100%;
-  height: 150px;
-  object-fit: cover;
-  border-radius: 0;
-  transition: transform 0.5s ease;
+/* One line, truncated. Wrapping it would strand the separator dot at
+   the head of the second line. */
+.plate-meta {
+  display: block;
+  margin: 5px 0 0;
+  font-family: var(--ui);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.story-card:hover .story-image { transform: scale(1.05); }
+.plate-meta span + span::before {
+  content: " · ";
+  color: var(--ink-40);
+}
 
-.story-info {
+/* Hidden at rest, so a shelf reads as a row of covers rather than a
+   row of paragraphs. */
+.plate-reveal {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.36s var(--hp-ease-standard, cubic-bezier(0.2, 0.7, 0.2, 1)), opacity 0.26s ease;
+}
+
+.plate:hover .plate-reveal,
+.plate:focus-visible .plate-reveal {
+  max-height: 190px;
+  opacity: 1;
+}
+
+/* The story's own words, in the face the story is written in. */
+.plate-excerpt {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-style: italic;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.62);
+  margin: 9px 0 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.plate-byline {
+  display: block;
+  margin-top: 8px;
+  font-family: var(--ui);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-40);
+}
+
+.plate-action {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-start;
-  padding: 15px 16px 17px;
-  gap: 7px;
-  flex: 1;
-  width: 100%;
-}
-
-.story-info h3 {
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  margin-top: 11px;
+  border-radius: 9px;
+  background: var(--grad);
   font-family: var(--font-display);
   font-weight: 600;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fff;
+  box-shadow: 0 8px 22px rgba(119, 56, 203, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+
+/* ============================================================
+   WorldCard — a scenario is a place. Panoramic frame, and it says
+   what the world is actually made of.
+   ============================================================ */
+.world {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 var(--world-w);
+  width: var(--world-w);
+  border-radius: var(--card-r);
+  overflow: hidden;
+  cursor: pointer;
+  scroll-snap-align: start;
+  background: linear-gradient(180deg, rgba(28, 19, 46, 0.92), rgba(15, 11, 24, 0.94));
+  border: 1px solid var(--hairline-soft);
+  transition: transform 0.32s var(--hp-ease-standard, cubic-bezier(0.2, 0.7, 0.2, 1)),
+              border-color 0.32s ease,
+              box-shadow 0.32s ease;
+}
+
+.world:hover {
+  transform: translateY(-6px);
+  border-color: var(--hairline);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(119, 56, 203, 0.24);
+}
+
+.world:focus-visible {
+  outline: 2px solid var(--grad-b);
+  outline-offset: 3px;
+}
+
+.world-art {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.world-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s var(--hp-ease-standard, cubic-bezier(0.2, 0.7, 0.2, 1));
+}
+
+.world:hover .world-art img { transform: scale(1.05); }
+
+.world-wash {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(0deg, rgba(15, 11, 24, 0.96), rgba(15, 11, 24, 0.28) 52%, transparent),
+    linear-gradient(150deg, rgba(119, 56, 203, 0.28), transparent 62%);
+}
+
+.world-overlay {
+  position: absolute;
+  bottom: 11px;
+  left: 13px;
+  right: 13px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.86);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+}
+
+.world-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 15px 16px 14px;
+  gap: 7px;
+}
+
+.world-title {
+  font-family: var(--font-display);
+  font-weight: 650;
   font-size: 16px;
-  line-height: 1.25;
-  text-align: left;
-  letter-spacing: -0.01em;
+  line-height: 1.28;
+  letter-spacing: -0.012em;
   color: #fff;
   margin: 0;
-  width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.story-info p {
-  font-family: var(--font-body);
-  font-weight: 400;
-  font-size: 13.5px;
+.world-desc {
+  font-family: var(--ui);
+  font-size: 13px;
+  font-weight: 450;
   line-height: 1.5;
-  text-align: left;
-  color: var(--ink-70);
+  color: var(--ink-55);
   margin: 0;
-  width: 100%;
-  overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
   -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.play-btn {
+/* What the world holds — the numbers are the description. */
+.world-counts {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 0 16px;
-  width: 100%;
-  height: 40px;
-  background: rgba(119, 56, 203, 0.16);
-  border: 1px solid var(--hairline);
-  border-radius: 10px;
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 13px;
-  line-height: 1;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  list-style: none;
+  margin: 3px 0 0;
+  padding: 0;
+}
+
+.world-counts li {
+  font-family: var(--ui);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-40);
+  white-space: nowrap;
+}
+
+.world-counts b {
+  font-weight: 700;
+  font-size: 12.5px;
   color: #fff;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  font-variant-numeric: tabular-nums;
 }
 
-.story-card:hover .play-btn {
-  background: var(--grad);
-  border-color: transparent;
-  box-shadow: 0 8px 22px rgba(119, 56, 203, 0.45);
+.world-counts-empty {
+  font-family: var(--ui);
+  font-size: 11.5px;
+  font-weight: 500;
+  font-style: italic;
+  color: var(--ink-40);
 }
 
-/* ---------------- Shared / explore cards ---------------- */
-.shared-card { height: auto; }
-
-.shared-card .story-image { height: 150px; }
-
-.shared-card .story-info {
-  padding: 14px 16px 8px;
-}
-
-.story-meta {
+.world-foot {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  padding: 12px 16px;
-  border-top: 1px solid var(--hairline-soft);
+  gap: 12px;
   margin-top: auto;
+  padding-top: 13px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  min-width: 0;
 }
 
-.story-author {
+.world-tags {
   display: flex;
-  align-items: center;
-  gap: 7px;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
 }
 
-.author-avatar {
-  width: 22px;
-  height: 22px;
+.world-tag {
+  font-family: var(--ui);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--ink-55);
+  padding: 4px 9px;
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid var(--hairline-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.byline-dot {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
   border-radius: 50%;
   background: var(--grad-135);
 }
 
-.story-author span {
-  font-family: var(--font-body);
-  font-weight: 400;
-  font-size: 12px;
-  line-height: 1.4;
+.world-action {
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-70);
+  padding: 8px 15px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid var(--hairline-soft);
+  transition: background 0.24s ease, color 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease;
+}
+
+.world:hover .world-action {
+  background: var(--grad);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 8px 22px rgba(119, 56, 203, 0.44);
+}
+
+/* ============================================================
+   Loading / empty states
+   ============================================================ */
+.skel {
+  position: relative;
+  flex-shrink: 0;
+  border-radius: var(--card-r);
+  border: 1px solid var(--hairline-soft);
+  overflow: hidden;
+  background-color: rgba(255, 255, 255, 0.022);
+  background-image: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.05) 50%, transparent 80%);
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: skelSweep 1.4s ease-in-out infinite;
+}
+
+.skel-plate {
+  flex-basis: var(--plate-w);
+  width: var(--plate-w);
+  aspect-ratio: 2 / 3;
+}
+
+.skel-world {
+  flex-basis: var(--world-w);
+  width: var(--world-w);
+  padding-bottom: 16px;
+}
+
+.skel-art { background: rgba(255, 255, 255, 0.045); }
+
+.skel-plate .skel-art { height: 100%; }
+.skel-world .skel-art { aspect-ratio: 16 / 9; }
+
+.skel-line {
+  height: 10px;
+  margin: 14px 16px 0;
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.skel-line.short { width: 55%; }
+
+/* A portrait placeholder is just the plate silhouette — no text bars,
+   since the real card's text sits on top of the art. */
+.skel-plate .skel-line { display: none; }
+
+@keyframes skelSweep {
+  from { background-position: 140% 0; }
+  to { background-position: -40% 0; }
+}
+
+/* A shelf with nothing in it stays one row tall instead of stacking
+   an empty box the height of a card. */
+.shelf-empty {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 30px 24px;
+  border: 1px dashed var(--hairline);
+  border-radius: var(--card-r);
+  background: rgba(255, 255, 255, 0.018);
+  font-family: var(--ui);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink-55);
+  text-align: center;
+}
+
+.shelf-empty p { margin: 0; }
+
+.lib-noresults {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 24px 0;
+  padding: 52px 24px;
+  border: 1px dashed var(--hairline);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.018);
+  text-align: center;
+}
+
+.lib-noresults p {
+  margin: 0;
+  font-family: var(--ui);
+  font-size: 14px;
   color: var(--ink-55);
 }
 
-.story-genre {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 5px 11px;
-  background: rgba(119, 56, 203, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 100px;
+.lib-noresults strong {
   font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 10px;
-  line-height: 1;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 18px;
+  font-weight: 650;
   color: #fff;
 }
 
-/* ---------------- Scenario cards ---------------- */
-.scenario-card {
-  border: 1px solid var(--hairline-soft);
-}
-
-.scenario-card .play-btn {
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.scenario-tags {
+.lib-noresults-cta {
   display: flex;
-  gap: 7px;
-  padding: 0 16px 12px;
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  margin-top: auto;
-}
-
-.scenario-tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid var(--hairline-soft);
-  border-radius: 100px;
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 10.5px;
-  letter-spacing: 0.03em;
-  color: var(--ink-70);
-  line-height: 1;
-}
-
-/* ---------------- Pagination ---------------- */
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
   gap: 10px;
-  margin-top: 40px;
-}
-
-.page-dot {
-  width: 28px;
-  height: 4px;
-  border-radius: 100px;
-  background: rgba(255, 255, 255, 0.22);
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.page-dot.active {
-  background: var(--grad);
-  box-shadow: 0 0 10px rgba(119, 56, 203, 0.6);
-}
-
-.page-dot:hover:not(.active) {
-  background: rgba(255, 255, 255, 0.4);
-}
-
-/* ---------------- Loading / Empty ---------------- */
-.loading-stories {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  margin-top: 10px;
+  flex-wrap: wrap;
   justify-content: center;
-  min-height: 200px;
-  gap: 16px;
-}
-
-.loading-stories .loading-spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid rgba(119, 56, 203, 0.3);
-  border-top-color: var(--grad-a);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.loading-stories p {
-  font-family: var(--font-body);
-  font-weight: 500;
-  font-size: 14px;
-  color: var(--ink-70);
-  margin: 0;
-}
-
-.empty-stories {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 200px;
-  gap: 20px;
-  padding: 50px 24px;
-  border: 1px dashed var(--hairline);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.empty-stories p {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 16px;
-  color: var(--ink-70);
-  margin: 0;
-  text-align: center;
 }
 
 /* Primary CTA button (empty-state "Create Story" / "Create Scenario") */
@@ -755,15 +1171,14 @@
   justify-content: center;
   align-items: center;
   gap: 10px;
-  padding: 14px 30px;
-  min-width: 170px;
+  padding: 13px 28px;
   background: var(--grad);
   box-shadow: 0 10px 30px rgba(119, 56, 203, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(0, 0, 0, 0.2);
   border-radius: 11px;
   border: none;
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #fff;
@@ -776,9 +1191,11 @@
   box-shadow: 0 16px 46px rgba(119, 56, 203, 0.66), inset 0 1px 0 rgba(255, 255, 255, 0.36), inset 0 -1px 0 rgba(0, 0, 0, 0.2);
 }
 
-/* ---------------- Responsive ---------------- */
+/* ============================================================
+   Responsive
+   ============================================================ */
 @media (max-width: 1240px) {
-  .stories-grid { grid-template-columns: repeat(3, 1fr); }
+  .home-page { --plate-w: 194px; --world-w: 316px; }
 }
 
 @media (max-width: 1024px) {
@@ -791,61 +1208,61 @@
 @media (max-width: 900px) {
   .feat { height: 360px; }
   .feat-body { padding: 0 30px; max-width: 100%; }
+  .library-bar-inner { flex-wrap: wrap; }
+  .lib-search { flex-basis: 100%; }
+  .lib-scopes { width: 100%; justify-content: space-between; }
+  .lib-scope { flex: 1; }
 }
 
 @media (max-width: 768px) {
   .notification-banner { left: 0; width: 100%; }
-  .stories-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 640px) {
-  .home-hero {
-    padding: calc(var(--navbar-height, 72px) + 20px) 16px 6px;
+  .home-page {
+    --plate-w: 152px;
+    --world-w: 268px;
+    --shelf-gap: 14px;
+    --shelf-fade: 34px;
+    /* Shelf padding drops to 16px here, so the buttons tuck in further. */
+    --shelf-nav-inset: 10px;
   }
-  .stories-section { padding: 32px 16px; }
-  .stories-grid { grid-template-columns: 1fr; gap: 16px; }
-  .card-carousel { gap: 6px; }
-  .carousel-arrow { width: 36px; height: 36px; }
-  .card-carousel-track > .story-card {
-    flex-basis: min(240px, 72vw);
-    width: min(240px, 72vw);
-  }
-  .card-actions { opacity: 1; }
+  .shelf-nav { width: 38px; height: 38px; }
+  .shelf-nav svg { width: 16px; height: 16px; }
+  .home-hero { padding: calc(var(--navbar-height, 72px) + 20px) 16px 6px; }
+  .library-bar { padding: 14px 16px 12px; }
+  .shelf { padding: 20px 16px 4px; }
+  .shelves { padding-bottom: 44px; }
+  .lib-noresults { margin: 16px 16px 0; padding: 40px 20px; }
+  .shelf-title { font-size: 17px; }
+  .shelf-sub { display: none; }
   .feat { height: 340px; }
   .feat-desc { display: none; }
   .feat-cta .btn { padding: 13px 22px; font-size: 12.5px; }
-  .section-header {
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-  }
-  .view-all {
-    position: static;
-  }
-  .banner-content { padding: 0 16px; }
-  .banner-message span { font-size: 12px; }
+  .card-tools { opacity: 1; }
 }
 
-/* Report flag on public/community cards */
-.report-flag {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 3;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  font-size: 15px;
-  line-height: 1;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.2s ease, background 0.2s ease, transform 0.15s ease;
+/* Touch: swiping is the interaction, so the arrows stay out of the way and
+   anything hover-gated is shown outright. */
+@media (hover: none) {
+  .shelf-nav { display: none; }
+  .card-tools { opacity: 1; }
+  .plate-reveal { max-height: 190px; opacity: 1; }
 }
-.story-card:hover .report-flag { opacity: 1; }
-.report-flag:hover { background: #dc2626; transform: scale(1.08); }
+
+@media (prefers-reduced-motion: reduce) {
+  .plate,
+  .world,
+  .plate-art img,
+  .world-art img,
+  .plate-spine,
+  .plate-reveal,
+  .shelf-nav,
+  .card-tools {
+    transition: none;
+  }
+  .plate:hover,
+  .world:hover { transform: none; }
+  .skel { animation: none; }
+  .shelf-track { scroll-behavior: auto; }
+}

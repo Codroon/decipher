@@ -4,6 +4,47 @@
 import { API_ENDPOINTS, getHeaders } from './server'
 
 /**
+ * Suggest 5 protagonist archetypes that fit a setting.
+ *
+ * Used by the creation wizard for a custom setting, where there is no
+ * hand-written roster to fall back on. The backend never errors here — an
+ * unreachable model returns generic archetypes with `generated: false` — so a
+ * failure only ever means the network call itself did not complete.
+ *
+ * @param {string} setting - The setting the player typed
+ * @returns {Promise<{success: boolean, characters?: string[], generated?: boolean, error?: string}>}
+ */
+export const suggestCharacters = async (setting) => {
+  try {
+    const response = await fetch(API_ENDPOINTS.STORY.SUGGEST_CHARACTERS, {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify({ setting })
+    })
+
+    const data = await response.json()
+
+    if (response.ok) {
+      return {
+        success: true,
+        characters: Array.isArray(data.characters) ? data.characters : [],
+        generated: data.generated !== false
+      }
+    }
+    return {
+      success: false,
+      error: data.message || 'Failed to suggest characters'
+    }
+  } catch (error) {
+    console.error('Suggest Characters Error:', error)
+    return {
+      success: false,
+      error: 'Network error. Please try again.'
+    }
+  }
+}
+
+/**
  * Create a new story
  * @param {string} setting - The story setting/world
  * @param {string} character - The character type/role
@@ -521,10 +562,10 @@ export const editLastParagraph = async (storyId, minorEditInstruction, model = '
       let errorData
       try {
         errorData = JSON.parse(errorText)
-      } catch (e) {
+      } catch {
         return {
           success: false,
-          error: `Server error: ${response.status} ${response.statusText}`
+          error: `Server error:  `
         }
       }
       return {
@@ -621,10 +662,10 @@ export const editChunk = async (storyId, chunkIndex, newContent) => {
       let errorData
       try {
         errorData = JSON.parse(errorText)
-      } catch (e) {
+      } catch {
         return {
           success: false,
-          error: `Server error: ${response.status} ${response.statusText}`
+          error: `Server error:  `
         }
       }
       return {

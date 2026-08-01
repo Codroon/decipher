@@ -193,7 +193,7 @@ button {
      page-transition between routes). */
   .hero-section,
   .home-hero,
-  .stories-section,
+  .shelf,
   .settings-content,
   .profile-content,
   .library-body {
@@ -219,12 +219,14 @@ button {
 }
 
 /* Scroll-driven reveal for cards/sections. Modern browsers only;
-   everywhere else the content simply renders normally (no flash). */
+   everywhere else the content simply renders normally (no flash).
+
+   Dashboard shelf cards (.plate/.world) are deliberately excluded: they sit
+   in horizontal scrollers where view() tracks the wrong axis, and the
+   keyframes animate transform, which would outrank their hover lift. Their
+   entrance comes from the .shelf fade-up above instead. */
 @media (prefers-reduced-motion: no-preference) {
   @supports (animation-timeline: view()) {
-    .story-card,
-    .scenario-card,
-    .shared-card,
     .settings-card,
     .recent-image-card,
     .profile-avatar-section,
