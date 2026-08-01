@@ -305,6 +305,11 @@
 .hero-video {
   z-index: 1;
   animation: heroVideoDrift 24s ease-in-out infinite alternate;
+  transition: opacity 0.8s ease;
+}
+
+.hero-video.is-fading {
+  opacity: 0;
 }
 
 .hero-fallback-image {

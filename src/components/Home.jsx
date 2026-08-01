@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './Home.css'
 import * as storyService from '../services/storyService'
@@ -24,6 +24,34 @@ const BookSectionIcon = () => (
 
 const PlayIcon = PlaySectionIcon
 
+const ChevronLeftIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M15 18l-6-6 6-6" />
+  </svg>
+)
+
+const ChevronRightIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M9 18l6-6-6-6" />
+  </svg>
+)
+
+const EditIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+  </svg>
+)
+
+const TrashIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M3 6h18" />
+    <path d="M8 6V4h8v2" />
+    <path d="M19 6l-1 14H6L5 6" />
+    <path d="M10 11v6M14 11v6" />
+  </svg>
+)
+
 function SectionHead({ icon, title, sub, link }) {
   return (
     <div className="section-header zone-head">
@@ -35,6 +63,66 @@ function SectionHead({ icon, title, sub, link }) {
         {sub && <p className="zone-sub">{sub}</p>}
       </div>
       {link && <a href="#" className="view-all zone-link">{link}</a>}
+    </div>
+  )
+}
+
+function CardCarousel({ children, label = 'items' }) {
+  const trackRef = useRef(null)
+  const [canPrev, setCanPrev] = useState(false)
+  const [canNext, setCanNext] = useState(false)
+
+  const updateArrows = useCallback(() => {
+    const el = trackRef.current
+    if (!el) return
+    setCanPrev(el.scrollLeft > 4)
+    setCanNext(el.scrollLeft + el.clientWidth < el.scrollWidth - 4)
+  }, [])
+
+  useEffect(() => {
+    const el = trackRef.current
+    if (!el) return
+    updateArrows()
+    el.addEventListener('scroll', updateArrows, { passive: true })
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateArrows) : null
+    ro?.observe(el)
+    return () => {
+      el.removeEventListener('scroll', updateArrows)
+      ro?.disconnect()
+    }
+  }, [children, updateArrows])
+
+  const scrollByDir = (dir) => {
+    const el = trackRef.current
+    if (!el) return
+    const card = el.querySelector('.story-card')
+    const step = card ? card.offsetWidth + 18 : Math.min(el.clientWidth * 0.85, 300)
+    el.scrollBy({ left: dir * step, behavior: 'smooth' })
+  }
+
+  return (
+    <div className="card-carousel">
+      <button
+        type="button"
+        className="carousel-arrow carousel-arrow-prev"
+        onClick={() => scrollByDir(-1)}
+        disabled={!canPrev}
+        aria-label={`Previous ${label}`}
+      >
+        <ChevronLeftIcon />
+      </button>
+      <div className="card-carousel-track" ref={trackRef}>
+        {children}
+      </div>
+      <button
+        type="button"
+        className="carousel-arrow carousel-arrow-next"
+        onClick={() => scrollByDir(1)}
+        disabled={!canNext}
+        aria-label={`Next ${label}`}
+      >
+        <ChevronRightIcon />
+      </button>
     </div>
   )
 }
@@ -162,6 +250,35 @@ function Home() {
     navigate(`/scenario-creator/${scenarioId}`)
   }
 
+  const handleDeleteStory = async (e, story) => {
+    e.stopPropagation()
+    const label = story.title || (story.characterName ? `${story.characterName}'s Adventure` : 'this story')
+    if (!window.confirm(`Delete "${label}"? This cannot be undone.`)) return
+    const result = await storyService.deleteStory(story._id)
+    if (result.success) {
+      setUserStories((prev) => prev.filter((s) => s._id !== story._id))
+    } else {
+      window.alert(result.error || 'Failed to delete story')
+    }
+  }
+
+  const handleDeleteScenario = async (e, scenario) => {
+    e.stopPropagation()
+    const label = scenario.title || 'this scenario'
+    if (!window.confirm(`Delete "${label}"? This cannot be undone.`)) return
+    const result = await scenarioService.deleteScenario(scenario._id)
+    if (result.success) {
+      setUserScenarios((prev) => prev.filter((s) => s._id !== scenario._id))
+    } else {
+      window.alert(result.error || 'Failed to delete scenario')
+    }
+  }
+
+  const handleEditScenario = (e, scenarioId) => {
+    e.stopPropagation()
+    navigate(`/scenario-creator/${scenarioId}`)
+  }
+
   const openPublicStory = (id) => navigate(`/discover/story/${id}`)
   const openPublicScenario = (id) => navigate(`/discover/scenario/${id}`)
 
@@ -233,12 +350,12 @@ function Home() {
         </div>
       </div>
 
-      {/* Previously Played Stories */}
+      {/* Rejoin Your Adventures */}
       <section className="stories-section zone">
         <SectionHead
           icon={<PlaySectionIcon />}
-          title="Previously Played Stories"
-          sub="Jump back into your adventures"
+          title="Rejoin Your Adventures"
+          sub="Jump back into stories you've already started"
         />
         {loadingStories ? (
           <div className="loading-stories">
@@ -246,12 +363,23 @@ function Home() {
             <p>Loading your stories...</p>
           </div>
         ) : userStories.length > 0 ? (
-          <div className="stories-grid">
-            {userStories.map((story) => (
+          <CardCarousel label="adventures">
+            {userStories.map((story, i) => (
               <div key={story._id} className="story-card" onClick={() => handlePlayStory(story._id)}>
                 <div className="card-overlay"></div>
                 <div className="card-content">
-                  <img src={storyImages[Math.floor(Math.random() * storyImages.length)]} alt={story.title || story.characterName + "'s Adventure"} className="story-image" />
+                  <img src={coverFor(story._id, i)} alt={story.title || story.characterName + "'s Adventure"} className="story-image" />
+                  <div className="card-actions" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      className="card-action-btn card-action-danger"
+                      title="Delete story"
+                      aria-label="Delete story"
+                      onClick={(e) => handleDeleteStory(e, story)}
+                    >
+                      <TrashIcon />
+                    </button>
+                  </div>
                   <div className="story-info">
                     <h3>{story.title || (story.characterName ? story.characterName + "'s Adventure" : 'Untitled Story')}</h3>
                     <p>{story.setting || 'Continue your adventure...'}</p>
@@ -260,7 +388,7 @@ function Home() {
                 </div>
               </div>
             ))}
-          </div>
+          </CardCarousel>
         ) : (
           <div className="empty-stories">
             <p>No stories yet. Start creating your first adventure!</p>
@@ -284,12 +412,32 @@ function Home() {
             <p>Loading your scenarios...</p>
           </div>
         ) : userScenarios.length > 0 ? (
-          <div className="stories-grid">
-            {userScenarios.map((scenario) => (
+          <CardCarousel label="scenarios">
+            {userScenarios.map((scenario, i) => (
               <div key={scenario._id} className="story-card scenario-card" onClick={() => handleViewScenario(scenario._id)}>
                 <div className="card-overlay"></div>
                 <div className="card-content">
-                  <img src={storyImages[Math.floor(Math.random() * storyImages.length)]} alt={scenario.title} className="story-image" />
+                  <img src={coverFor(scenario._id, i)} alt={scenario.title} className="story-image" />
+                  <div className="card-actions" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      className="card-action-btn"
+                      title="Edit scenario"
+                      aria-label="Edit scenario"
+                      onClick={(e) => handleEditScenario(e, scenario._id)}
+                    >
+                      <EditIcon />
+                    </button>
+                    <button
+                      type="button"
+                      className="card-action-btn card-action-danger"
+                      title="Delete scenario"
+                      aria-label="Delete scenario"
+                      onClick={(e) => handleDeleteScenario(e, scenario)}
+                    >
+                      <TrashIcon />
+                    </button>
+                  </div>
                   <div className="story-info">
                     <h3>{scenario.title || 'Untitled Scenario'}</h3>
                     <p>{scenario.description || 'Explore this scenario...'}</p>
@@ -298,7 +446,7 @@ function Home() {
                 </div>
               </div>
             ))}
-          </div>
+          </CardCarousel>
         ) : (
           <div className="empty-stories">
             <p>No scenarios yet. Create your first scenario!</p>
@@ -322,7 +470,7 @@ function Home() {
             <p>Loading shared scenarios...</p>
           </div>
         ) : publicScenarios.length > 0 ? (
-          <div className="stories-grid">
+          <CardCarousel label="shared scenarios">
             {publicScenarios.map((s, i) => (
               <div key={s._id} className="story-card shared-card" onClick={() => openPublicScenario(s._id)}>
                 <div className="card-overlay"></div>
@@ -348,7 +496,7 @@ function Home() {
                 </div>
               </div>
             ))}
-          </div>
+          </CardCarousel>
         ) : (
           <div className="empty-stories">
             <p>No shared scenarios yet. Publish one to see it here!</p>

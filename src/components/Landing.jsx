@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './Landing.css'
 
@@ -190,13 +190,56 @@ function Nav({ onSignup, onSignin, onBrand }) {
 }
 
 function Hero({ onSignup }) {
+  const videoRef = useRef(null)
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    const FADE_MS = 800
+    let fading = false
+    let fadeTimer
+    let unlockTimer
+
+    const handleTimeUpdate = () => {
+      if (fading || !Number.isFinite(video.duration) || video.duration === 0) return
+      if (video.duration - video.currentTime > FADE_MS / 1000) return
+
+      fading = true
+      video.classList.add('is-fading')
+
+      fadeTimer = window.setTimeout(() => {
+        const resume = () => {
+          video.play().catch(() => {})
+          requestAnimationFrame(() => {
+            video.classList.remove('is-fading')
+            unlockTimer = window.setTimeout(() => {
+              fading = false
+            }, FADE_MS)
+          })
+        }
+
+        video.currentTime = 0
+        if (video.readyState >= 2) resume()
+        else video.addEventListener('seeked', resume, { once: true })
+      }, FADE_MS)
+    }
+
+    video.addEventListener('timeupdate', handleTimeUpdate)
+    return () => {
+      video.removeEventListener('timeupdate', handleTimeUpdate)
+      window.clearTimeout(fadeTimer)
+      window.clearTimeout(unlockTimer)
+    }
+  }, [])
+
   return (
     <header className="hero-section">
       <div className="hero-media" aria-hidden="true">
         <video
+          ref={videoRef}
           className="hero-video"
           autoPlay
-          loop
           muted
           playsInline
           preload="metadata"
