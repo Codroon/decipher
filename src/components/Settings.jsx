@@ -25,43 +25,6 @@ const S = {
       <path d="M3 7l4 4 5-7 5 7 4-4v11H3z" />
     </svg>
   ),
-  pen: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 19l7-7 3 3-7 7-3-3z" />
-      <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18z" />
-      <path d="M2 2l7.586 7.586" />
-      <circle cx="11" cy="11" r="2" />
-    </svg>
-  ),
-  speaker: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M11 5L6 9H2v6h4l5 4z" />
-      <path d="M19 5a9 9 0 0 1 0 14M15.5 8.5a4 4 0 0 1 0 7" />
-    </svg>
-  ),
-  wand: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M15 4V2M15 10V8M11 6H9M21 6h-2" />
-      <path d="M3 21l12-12 2 2L5 23z" />
-      <path d="M14 8l2 2" />
-    </svg>
-  ),
-  type: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 7V5h16v2M9 19h6M12 5v14" />
-    </svg>
-  ),
-  bell: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-      <path d="M13.7 21a2 2 0 0 1-3.4 0" />
-    </svg>
-  ),
-  shield: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" />
-    </svg>
-  ),
   warn: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
       <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
@@ -78,46 +41,12 @@ const S = {
       <path d="M13 2L3 14h7l-1 8 10-12h-7z" />
     </svg>
   ),
-  play: (
-    <svg viewBox="0 0 24 24" fill="currentColor">
-      <path d="M7 5l12 7-12 7z" />
-    </svg>
-  ),
 }
 
 const SECTIONS = [
   { id: 'account', label: 'Account', icon: S.user },
   { id: 'plan', label: 'Plan & Usage', icon: S.crown },
-  { id: 'story', label: 'Storyteller', icon: S.pen },
-  { id: 'narration', label: 'Narration', icon: S.speaker },
-  { id: 'images', label: 'Image Studio', icon: S.wand },
-  { id: 'reading', label: 'Reading', icon: S.type },
-  { id: 'notifications', label: 'Notifications', icon: S.bell },
-  { id: 'privacy', label: 'Privacy & Data', icon: S.shield },
 ]
-
-const FONTS = [
-  { id: 'Spectral', label: 'Spectral', stack: "'Spectral', Georgia, serif" },
-  { id: 'Lora', label: 'Lora', stack: "'Lora', Georgia, serif" },
-  { id: 'EB Garamond', label: 'Garamond', stack: "'EB Garamond', Georgia, serif" },
-  { id: 'Sora', label: 'Sora', stack: "'Sora', sans-serif" },
-]
-
-const STYLES = [
-  { id: 'Fantasy', img: '/fantasy-art-style.png' },
-  { id: 'Anime', img: '/anime-art-style.png' },
-  { id: 'Realistic', img: '/realistic-art-style-52592d.png' },
-  { id: 'Cartoon', img: '/cartoon-art-style.png' },
-]
-
-const VOICES = [
-  { id: 'sable', name: 'Sable', desc: 'Warm narrator', pitch: 0.9, rate: 1 },
-  { id: 'lumen', name: 'Lumen', desc: 'Bright & clear', pitch: 1.15, rate: 1.05 },
-  { id: 'thorne', name: 'Thorne', desc: 'Deep & grave', pitch: 0.7, rate: 0.92 },
-]
-
-const PREVIEW_TEXT =
-  'The lantern guttered as Aria stepped beneath the archway, and the old stones seemed to lean in to listen. Somewhere far below, water moved through the dark — patient, unhurried, certain of its way.'
 
 const DEFAULTS = {
   name: 'Aria Vale',
@@ -160,21 +89,6 @@ function loadSettings() {
 
 function Toggle({ on, onClick }) {
   return <button type="button" className={`sw ${on ? 'on' : ''}`} onClick={onClick} role="switch" aria-checked={on} />
-}
-
-function Sel({ value, onChange, options }) {
-  return (
-    <div className="set-selwrap">
-      <select value={value} onChange={(e) => onChange(e.target.value)}>
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
-      </select>
-      <span className="ch">{S.chev}</span>
-    </div>
-  )
 }
 
 function Row({ title, desc, children }) {
@@ -277,27 +191,9 @@ function Settings() {
     setTimeout(() => setToast(null), 2400)
   }
 
-  const speak = (v) => {
-    try {
-      if (!window.speechSynthesis) {
-        flash('Voice preview not supported here')
-        return
-      }
-      window.speechSynthesis.cancel()
-      const u = new SpeechSynthesisUtterance('In the hush before the storm, the story begins.')
-      u.pitch = v.pitch
-      u.rate = v.rate * (s.rate / 100)
-      window.speechSynthesis.speak(u)
-    } catch {
-      flash('Voice preview unavailable')
-    }
-  }
-
   const reg = (id) => (el) => {
     if (el) secRefs.current[id] = el
   }
-
-  const fontStack = (FONTS.find((f) => f.id === s.font) || FONTS[0]).stack
 
   return (
     <div className="settings-page">
@@ -461,313 +357,8 @@ function Settings() {
             </div>
           </section>
 
-          <section className="set-sec" id="story" ref={reg('story')}>
-            <SecHead icon={S.pen} title="Storyteller defaults" desc="How new stories begin before you tweak them per-story." />
-            <div className="set-card">
-              <Row title="Default model" desc="The engine that drafts your prose.">
-                <Sel value={s.model} onChange={(v) => set('model', v)} options={['Decipher 32B', 'Decipher 8B (faster)', 'Decipher Muse (literary)']} />
-              </Row>
-              <div className="set-row">
-                <div className="rt">
-                  <div className="rl">Creativity</div>
-                  <div className="rd">Lower stays grounded; higher takes bigger swings.</div>
-                </div>
-                <div className="rc">
-                  <div className="set-slider-row">
-                    <input
-                      className="set-slider"
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={s.creativity}
-                      onChange={(e) => set('creativity', +e.target.value)}
-                    />
-                    <span className="set-slider-val">{s.creativity}</span>
-                  </div>
-                </div>
-              </div>
-              <Row title="Default tone" desc="The mood Decipher reaches for first.">
-                <Sel value={s.tone} onChange={(v) => set('tone', v)} options={['Mysterious', 'Heroic', 'Romantic', 'Dark', 'Whimsical', 'Noir']} />
-              </Row>
-              <Row title="Response length">
-                <Sel
-                  value={s.length}
-                  onChange={(v) => set('length', v)}
-                  options={['Short (1–2 paragraphs)', 'Medium (3–4 paragraphs)', 'Long (5+ paragraphs)']}
-                />
-              </Row>
-              <div className="set-row col">
-                <div className="rt">
-                  <div className="rl">Content rating</div>
-                  <div className="rd">Sets the ceiling for themes and intensity in generated stories.</div>
-                </div>
-                <div className="set-rating">
-                  {[
-                    ['Everyone', 'All-ages'],
-                    ['Teen', 'Mild themes'],
-                    ['Mature', '18+ · intense'],
-                  ].map(([rt, rd]) => (
-                    <button
-                      key={rt}
-                      type="button"
-                      className={`set-rate ${s.rating === rt ? 'on' : ''}`}
-                      onClick={() => set('rating', rt)}
-                    >
-                      <div className="rt">{rt}</div>
-                      <div className="rdsc">{rd}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <Row title="Auto-continue" desc="Keep the story flowing without pressing Continue each time.">
-                <Toggle on={s.autoContinue} onClick={() => set('autoContinue', !s.autoContinue)} />
-              </Row>
-              <Row title="Remember characters" desc="Carry names, traits and relationships between sessions.">
-                <Toggle on={s.rememberChars} onClick={() => set('rememberChars', !s.rememberChars)} />
-              </Row>
-            </div>
-          </section>
-
-          <section className="set-sec" id="narration" ref={reg('narration')}>
-            <SecHead icon={S.speaker} title="Narration" desc="Decipher can read your story aloud. Tap play to hear a voice." />
-            <div className="set-card">
-              <div className="set-row col">
-                <div className="rt">
-                  <div className="rl">Narrator voice</div>
-                </div>
-                <div className="set-voices">
-                  {VOICES.map((v) => (
-                    <button
-                      key={v.id}
-                      type="button"
-                      className={`set-voice ${s.voice === v.id ? 'on' : ''}`}
-                      onClick={() => set('voice', v.id)}
-                    >
-                      <span
-                        className="play"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          speak(v)
-                        }}
-                        onKeyDown={(e) => e.stopPropagation()}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`Preview ${v.name}`}
-                      >
-                        {S.play}
-                      </span>
-                      <span>
-                        <span className="vt">{v.name}</span>
-                        <span className="vd">{v.desc}</span>
-                      </span>
-                      <span className="vdot" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="set-row">
-                <div className="rt">
-                  <div className="rl">Speaking rate</div>
-                  <div className="rd">Slower for drama, faster to skim.</div>
-                </div>
-                <div className="rc">
-                  <div className="set-slider-row">
-                    <input
-                      className="set-slider"
-                      type="range"
-                      min="50"
-                      max="150"
-                      value={s.rate}
-                      onChange={(e) => set('rate', +e.target.value)}
-                    />
-                    <span className="set-slider-val">{(s.rate / 100).toFixed(2)}×</span>
-                  </div>
-                </div>
-              </div>
-              <Row title="Auto-narrate new passages" desc="Read each beat aloud as it's generated.">
-                <Toggle on={s.narrate} onClick={() => set('narrate', !s.narrate)} />
-              </Row>
-            </div>
-          </section>
-
-          <section className="set-sec" id="images" ref={reg('images')}>
-            <SecHead icon={S.wand} title="Image Studio defaults" desc="The starting point every time you open the studio." />
-            <div className="set-card">
-              <div className="set-row col">
-                <div className="rt">
-                  <div className="rl">Default art style</div>
-                </div>
-                <div className="set-tiles">
-                  {STYLES.map((st) => (
-                    <button
-                      key={st.id}
-                      type="button"
-                      className={`set-tile ${s.imgStyle === st.id ? 'on' : ''}`}
-                      onClick={() => set('imgStyle', st.id)}
-                    >
-                      <img src={st.img} alt="" />
-                      <span className="sh" />
-                      <span className="nm">{st.id}</span>
-                      <span className="ck">{S.check}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <Row title="Default model">
-                <Sel value={s.imgModel} onChange={(v) => set('imgModel', v)} options={['Decipher Vivid', 'Decipher Lite', 'Decipher Ultra']} />
-              </Row>
-              <div className="set-row">
-                <div className="rt">
-                  <div className="rl">Aspect ratio</div>
-                </div>
-                <div className="rc">
-                  <div className="set-seg">
-                    {['Square', 'Portrait', 'Landscape'].map((r) => (
-                      <button key={r} type="button" className={s.ratio === r ? 'on' : ''} onClick={() => set('ratio', r)}>
-                        {r}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="set-row">
-                <div className="rt">
-                  <div className="rl">Images per generation</div>
-                </div>
-                <div className="rc">
-                  <div className="set-seg">
-                    {[1, 2, 4].map((n) => (
-                      <button key={n} type="button" className={s.imgCount === n ? 'on' : ''} onClick={() => set('imgCount', n)}>
-                        {n}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <Row title="Safe mode" desc="Filter out unsafe or explicit imagery.">
-                <Toggle on={s.safeImg} onClick={() => set('safeImg', !s.safeImg)} />
-              </Row>
-            </div>
-          </section>
-
-          <section className="set-sec" id="reading" ref={reg('reading')}>
-            <SecHead icon={S.type} title="Reading experience" desc="Shape how your stories look on the page. The preview is live." />
-            <div className="set-card">
-              <div className="set-read">
-                <div className="set-read-ctrls">
-                  <div>
-                    <div className="cl">Story font</div>
-                    <div className="set-fonts">
-                      {FONTS.map((f) => (
-                        <button
-                          key={f.id}
-                          type="button"
-                          className={`set-font ${s.font === f.id ? 'on' : ''}`}
-                          onClick={() => set('font', f.id)}
-                          style={{ fontFamily: f.stack }}
-                        >
-                          <span className="fn">{f.label}</span>
-                          <span className="fl">Aa</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="cl">
-                      Text size <span className="vv">{s.textSize}px</span>
-                    </div>
-                    <input
-                      className="set-slider"
-                      type="range"
-                      min="15"
-                      max="24"
-                      value={s.textSize}
-                      onChange={(e) => set('textSize', +e.target.value)}
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                  <div>
-                    <div className="cl">
-                      Line spacing <span className="vv">{(s.lineH / 100).toFixed(2)}</span>
-                    </div>
-                    <input
-                      className="set-slider"
-                      type="range"
-                      min="140"
-                      max="210"
-                      value={s.lineH}
-                      onChange={(e) => set('lineH', +e.target.value)}
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                  <div>
-                    <div className="cl">Paper</div>
-                    <div className="set-seg" style={{ display: 'flex' }}>
-                      {[
-                        ['dark', 'Dark'],
-                        ['sepia', 'Sepia'],
-                        ['night', 'Night'],
-                      ].map(([id, l]) => (
-                        <button
-                          key={id}
-                          type="button"
-                          className={s.paper === id ? 'on' : ''}
-                          style={{ flex: 1 }}
-                          onClick={() => set('paper', id)}
-                        >
-                          {l}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div
-                  className={`set-read-preview pv-${s.paper}`}
-                  style={{ fontFamily: fontStack, fontSize: `${s.textSize}px`, lineHeight: s.lineH / 100 }}
-                >
-                  <span className="pv-tag">Live preview</span>
-                  <h4>Chapter One</h4>
-                  <p>{PREVIEW_TEXT}</p>
-                  <p>She had read about places like this, but reading was a poor rehearsal for the thing itself.</p>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="set-sec" id="notifications" ref={reg('notifications')}>
-            <SecHead icon={S.bell} title="Notifications" desc="What lands in your inbox." />
-            <div className="set-card">
-              <Row title="Weekly digest" desc="A recap of your stories and new community scenarios.">
-                <Toggle on={s.nDigest} onClick={() => set('nDigest', !s.nDigest)} />
-              </Row>
-              <Row title="New features" desc="Hear when we ship something worth your time.">
-                <Toggle on={s.nFeatures} onClick={() => set('nFeatures', !s.nFeatures)} />
-              </Row>
-              <Row title="Comments & replies" desc="When someone responds on a shared story.">
-                <Toggle on={s.nReplies} onClick={() => set('nReplies', !s.nReplies)} />
-              </Row>
-              <Row title="Offers & promotions" desc="Occasional deals on plans and credits.">
-                <Toggle on={s.nMarketing} onClick={() => set('nMarketing', !s.nMarketing)} />
-              </Row>
-            </div>
-          </section>
-
-          <section className="set-sec" id="privacy" ref={reg('privacy')}>
-            <SecHead icon={S.shield} title="Privacy & Data" desc="Control your data and what trains the model." />
-            <div className="set-card">
-              <Row
-                title="Improve the model with my stories"
-                desc="Allow anonymized content to help train future models. Off keeps your work private."
-              >
-                <Toggle on={!s.trainOptOut} onClick={() => set('trainOptOut', !s.trainOptOut)} />
-              </Row>
-              <Row title="Export my data" desc="Download all your stories, characters and images.">
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => flash("Export queued — we'll email a link")}>
-                  {S.download} Export
-                </button>
-              </Row>
-            </div>
-            <div className="set-card set-danger" style={{ marginTop: 16 }}>
+          <section className="set-sec">
+            <div className="set-card set-danger">
               <SecHead icon={S.warn} title="Danger zone" />
               <Row title="Delete account" desc="Permanently erase your account and everything in it. This cannot be undone.">
                 <button type="button" className="btn btn-danger btn-sm" onClick={() => setConfirmDel(true)}>
@@ -776,6 +367,7 @@ function Settings() {
               </Row>
             </div>
           </section>
+
           </div>
         </div>
       </div>

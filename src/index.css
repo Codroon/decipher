@@ -12,8 +12,10 @@
   -moz-osx-font-smoothing: grayscale;
   
   /* CSS Variables for consistent scaling (aligned to redesign shell) */
-  --navbar-height: 72px;
+  /* No fixed top bar — kept at 0 so page/sidebar offsets collapse. */
+  --navbar-height: 0px;
   --sidebar-width: 248px;
+  --sidebar-width-compact: 68px;
   --border-radius-sm: 6px;
   --border-radius-md: 10px;
   --border-radius-lg: 14px;

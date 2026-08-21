@@ -31,12 +31,14 @@ import Activity from './components/admin/Activity'
 function AppContent() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, isAuthenticated, isAdmin, logout, isLoading } = useAuth()
+  const { isAuthenticated, isLoading } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [showProfileDropdown, setShowProfileDropdown] = useState(false)
+  // Rail state is the user's own choice, so it survives reloads.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => localStorage.getItem('sidebarCollapsed') === '1'
+  )
 
   // Get current page from URL (handle routes with parameters)
   const currentPage = location.pathname.split('/')[1] || 'home'
@@ -47,24 +49,15 @@ function AppContent() {
   // Public marketing landing page lives at the root path
   const isLandingPage = location.pathname === '/'
 
-  // Close dropdown when clicking outside
-  const handleClickOutside = (e) => {
-    if (showProfileDropdown && !e.target.closest('.user-profile')) {
-      setShowProfileDropdown(false)
-    }
-  }
-
-  // Add event listener for clicking outside
-  useEffect(() => {
-    if (showProfileDropdown) {
-      document.addEventListener('click', handleClickOutside)
-      return () => document.removeEventListener('click', handleClickOutside)
-    }
-  }, [showProfileDropdown])
-
   const handleNavigation = (page) => {
     navigate(`/${page}`)
-    setShowProfileDropdown(false)
+  }
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      localStorage.setItem('sidebarCollapsed', prev ? '0' : '1')
+      return !prev
+    })
   }
 
   // Redirect to login if not authenticated and trying to access protected routes
@@ -154,173 +147,18 @@ function AppContent() {
 
   return (
     <div className="app-container">
-      {/* Navigation Bar */}
-      <nav className={`navbar ${isAuthPage ? 'auth-page' : sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
-        <div className="nav-content">
-          <div className="nav-left">
-            {/* Hide hamburger menu on auth pages */}
-            {!isAuthPage && (
-              <div 
-                className={`hamburger-menu ${sidebarOpen ? 'open' : ''}`}
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-              >
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-            )}
-            {/* Logo lives in the rail on app pages; show it here only on auth pages */}
-            {isAuthPage && (
-              <div 
-                className="logo-container" 
-                onClick={() => navigate('/home')}
-                style={{ cursor: 'pointer' }}
-              >
-                <svg className="logo-icon" width="17" height="17" viewBox="0 0 24 24" fill="white">
-                  <path d="M12 2L2 7L12 12L22 7L12 2Z" />
-                  <path d="M2 17L12 22L22 17" />
-                  <path d="M2 12L12 17L22 12" />
-                </svg>
-              </div>
-            )}
-          </div>
-          
-          {/* Hide search bar on authentication pages */}
-          {!isAuthPage && (
-            <>
-              <div className="search-bar">
-                <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <circle cx="11" cy="11" r="7" />
-                  <path d="M21 21l-4-4" />
-                </svg>
-                <input type="text" placeholder="Search stories, authors, or genres..." />
-              </div>
-
-              <div className="nav-spacer"></div>
-
-              <button
-                type="button"
-                className="btn btn-primary btn-sm nav-new-story"
-                onClick={() => navigate('/story-creator')}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-                New story
-              </button>
-            </>
-          )}
-
-          {/* Show login/signup buttons only on auth pages */}
-          {isAuthPage && (
-            <div className="nav-buttons">
-                      <button 
-                        className={`login-btn ${currentPage === 'login' ? 'active' : ''}`}
-                        onClick={() => navigate('/login')}
-                      >
-                        Login
-                      </button>
-                      <button 
-                        className={`signup-btn ${currentPage === 'signup' ? 'active' : ''}`}
-                        onClick={() => navigate('/signup')}
-                      >
-                        SignUp
-                      </button>
-            </div>
-          )}
-          
-          {/* Show user profile when logged in */}
-          {isAuthenticated && (
-            <div className="user-profile">
-              <div 
-                className="profile-avatar"
-                onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-              >
-                <img src={user?.avatar || "/author-avatar-7942f7.png"} alt="Profile" />
-              </div>
-              
-              {/* Profile Dropdown */}
-              {showProfileDropdown && (
-                <div className="profile-dropdown">
-                  <div className="dropdown-header">
-                    <div className="user-info">
-                      <div className="user-avatar-small">
-                        <img src={user?.avatar || "/author-avatar-7942f7.png"} alt="Profile" />
-                      </div>
-                      <div className="user-details">
-                        <h4 className="user-name">{user?.name || 'Admin User'}</h4>
-                        <p className="user-email">{user?.email || 'admin@decipher.com'}</p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="dropdown-divider"></div>
-                  
-                  <div className="dropdown-menu">
-                    <button className="dropdown-item" onClick={() => handleNavigation('profile')}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="12" cy="7" r="4"></circle>
-                      </svg>
-                      <span>Profile</span>
-                    </button>
-                    
-                    <button className="dropdown-item" onClick={() => handleNavigation('settings')}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                      </svg>
-                      <span>Settings</span>
-                    </button>
-
-                    {/* Admin panel entry — only rendered for admins */}
-                    {isAdmin && (
-                      <button className="dropdown-item" onClick={() => { setShowProfileDropdown(false); navigate('/admin') }}>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                          <path d="M12 2l7 4v6c0 4-3 7-7 8-4-1-7-4-7-8V6l7-4z"></path>
-                        </svg>
-                        <span>Admin Panel</span>
-                      </button>
-                    )}
-                    
-                  
-              
-                    
-                    <button 
-                      className="dropdown-item logout-item"
-                      onClick={() => {
-                        logout()
-                        setShowProfileDropdown(false)
-                        navigate('/login')
-                      }}
-                    >
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                        <polyline points="16,17 21,12 16,7"></polyline>
-                        <line x1="21" y1="12" x2="9" y2="12"></line>
-                      </svg>
-                      <span>Logout</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </nav>
-
       {/* Sidebar - Hide on auth pages */}
       {!isAuthPage && (
-        <Sidebar 
-          isOpen={sidebarOpen} 
-          onClose={() => setSidebarOpen(false)}
+        <Sidebar
           onNavigate={handleNavigation}
           currentPage={currentPage}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={toggleSidebar}
         />
       )}
 
       {/* Main Content */}
-      <div className={`main-content ${isAuthPage ? 'auth-page' : sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
+      <div className={`main-content ${isAuthPage ? 'auth-page' : sidebarCollapsed ? 'sidebar-collapsed' : 'sidebar-open'}`}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/home" element={<Home />} />

@@ -23,85 +23,6 @@
   --shelf-nav-inset: 22px;
 }
 
-/* ---------------- Notification Banner ---------------- */
-.notification-banner {
-  position: fixed;
-  top: var(--navbar-height, 72px);
-  left: var(--sidebar-width, 248px);
-  right: 0;
-  width: calc(100% - var(--sidebar-width, 248px));
-  height: 46px;
-  background: linear-gradient(100deg, rgba(119, 56, 203, 0.30), rgba(77, 112, 255, 0.18));
-  border-bottom: 1px solid var(--hairline);
-  backdrop-filter: blur(12px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 35;
-  animation: slideDown 0.4s ease;
-  transition: left 0.28s ease, width 0.28s ease;
-}
-
-.sidebar-closed .notification-banner {
-  left: 0;
-  width: 100%;
-}
-
-@keyframes slideDown {
-  from { transform: translateY(-100%); }
-  to { transform: translateY(0); }
-}
-
-.banner-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  max-width: none;
-  padding: 0 24px;
-}
-
-.banner-message {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.star-icon {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-}
-
-.banner-message span {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 13px;
-  line-height: 1.4;
-  letter-spacing: 0.01em;
-  color: #fff;
-}
-
-.close-banner {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px;
-  color: var(--ink-70);
-  transition: color 0.2s ease;
-}
-
-.close-banner:hover { color: #fff; }
-
-.close-banner svg {
-  stroke-width: 2;
-  width: 18px;
-  height: 18px;
-}
-
 /* ---------------- Hero ----------------
    NB: class must stay `home-hero`, not `hero-section` — Landing.css
    defines a global `.hero-section` that would black this out. */
@@ -300,10 +221,6 @@
   backdrop-filter: blur(16px) saturate(1.25);
   -webkit-backdrop-filter: blur(16px) saturate(1.25);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.has-banner .library-bar {
-  top: calc(var(--navbar-height, 72px) + 46px);
 }
 
 .library-bar-inner {
@@ -1198,13 +1115,6 @@
   .home-page { --plate-w: 194px; --world-w: 316px; }
 }
 
-@media (max-width: 1024px) {
-  .notification-banner {
-    left: var(--sidebar-width, 248px);
-    width: calc(100% - var(--sidebar-width, 248px));
-  }
-}
-
 @media (max-width: 900px) {
   .feat { height: 360px; }
   .feat-body { padding: 0 30px; max-width: 100%; }
@@ -1212,10 +1122,6 @@
   .lib-search { flex-basis: 100%; }
   .lib-scopes { width: 100%; justify-content: space-between; }
   .lib-scope { flex: 1; }
-}
-
-@media (max-width: 768px) {
-  .notification-banner { left: 0; width: 100%; }
 }
 
 @media (max-width: 640px) {
