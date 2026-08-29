@@ -397,10 +397,10 @@ export const deleteStory = async (storyId) => {
  */
 export const regenerateLastChunk = async (storyId, model = 'google/gemini-3.1-flash-lite') => {
   try {
-    const url = `${API_ENDPOINTS.STORY.REGENERATE(storyId)}?model=${encodeURIComponent(model)}`
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: getHeaders(true)
+    const response = await fetch(API_ENDPOINTS.STORY.REGENERATE(storyId), {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify({ model })
     })
 
     const data = await response.json()
