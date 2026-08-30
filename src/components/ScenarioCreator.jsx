@@ -113,6 +113,114 @@ const I = {
   ),
 }
 
+// Per-field character budgets for the text that gets injected into the LLM
+// prompt on every turn of every story built on a scenario (see
+// formatScenarioContext in the backend's controllers/storyController.js,
+// which includes title, description, tags, opening, AIInstructions and
+// authorNotes verbatim in that block). These MUST match the server-side
+// caps exactly — mirrored 1:1 from
+// ../Decipher-Backend/controllers/scenarioController.js
+// (MAX_SCENARIO_TITLE_CHARS=150, MAX_SCENARIO_DESCRIPTION_CHARS=2000,
+// MAX_SCENARIO_OPENING_CHARS=1500, MAX_SCENARIO_AI_INSTRUCTIONS_CHARS=3000,
+// MAX_SCENARIO_AUTHOR_NOTES_CHARS=500), which mirrors
+// ../Decipher-Backend/models/scenarioModel.js's `maxlength` backstops. If
+// those constants change, update these too.
+const CHAR_LIMITS = {
+  title: 150,
+  description: 2000,
+  opening: 1500,
+  aiInstructions: 3000,
+  authorNotes: 500,
+}
+
+// Tags aren't a single character budget on the backend — each tag is capped
+// individually and the list is capped by count (MAX_SCENARIO_TAG_CHARS=30,
+// MAX_SCENARIO_TAGS_COUNT=20 in scenarioController.js / scenarioModel.js).
+const TAG_CHAR_LIMIT = 30
+const MAX_TAGS_COUNT = 20
+
+// Entity list caps — characters/locations/creatures are each re-serialised
+// into the generation prompt on every turn of every story built on the
+// scenario (formatNamedEntities in the backend's storyController.js), so an
+// unbounded list or entry defeats the per-field caps entirely: at the old
+// unbounded size, 40 entries x ~600 chars x 3 lists is ~70KB of prompt on
+// every single turn, forever. Mirrored 1:1 from
+// ../Decipher-Backend/models/scenarioModel.js: the characters/locations/
+// creatures sub-schemas' `name`/`description` maxlength (100/500), and
+// MAX_ENTITIES_PER_LIST = Number(process.env.MAX_SCENARIO_ENTITIES || 40),
+// enforced per list via scenarioSchema.path(field).validate(...) just above
+// mongoose.model(). If those change, update these too.
+const MAX_ENTITY_NAME_CHARS = 100
+const MAX_ENTITY_DESCRIPTION_CHARS = 500
+const MAX_ENTITIES_PER_LIST = 40
+
+const ENTITY_LIST_LABEL = { character: 'Characters', location: 'Locations', creature: 'Creatures' }
+const ENTITY_SECTION_ID = { character: 'characters', location: 'locations', creature: 'creatures' }
+
+const FIELD_LABELS = {
+  title: 'Title',
+  description: 'Description',
+  opening: 'Opening scene',
+  aiInstructions: 'AI instructions',
+  authorNotes: 'Author notes',
+}
+
+// Which nav section a field lives in, so an over-limit error can jump the
+// author straight to the field that needs trimming.
+const FIELD_SECTION = {
+  title: 'basic',
+  description: 'basic',
+  tags: 'basic',
+  opening: 'story',
+  aiInstructions: 'story',
+  authorNotes: 'story',
+}
+
+// Shows remaining budget, not characters used — warns before the limit
+// (amber, last 10%) rather than exactly at it, and never blocks typing:
+// going over just turns the counter red so nothing is ever silently cut.
+function CharCounter({ length, max }) {
+  const remaining = max - length
+  const over = remaining < 0
+  const warn = !over && remaining <= Math.ceil(max * 0.1)
+  return (
+    <div className={`sb-hint counter${over ? ' over' : warn ? ' warn' : ''}`}>
+      {over
+        ? `${Math.abs(remaining).toLocaleString()} character${Math.abs(remaining) === 1 ? '' : 's'} over the ${max.toLocaleString()} limit`
+        : `${remaining.toLocaleString()} character${remaining === 1 ? '' : 's'} remaining`}
+    </div>
+  )
+}
+
+// Same "show remaining, warn before the cap" treatment as CharCounter, but
+// for the tag list's count limit rather than a character length.
+function TagCounter({ count, max }) {
+  const remaining = max - count
+  const over = remaining < 0
+  const warn = !over && remaining <= Math.ceil(max * 0.1)
+  return (
+    <div className={`sb-hint counter${over ? ' over' : warn ? ' warn' : ''}`}>
+      {over
+        ? `${Math.abs(remaining)} tag${Math.abs(remaining) === 1 ? '' : 's'} over the ${max} limit`
+        : `${remaining} tag${remaining === 1 ? '' : 's'} remaining (max ${TAG_CHAR_LIMIT} characters each)`}
+    </div>
+  )
+}
+
+// Same treatment again, for an entity list's count against MAX_ENTITIES_PER_LIST.
+function EntityCountCounter({ count, max }) {
+  const remaining = max - count
+  const over = remaining < 0
+  const warn = !over && remaining <= Math.ceil(max * 0.1)
+  return (
+    <div className={`sb-hint counter${over ? ' over' : warn ? ' warn' : ''}`}>
+      {over
+        ? `${Math.abs(remaining)} over the ${max} limit for this list`
+        : `${remaining} of ${max} remaining in this list`}
+    </div>
+  )
+}
+
 const SECTIONS = [
   { id: 'basic', label: 'Basics', icon: I.info },
   { id: 'story', label: 'Story Setup', icon: I.doc },
@@ -204,6 +312,7 @@ function ScenarioCreator() {
   const [activeModal, setActiveModal] = useState(null)
   const [modalData, setModalData] = useState({ name: '', description: '' })
   const [editIndex, setEditIndex] = useState(null)
+  const [modalError, setModalError] = useState('')
 
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingScenario, setIsLoadingScenario] = useState(isEditMode)
@@ -279,13 +388,26 @@ function ScenarioCreator() {
 
   const addTag = () => {
     const t = tagInput.trim()
-    if (t && !tags.includes(t)) setTags([...tags, t])
+    if (!t || tags.includes(t)) {
+      setTagInput('')
+      return
+    }
+    if (t.length > TAG_CHAR_LIMIT) {
+      setError(`Each tag must be ${TAG_CHAR_LIMIT} characters or fewer.`)
+      return
+    }
+    if (tags.length >= MAX_TAGS_COUNT) {
+      setError(`Too many tags (${MAX_TAGS_COUNT} max).`)
+      return
+    }
+    setTags([...tags, t])
     setTagInput('')
   }
 
   const openEntityModal = (type, index = null) => {
     setActiveModal(type)
     setEditIndex(index)
+    setModalError('')
     if (index !== null) {
       const [items] = lists[type]
       setModalData({ name: items[index].name, description: items[index].description || '' })
@@ -298,12 +420,35 @@ function ScenarioCreator() {
     setActiveModal(null)
     setEditIndex(null)
     setModalData({ name: '', description: '' })
+    setModalError('')
   }
 
+  // Shown inside the modal itself (setError's page banner sits behind the
+  // modal overlay and would be invisible while this is open).
   const saveEntity = () => {
     if (!modalData.name.trim() || !activeModal || activeModal.startsWith('library-')) return
-    const entity = { name: modalData.name.trim(), description: modalData.description.trim() }
+    const name = modalData.name.trim()
+    const description = modalData.description.trim()
+    if (name.length > MAX_ENTITY_NAME_CHARS) {
+      setModalError(
+        `Name is ${(name.length - MAX_ENTITY_NAME_CHARS).toLocaleString()} character${name.length - MAX_ENTITY_NAME_CHARS === 1 ? '' : 's'} over the ${MAX_ENTITY_NAME_CHARS}-character limit.`
+      )
+      return
+    }
+    if (description.length > MAX_ENTITY_DESCRIPTION_CHARS) {
+      setModalError(
+        `Description is ${(description.length - MAX_ENTITY_DESCRIPTION_CHARS).toLocaleString()} character${description.length - MAX_ENTITY_DESCRIPTION_CHARS === 1 ? '' : 's'} over the ${MAX_ENTITY_DESCRIPTION_CHARS}-character limit.`
+      )
+      return
+    }
+    const entity = { name, description }
     const [items, setItems] = lists[activeModal]
+    if (editIndex === null && items.length >= MAX_ENTITIES_PER_LIST) {
+      setModalError(
+        `You already have ${MAX_ENTITIES_PER_LIST} ${ENTITY_LIST_LABEL[activeModal].toLowerCase()} — remove one before adding another.`
+      )
+      return
+    }
     if (editIndex !== null) {
       const updated = [...items]
       updated[editIndex] = entity
@@ -335,10 +480,75 @@ function ScenarioCreator() {
     creatures,
   })
 
+  const fieldLengths = () => ({
+    title: title.length,
+    description: description.length,
+    opening: opening.length,
+    aiInstructions: aiInstructions.length,
+    authorNotes: authorNotes.length,
+  })
+
+  // Never truncates — an over-limit field keeps every character the author
+  // wrote. This just blocks submission and says which field, and by how
+  // much, so nothing is lost quietly.
+  const findOverLimitField = () => {
+    const lengths = fieldLengths()
+    for (const key of Object.keys(CHAR_LIMITS)) {
+      if (lengths[key] > CHAR_LIMITS[key]) {
+        return { key, message: `${FIELD_LABELS[key]} is ${(lengths[key] - CHAR_LIMITS[key]).toLocaleString()} character${lengths[key] - CHAR_LIMITS[key] === 1 ? '' : 's'} over the ${CHAR_LIMITS[key].toLocaleString()}-character limit. Trim it before saving.` }
+      }
+    }
+    if (tags.length > MAX_TAGS_COUNT) {
+      return { key: 'tags', message: `You have ${tags.length - MAX_TAGS_COUNT} too many tags (${MAX_TAGS_COUNT} max). Remove some before saving.` }
+    }
+    const overlongTag = tags.find((t) => t.length > TAG_CHAR_LIMIT)
+    if (overlongTag) {
+      return { key: 'tags', message: `The tag "${overlongTag}" is longer than the ${TAG_CHAR_LIMIT}-character tag limit. Trim it before saving.` }
+    }
+    // Entity lists (characters/locations/creatures): count cap, then
+    // per-entry name/description cap, naming which entity in which list is
+    // over so an author with 40 of them doesn't have to hunt for the bad one.
+    for (const type of Object.keys(ENTITY_LIST_LABEL)) {
+      const [items] = lists[type]
+      const sectionId = ENTITY_SECTION_ID[type]
+      const label = ENTITY_LIST_LABEL[type]
+      if (items.length > MAX_ENTITIES_PER_LIST) {
+        return {
+          key: sectionId,
+          message: `${label} has ${items.length - MAX_ENTITIES_PER_LIST} too many entries (${MAX_ENTITIES_PER_LIST} max). Remove some before saving.`,
+        }
+      }
+      for (const item of items) {
+        const name = String(item?.name || '')
+        const description = String(item?.description || '')
+        const displayName = name || 'Untitled'
+        if (name.length > MAX_ENTITY_NAME_CHARS) {
+          return {
+            key: sectionId,
+            message: `"${displayName}" in ${label} has a name ${(name.length - MAX_ENTITY_NAME_CHARS).toLocaleString()} characters over the ${MAX_ENTITY_NAME_CHARS}-character limit. Trim it before saving.`,
+          }
+        }
+        if (description.length > MAX_ENTITY_DESCRIPTION_CHARS) {
+          return {
+            key: sectionId,
+            message: `"${displayName}" in ${label} has a description ${(description.length - MAX_ENTITY_DESCRIPTION_CHARS).toLocaleString()} characters over the ${MAX_ENTITY_DESCRIPTION_CHARS}-character limit. Trim it before saving.`,
+          }
+        }
+      }
+    }
+    return null
+  }
+
   const handleSaveScenario = async () => {
     if (!title.trim()) {
       setError('Please enter a scenario title')
       setSection('basic')
+      return
+    }
+    const overLimit = findOverLimitField()
+    if (overLimit) {
+      setError(overLimit.message)
+      setSection(FIELD_SECTION[overLimit.key] || overLimit.key)
       return
     }
     setIsLoading(true)
@@ -496,6 +706,7 @@ function ScenarioCreator() {
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="A captivating title for your scenario…"
                   />
+                  <CharCounter length={title.length} max={CHAR_LIMITS.title} />
                 </div>
                 <div className="fg">
                   <label>Description</label>
@@ -506,6 +717,7 @@ function ScenarioCreator() {
                     placeholder="Describe the world, setting and premise…"
                     style={{ minHeight: 110 }}
                   />
+                  <CharCounter length={description.length} max={CHAR_LIMITS.description} />
                 </div>
                 <div className="fg-row">
                   <div className="fg">
@@ -555,6 +767,7 @@ function ScenarioCreator() {
                       placeholder="Add tag…"
                     />
                   </div>
+                  <TagCounter count={tags.length} max={MAX_TAGS_COUNT} />
                 </div>
               </>
             )}
@@ -572,6 +785,7 @@ function ScenarioCreator() {
                     placeholder="Write the opening scene that sets the stage…"
                     style={{ minHeight: 130 }}
                   />
+                  <CharCounter length={opening.length} max={CHAR_LIMITS.opening} />
                 </div>
                 <div className="fg">
                   <label>AI instructions</label>
@@ -582,7 +796,11 @@ function ScenarioCreator() {
                     placeholder="Guide tone, style, pacing and themes…"
                     style={{ minHeight: 100 }}
                   />
-                  <div className="sb-hint">These steer every generation in this scenario.</div>
+                  <div className="sb-hint">
+                    These steer every generation in this scenario — passed to the AI verbatim on every turn, and unlike
+                    other fields they are never summarised, so budget the space carefully.
+                  </div>
+                  <CharCounter length={aiInstructions.length} max={CHAR_LIMITS.aiInstructions} />
                 </div>
                 <div className="fg">
                   <label>
@@ -594,6 +812,7 @@ function ScenarioCreator() {
                     onChange={(e) => setAuthorNotes(e.target.value)}
                     placeholder="Private notes only you can see…"
                   />
+                  <CharCounter length={authorNotes.length} max={CHAR_LIMITS.authorNotes} />
                 </div>
               </>
             )}
@@ -602,6 +821,11 @@ function ScenarioCreator() {
               <>
                 <div className="sb-section-title">{secMeta.label}</div>
                 <div className="sb-section-desc">{ENTITY_DESC[section]}</div>
+                <div className="ent-cost-hint">
+                  Every entry here is resent in full on every turn of every story built on this scenario — keep the
+                  list and its descriptions tight.
+                </div>
+                <EntityCountCounter count={lists[secMeta.type][0].length} max={MAX_ENTITIES_PER_LIST} />
                 <EntitySection
                   type={secMeta.type}
                   items={lists[secMeta.type][0]}
@@ -721,6 +945,7 @@ function ScenarioCreator() {
                 onChange={(e) => setModalData({ ...modalData, name: e.target.value })}
                 placeholder={`Enter ${activeModal} name…`}
               />
+              <CharCounter length={modalData.name.length} max={MAX_ENTITY_NAME_CHARS} />
             </div>
             <div className="fg">
               <label>Description</label>
@@ -730,7 +955,9 @@ function ScenarioCreator() {
                 onChange={(e) => setModalData({ ...modalData, description: e.target.value })}
                 placeholder={`Describe this ${activeModal}…`}
               />
+              <CharCounter length={modalData.description.length} max={MAX_ENTITY_DESCRIPTION_CHARS} />
             </div>
+            {modalError && <div className="sb-modal-error">{modalError}</div>}
             <div className="sb-modal-foot">
               <button type="button" className="btn btn-ghost btn-md" onClick={closeModal}>
                 Cancel

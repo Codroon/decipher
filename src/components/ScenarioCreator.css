@@ -277,6 +277,33 @@
   margin-top: 7px;
 }
 
+.scenario-builder-page .sb-hint.counter {
+  text-align: right;
+}
+
+.scenario-builder-page .sb-hint.counter.warn { color: var(--gold); }
+
+.scenario-builder-page .sb-hint.counter.over {
+  color: #fca5a5;
+  font-weight: 600;
+}
+
+.scenario-builder-page .sb-modal-error {
+  font-size: 12.5px;
+  color: #fca5a5;
+  font-weight: 600;
+  line-height: 1.5;
+  margin-top: -6px;
+  margin-bottom: 4px;
+}
+
+.scenario-builder-page .ent-cost-hint {
+  font-size: 12px;
+  color: var(--ink-40);
+  line-height: 1.5;
+  margin: -16px 0 16px;
+}
+
 .scenario-builder-page .sb-selwrap { position: relative; }
 
 .scenario-builder-page .sb-selwrap select {
