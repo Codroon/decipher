@@ -220,6 +220,17 @@ function StoryCreator() {
   const [clarificationAnswer, setClarificationAnswer] = useState('')
   const [clarificationLoading, setClarificationLoading] = useState(false)
 
+  // True for as long as a story action is retrying a 409 STORY_BUSY (the
+  // background summariser holding the write lock) — see storyService's
+  // storyLockEvents. Swaps the generic "loading" copy below for something
+  // honest instead of leaving the UI silently stuck.
+  const [retryingLock, setRetryingLock] = useState(false)
+  // Set only when every retry is exhausted and the story is still busy — the
+  // one failure this component surfaces inline (matching narrationError)
+  // instead of alert(), since it's expected to be transient and the reader
+  // just needs to wait a beat and try again.
+  const [storyBusyError, setStoryBusyError] = useState('')
+
   // Inline editing states (for clicking a single paragraph in the story)
   const [editingPara, setEditingPara] = useState(null) // { chunkIndex, paraIndex }
   const [inlineEditContent, setInlineEditContent] = useState('')
@@ -378,18 +389,34 @@ function StoryCreator() {
 
   const handleTabChange = (tabId) => setActiveTab(tabId)
 
+  /**
+   * Story actions all share the same failure shape — `error`, plus `code`
+   * when the backend attached one. A STORY_BUSY here means storyService's
+   * own retry (see fetchWithLockRetry) already waited out the background
+   * summariser and gave up — that's still just "try again in a moment", so
+   * it gets the same inline treatment as narrationError rather than a modal
+   * the reader has to dismiss. Anything else keeps the existing alert().
+   */
+  const failStoryAction = (result, fallback) => {
+    if (result.code === 'STORY_BUSY') {
+      setStoryBusyError(result.error || fallback)
+    } else {
+      alert(result.error || fallback)
+    }
+  }
 
   const handleRegenerateChunk = async () => {
     if (!generatedStory?._id) return
 
     setActionLoading('regenerate')
+    setStoryBusyError('')
     const result = await storyService.regenerateLastChunk(generatedStory._id, model)
     setActionLoading(null)
 
     if (result.success) {
       setGeneratedStory(result.story)
     } else {
-      alert(result.error || 'Failed to regenerate story chunk')
+      failStoryAction(result, 'Failed to regenerate story chunk')
     }
   }
 
@@ -398,13 +425,14 @@ function StoryCreator() {
     if (!window.confirm('Undo the last passage? Only the most recent addition to the story will be removed — everything before it stays.')) return
     const lastChunk = generatedStory.MainStory[generatedStory.MainStory.length - 1]
     setActionLoading('editChunk')
+    setStoryBusyError('')
     const result = await storyService.editChunk(generatedStory._id, lastChunk.index, '')
     setActionLoading(null)
     if (result.success) {
       setGeneratedStory(result.story)
       setEditingPara(null)
     } else {
-      alert(result.error || 'Failed to remove chunk')
+      failStoryAction(result, 'Failed to remove chunk')
     }
   }
 
@@ -468,6 +496,16 @@ function StoryCreator() {
   }
 
   useEffect(() => () => recognitionRef.current?.abort(), [])
+
+  // Story actions (continue/regenerate/chapter/edit/…) retry silently against
+  // a locked story in storyService; this just mirrors that retry state so the
+  // loading copy below can say "finishing the previous passage…" instead of
+  // sitting there with no explanation.
+  useEffect(() => {
+    const onLockRetry = (e) => setRetryingLock(!!e.detail?.active)
+    storyService.storyLockEvents.addEventListener('retry', onLockRetry)
+    return () => storyService.storyLockEvents.removeEventListener('retry', onLockRetry)
+  }, [])
 
   /**
    * The clarifying question is appended to the end of a story that is usually
@@ -638,6 +676,7 @@ function StoryCreator() {
     if (!generatedStory?._id) return
 
     setActionLoading('continue')
+    setStoryBusyError('')
     const result = await storyService.continueStory(generatedStory._id, model, userAction)
     setActionLoading(null)
 
@@ -655,7 +694,7 @@ function StoryCreator() {
         if (result.chapterStarted) setActiveChapterOrder(null)
       }
     } else {
-      alert(result.error || 'Failed to continue story')
+      failStoryAction(result, 'Failed to continue story')
     }
   }
 
@@ -672,6 +711,7 @@ function StoryCreator() {
     const title = chapterTitleInput
     setChapterModalOpen(false)
     setActionLoading('chapter')
+    setStoryBusyError('')
     const result = await storyService.startChapter(generatedStory._id, title, model)
     setActionLoading(null)
 
@@ -679,7 +719,7 @@ function StoryCreator() {
       setGeneratedStory(result.story)
       setActiveChapterOrder(null) // follow the new writing head
     } else {
-      alert(result.error || 'Failed to start a new chapter')
+      failStoryAction(result, 'Failed to start a new chapter')
     }
   }
 
@@ -703,6 +743,7 @@ function StoryCreator() {
     const questionId = clarificationData?.questionId || 'unknown'
 
     setClarificationLoading(true)
+    setStoryBusyError('')
     try {
       const result = await storyService.submitInquiryReply(
         generatedStory._id,
@@ -719,7 +760,7 @@ function StoryCreator() {
         setClarificationAnswer('')
         setUserAction('')
       } else {
-        alert(result.error || 'Failed to continue after answering')
+        failStoryAction(result, 'Failed to continue after answering')
       }
     } catch (err) {
       console.error('[Clarification] Error:', err)
@@ -736,6 +777,7 @@ function StoryCreator() {
     }
 
     setActionLoading('edit')
+    setStoryBusyError('')
     const result = await storyService.editLastParagraph(generatedStory._id, aiInstruction.trim(), model)
     setActionLoading(null)
 
@@ -743,7 +785,7 @@ function StoryCreator() {
       setGeneratedStory(result.story)
       setAiInstruction('')
     } else {
-      alert(result.error || 'Failed to edit story')
+      failStoryAction(result, 'Failed to edit story')
     }
   }
 
@@ -766,6 +808,7 @@ function StoryCreator() {
     const newContent = paras.filter(Boolean).join('\n\n')
 
     setActionLoading('editChunk')
+    setStoryBusyError('')
     const result = await storyService.editChunk(generatedStory._id, chunk.index, newContent)
     setActionLoading(null)
 
@@ -774,7 +817,7 @@ function StoryCreator() {
       setEditingPara(null)
       setInlineEditContent('')
     } else {
-      alert(result.error || 'Failed to edit paragraph')
+      failStoryAction(result, 'Failed to edit paragraph')
     }
   }
 
@@ -1579,7 +1622,7 @@ function StoryCreator() {
                       disabled={isStoryBusy || !generatedStory?.MainStory?.length}
                       title="Close the current chapter and start a fresh one"
                     >
-                      {actionLoading === 'chapter' ? 'Starting…' : '+ New chapter'}
+                      {actionLoading === 'chapter' ? (retryingLock ? 'Finishing…' : 'Starting…') : '+ New chapter'}
                     </button>
                   </div>
                 )}
@@ -1633,6 +1676,11 @@ function StoryCreator() {
                   {narrationError && (
                     <div className="narration-error" role="alert">
                       {narrationError}
+                    </div>
+                  )}
+                  {storyBusyError && (
+                    <div className="narration-error" role="alert">
+                      {storyBusyError}
                     </div>
                   )}
                   {/* Driven entirely by NarrationSession; never shown directly. */}
@@ -1704,7 +1752,7 @@ function StoryCreator() {
                                       onClick={() => handleSavePara(chunk)}
                                       disabled={actionLoading !== null || !inlineEditContent.trim()}
                                     >
-                                      {actionLoading === 'editChunk' ? 'Saving…' : 'Save'}
+                                      {actionLoading === 'editChunk' ? (retryingLock ? 'Finishing…' : 'Saving…') : 'Save'}
                                     </button>
                                     <button
                                       type="button"
@@ -1813,7 +1861,7 @@ function StoryCreator() {
 
                     {isStoryBusy && (
                       <div className="gen-row">
-                        <span>The story unfolds</span>
+                        <span>{retryingLock ? 'Finishing the previous passage…' : 'The story unfolds'}</span>
                         <span className="dots">
                           <i />
                           <i />
@@ -1860,7 +1908,7 @@ function StoryCreator() {
                         onClick={handleContinueStory}
                         disabled={isStoryBusy}
                       >
-                        {actionLoading === 'continue' ? 'Weaving…' : 'Continue story'}
+                        {actionLoading === 'continue' ? (retryingLock ? 'Finishing…' : 'Weaving…') : 'Continue story'}
                       </button>
                       <button
                         type="button"
@@ -1912,7 +1960,7 @@ function StoryCreator() {
                   onClick={handleEditParagraph}
                   disabled={actionLoading !== null || !aiInstruction.trim()}
                 >
-                  {actionLoading === 'edit' ? 'Editing…' : 'Send'}
+                  {actionLoading === 'edit' ? (retryingLock ? 'Finishing…' : 'Editing…') : 'Send'}
                 </button>
                 <button
                   type="button"

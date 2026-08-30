@@ -3,6 +3,88 @@
 
 import { API_ENDPOINTS, getHeaders } from './server'
 
+// ── Story lock retry ─────────────────────────────────────────────────────────
+// The backend serializes writes to a story behind a per-story lock, and the
+// background summariser (which runs after roughly every third turn) holds
+// that lock through its own LLM call. A write that lands while it's running
+// gets refused with 409 { code: 'STORY_BUSY' } rather than being allowed to
+// race the summary — a deliberate backend trade (a visible occasional 409
+// beats silent story corruption). The summariser's call is bounded by
+// SUMMARY_TIMEOUT_MS (25s server-side, see services/storySummarizer.js in the
+// backend) and its lock is heartbeat-renewed only while that call is actually
+// in flight, so 25s is the real worst case for how long a story can stay
+// locked — this is the one status code a well-behaved client should retry on
+// its own rather than surfacing to the reader.
+//
+// Every other status (429 rate limit, 4xx validation, 5xx) is returned
+// untouched on the first try — only STORY_BUSY is ours to paper over.
+const LOCK_RETRY_INITIAL_MS = 1500 // summarisation "usually finishes in a couple of seconds" per a real turn, so the first retry already catches the common case
+const LOCK_RETRY_BACKOFF_FACTOR = 2
+const LOCK_RETRY_MAX_DELAY_MS = 8000 // don't let a single wait balloon past what still feels like "retrying", not "hung"
+const LOCK_RETRY_BUDGET_MS = 30000 // ~25s server-side worst case + a small margin, still short enough that a person watching an honest "finishing…" message will wait it out
+
+/**
+ * Fires while a write call is waiting out a 409 STORY_BUSY, so the UI can say
+ * something honest ("finishing the previous passage…") instead of sitting
+ * silent through the wait.
+ *
+ * Event type is always 'retry'; `detail` is `{ storyId, active, attempt }` —
+ * `active` flips true right before the first wait and false once the retry
+ * loop is done (whether it ultimately succeeded or gave up).
+ */
+export const storyLockEvents = new EventTarget()
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/**
+ * Runs `fetch(url, options)`, retrying with backoff only while the response
+ * is a 409 STORY_BUSY — every other outcome (success, or any other error
+ * status) is returned on the first try. Gives up once the next wait would
+ * push total elapsed time past LOCK_RETRY_BUDGET_MS, returning the last busy
+ * response so the caller's normal error handling takes over.
+ *
+ * Reads the body via a clone to check the busy code, so the caller's own
+ * response.json()/response.text() on the returned Response still works
+ * exactly as if this wrapper weren't here.
+ */
+async function fetchWithLockRetry(url, options, { storyId } = {}) {
+  let elapsed = 0
+  let delay = LOCK_RETRY_INITIAL_MS
+  let attempt = 0
+
+  for (;;) {
+    const response = await fetch(url, options)
+
+    let busy = false
+    if (response.status === 409) {
+      try {
+        const peeked = await response.clone().json()
+        busy = peeked?.code === 'STORY_BUSY'
+      } catch {
+        busy = false
+      }
+    }
+
+    if (!busy) {
+      if (attempt > 0) {
+        storyLockEvents.dispatchEvent(new CustomEvent('retry', { detail: { storyId, active: false, attempt } }))
+      }
+      return response
+    }
+
+    if (elapsed + delay > LOCK_RETRY_BUDGET_MS) {
+      storyLockEvents.dispatchEvent(new CustomEvent('retry', { detail: { storyId, active: false, attempt } }))
+      return response
+    }
+
+    attempt += 1
+    storyLockEvents.dispatchEvent(new CustomEvent('retry', { detail: { storyId, active: true, attempt } }))
+    await sleep(delay)
+    elapsed += delay
+    delay = Math.min(LOCK_RETRY_MAX_DELAY_MS, delay * LOCK_RETRY_BACKOFF_FACTOR)
+  }
+}
+
 /**
  * Suggest 5 protagonist archetypes that fit a setting.
  *
@@ -209,11 +291,11 @@ export const initializeStoryFromScenario = async (scenarioId, model) => {
  */
 export const submitAnswers = async (storyId, answers, model) => {
   try {
-    const response = await fetch(API_ENDPOINTS.STORY.SUBMIT_ANSWERS(storyId), {
+    const response = await fetchWithLockRetry(API_ENDPOINTS.STORY.SUBMIT_ANSWERS(storyId), {
       method: 'POST',
       headers: getHeaders(true),
       body: JSON.stringify({ answers, model })
-    })
+    }, { storyId })
 
     const data = await response.json()
 
@@ -226,7 +308,8 @@ export const submitAnswers = async (storyId, answers, model) => {
     } else {
       return {
         success: false,
-        error: data.message || 'Failed to submit answers'
+        error: data.message || 'Failed to submit answers',
+        code: data.code
       }
     }
   } catch (error) {
@@ -362,10 +445,10 @@ export const updateStory = async (storyId, updateData) => {
  */
 export const deleteStory = async (storyId) => {
   try {
-    const response = await fetch(API_ENDPOINTS.STORY.DELETE(storyId), {
+    const response = await fetchWithLockRetry(API_ENDPOINTS.STORY.DELETE(storyId), {
       method: 'DELETE',
       headers: getHeaders(true)
-    })
+    }, { storyId })
 
     const data = await response.json()
 
@@ -377,7 +460,8 @@ export const deleteStory = async (storyId) => {
     } else {
       return {
         success: false,
-        error: data.message || 'Failed to delete story'
+        error: data.message || 'Failed to delete story',
+        code: data.code
       }
     }
   } catch (error) {
@@ -397,11 +481,11 @@ export const deleteStory = async (storyId) => {
  */
 export const regenerateLastChunk = async (storyId, model = 'google/gemini-3.1-flash-lite') => {
   try {
-    const response = await fetch(API_ENDPOINTS.STORY.REGENERATE(storyId), {
+    const response = await fetchWithLockRetry(API_ENDPOINTS.STORY.REGENERATE(storyId), {
       method: 'POST',
       headers: getHeaders(true),
       body: JSON.stringify({ model })
-    })
+    }, { storyId })
 
     const data = await response.json()
 
@@ -414,7 +498,8 @@ export const regenerateLastChunk = async (storyId, model = 'google/gemini-3.1-fl
     } else {
       return {
         success: false,
-        error: data.message || 'Failed to regenerate story chunk'
+        error: data.message || 'Failed to regenerate story chunk',
+        code: data.code
       }
     }
   } catch (error) {
@@ -440,11 +525,11 @@ export const continueStory = async (storyId, model = 'google/gemini-3.1-flash-li
       body.userAction = userAction.trim()
     }
 
-    const response = await fetch(API_ENDPOINTS.STORY.CONTINUE(storyId), {
+    const response = await fetchWithLockRetry(API_ENDPOINTS.STORY.CONTINUE(storyId), {
       method: 'POST',
       headers: getHeaders(true),
       body: JSON.stringify(body)
-    })
+    }, { storyId })
 
     const data = await response.json()
 
@@ -478,7 +563,8 @@ export const continueStory = async (storyId, model = 'google/gemini-3.1-flash-li
     } else {
       return {
         success: false,
-        error: data.message || 'Failed to continue story'
+        error: data.message || 'Failed to continue story',
+        code: data.code
       }
     }
   } catch (error) {
@@ -500,14 +586,14 @@ export const continueStory = async (storyId, model = 'google/gemini-3.1-flash-li
  */
 export const submitInquiryReply = async (storyId, questionId, answer, model = 'google/gemini-3.1-flash-lite') => {
   try {
-    const response = await fetch(API_ENDPOINTS.STORY.CONTINUE(storyId), {
+    const response = await fetchWithLockRetry(API_ENDPOINTS.STORY.CONTINUE(storyId), {
       method: 'POST',
       headers: getHeaders(true),
       body: JSON.stringify({
         model,
         inquiryReply: { questionId, answer }
       })
-    })
+    }, { storyId })
 
     const data = await response.json()
 
@@ -520,7 +606,8 @@ export const submitInquiryReply = async (storyId, questionId, answer, model = 'g
     } else {
       return {
         success: false,
-        error: data.message || 'Failed to submit answer'
+        error: data.message || 'Failed to submit answer',
+        code: data.code
       }
     }
   } catch (error) {
@@ -546,11 +633,11 @@ export const editLastParagraph = async (storyId, minorEditInstruction, model = '
     console.log('Edit URL:', url)
     console.log('Edit payload:', payload)
 
-    const response = await fetch(url, {
+    const response = await fetchWithLockRetry(url, {
       method: 'PATCH',
       headers: getHeaders(true),
       body: JSON.stringify(payload)
-    })
+    }, { storyId })
 
     console.log('Edit response status:', response.status)
     console.log('Edit response headers:', response.headers)
@@ -570,7 +657,8 @@ export const editLastParagraph = async (storyId, minorEditInstruction, model = '
       }
       return {
         success: false,
-        error: errorData.message || errorData.error || 'Failed to edit story'
+        error: errorData.message || errorData.error || 'Failed to edit story',
+        code: errorData.code
       }
     }
 
@@ -648,11 +736,11 @@ export const editChunk = async (storyId, chunkIndex, newContent) => {
     console.log('Edit Chunk URL:', url)
     console.log('Edit Chunk payload:', { chunkIndex, newContent })
 
-    const response = await fetch(url, {
+    const response = await fetchWithLockRetry(url, {
       method: 'PATCH',
       headers: getHeaders(true),
       body: JSON.stringify({ chunkIndex, newContent })
-    })
+    }, { storyId })
 
     console.log('Edit Chunk response status:', response.status)
 
@@ -670,7 +758,8 @@ export const editChunk = async (storyId, chunkIndex, newContent) => {
       }
       return {
         success: false,
-        error: errorData.message || errorData.error || 'Failed to edit chunk'
+        error: errorData.message || errorData.error || 'Failed to edit chunk',
+        code: errorData.code
       }
     }
 
@@ -768,18 +857,18 @@ export const startChapter = async (storyId, title = '', model = 'google/gemini-3
     const body = { model }
     if (title && title.trim()) body.title = title.trim()
 
-    const response = await fetch(API_ENDPOINTS.STORY.NEW_CHAPTER(storyId), {
+    const response = await fetchWithLockRetry(API_ENDPOINTS.STORY.NEW_CHAPTER(storyId), {
       method: 'POST',
       headers: getHeaders(true),
       body: JSON.stringify(body)
-    })
+    }, { storyId })
 
     const data = await response.json()
 
     if (response.ok) {
       return { success: true, message: data.message, story: data.story }
     }
-    return { success: false, error: data.message || 'Failed to start a new chapter' }
+    return { success: false, error: data.message || 'Failed to start a new chapter', code: data.code }
   } catch (error) {
     console.error('Start Chapter Error:', error)
     return { success: false, error: 'Network error. Please try again.' }
