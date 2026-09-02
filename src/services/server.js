@@ -79,6 +79,9 @@ export const API_ENDPOINTS = {
     // Public catalogue for the pricing page — no auth needed.
     PLANS: `${BASE_URL}/api/billing/plans`,
     LEDGER: `${BASE_URL}/api/billing/ledger`,
+    // Called by the page Stripe returns the browser to. Confirms the payment
+    // directly rather than waiting on a webhook that may be slow or lost.
+    VERIFY: `${BASE_URL}/api/billing/verify`,
     CHECKOUT: `${BASE_URL}/api/billing/checkout`,
     PORTAL: `${BASE_URL}/api/billing/portal`,
     CANCEL: `${BASE_URL}/api/billing/cancel`,

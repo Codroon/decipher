@@ -94,6 +94,32 @@ export const createCheckout = async ({ planKey, interval = 'monthly', topupPack 
 }
 
 /**
+ * Confirm a payment the browser has just returned from.
+ *
+ * Stripe puts a `session_id` in the return URL; hand it to this. Without it the
+ * customer lands on a success page whose balance is still whatever it was
+ * before they paid, because the webhook that credits them may be seconds away
+ * or may never arrive — and "I paid and got nothing" is the worst thing this
+ * product can say to someone.
+ *
+ * Safe to call more than once. It runs the same handlers the webhook does, and
+ * grants are keyed on the invoice, so a repeat is a no-op rather than a second
+ * month of credits. `settled: false` means the payment genuinely has not
+ * completed yet, not that something went wrong.
+ */
+export const verifyCheckout = async (sessionId) => {
+  try {
+    return unwrap(await fetch(API_ENDPOINTS.BILLING.VERIFY, {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify({ sessionId }),
+    }))
+  } catch (error) {
+    return networkError('Verify Checkout', error)
+  }
+}
+
+/**
  * A link to Stripe's hosted billing portal — cards, invoices, cancellation.
  * Hosted rather than hand-rolled so no card detail ever touches this app.
  */
@@ -224,6 +250,7 @@ export default {
   getPlans,
   getLedger,
   createCheckout,
+  verifyCheckout,
   openPortal,
   cancelSubscription,
   resumeSubscription,

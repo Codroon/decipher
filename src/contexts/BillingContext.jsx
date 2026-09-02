@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { useAuth } from './AuthContext'
-import { getBilling } from '../services/billingService'
+import { getBilling, verifyCheckout } from '../services/billingService'
 
 /**
  * The user's credit balance, plan and the published charge table, fetched once
@@ -55,6 +55,47 @@ export const BillingProvider = ({ children }) => {
   }, [user])
 
   useEffect(() => { refresh() }, [refresh])
+
+  /**
+   * Confirm a payment as soon as the browser gets back from Stripe Checkout.
+   *
+   * The pull half of the hybrid. Without it the customer lands on a success
+   * page showing the balance they had *before* paying, because the webhook that
+   * credits them may be seconds behind or may never arrive — and there is no
+   * worse moment for this product to look broken than immediately after taking
+   * someone's money.
+   *
+   * The session id is stripped from the URL afterwards so a refresh, a
+   * bookmark, or a shared link does not replay it. The backend refuses a
+   * session that does not belong to the caller anyway, but a payment id has no
+   * business lingering in browser history.
+   *
+   * Repeats are harmless: grants are keyed on the invoice, so a second call is
+   * a no-op rather than a second month of credits.
+   */
+  useEffect(() => {
+    if (!user) return
+    const params = new URLSearchParams(window.location.search)
+    const sessionId = params.get('session_id')
+    if (!sessionId) return
+
+    let cancelled = false
+    ;(async () => {
+      const result = await verifyCheckout(sessionId)
+      if (cancelled) return
+      if (result.success) await refresh()
+
+      params.delete('session_id')
+      const query = params.toString()
+      window.history.replaceState(
+        {},
+        '',
+        window.location.pathname + (query ? `?${query}` : '') + window.location.hash
+      )
+    })()
+
+    return () => { cancelled = true }
+  }, [user, refresh])
 
   /**
    * Fold a fresh balance into state without a round trip.
