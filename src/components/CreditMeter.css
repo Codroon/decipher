@@ -1,0 +1,191 @@
+/* The header credit meter.
+   Sized to sit beside the avatar without competing with it: the number is the
+   only loud thing, and the monthly bar is a hairline that reads as texture
+   until you look for it. */
+
+.credit-meter {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px 7px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.92);
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 650;
+  line-height: 1;
+  cursor: pointer;
+  overflow: visible;
+  /* The header is a flex row; without this the pill is the thing that gets
+     squeezed when a long story title shares the bar. */
+  flex-shrink: 0;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+.credit-meter:hover {
+  border-color: rgba(155, 92, 255, 0.55);
+  background: rgba(155, 92, 255, 0.12);
+}
+
+.credit-meter:active {
+  transform: translateY(1px);
+}
+
+.credit-meter:focus-visible {
+  outline: 2px solid #b98cff;
+  outline-offset: 2px;
+}
+
+.credit-meter-mark {
+  display: inline-flex;
+  width: 17px;
+  height: 17px;
+  color: #b98cff;
+}
+
+.credit-meter-mark svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Tabular figures so the pill does not resize as the balance ticks down —
+   a header element that changes width on every turn is a distraction. */
+.credit-meter-figure {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Monthly allowance remaining. Sits along the bottom edge of the pill rather
+   than taking its own row, because the header has no vertical room to spare. */
+.credit-meter-bar {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.credit-meter-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #9b5cff, #6f8cff);
+  transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Below one narrated passage. */
+.credit-meter.is-low {
+  border-color: rgba(255, 184, 92, 0.45);
+  color: #ffd9a8;
+}
+
+.credit-meter.is-low .credit-meter-mark { color: #ffb85c; }
+.credit-meter.is-low .credit-meter-bar i { background: linear-gradient(90deg, #ff9f43, #ffb85c); }
+
+/* Below one turn on the most expensive model — the next action will likely
+   be refused, so this reads as a warning rather than as information. */
+.credit-meter.is-empty {
+  border-color: rgba(255, 118, 118, 0.5);
+  color: #ffc7c7;
+}
+
+.credit-meter.is-empty .credit-meter-mark { color: #ff7676; }
+.credit-meter.is-empty .credit-meter-bar i { background: linear-gradient(90deg, #ff5a5a, #ff8f8f); }
+
+/* The change, as it happens. This is the component's whole reason for being in
+   the header: seeing "−50" leave the counter the moment a passage is narrated
+   teaches the cost of a choice far better than a price list read once. */
+.credit-meter-delta {
+  position: absolute;
+  top: 50%;
+  right: -6px;
+  transform: translate(100%, -50%);
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: credit-delta-float 1600ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.credit-meter-delta.is-spend { color: #ff9f9f; }
+.credit-meter-delta.is-gain { color: #7ee0a8; }
+
+@keyframes credit-delta-float {
+  0%   { opacity: 0; transform: translate(100%, -50%) scale(0.9); }
+  16%  { opacity: 1; transform: translate(100%, -50%) scale(1); }
+  70%  { opacity: 1; transform: translate(100%, -150%) scale(1); }
+  100% { opacity: 0; transform: translate(100%, -220%) scale(0.96); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .credit-meter,
+  .credit-meter-bar i {
+    transition: none;
+  }
+
+  /* Still shown, because it carries real information — just held still and
+     faded rather than flown. */
+  .credit-meter-delta {
+    animation: credit-delta-hold 1600ms steps(1, end) forwards;
+  }
+
+  @keyframes credit-delta-hold {
+    0%, 85% { opacity: 1; transform: translate(100%, -50%); }
+    100%    { opacity: 0; transform: translate(100%, -50%); }
+  }
+}
+
+/* Narrow headers: the bar and the figure survive, the pill just tightens. */
+@media (max-width: 560px) {
+  .credit-meter {
+    padding: 6px 10px 6px 8px;
+    font-size: 0.86rem;
+    gap: 6px;
+  }
+
+  .credit-meter-mark {
+    width: 15px;
+    height: 15px;
+  }
+}
+
+/* ── In the sidebar rail ───────────────────────────────────────────────────
+   The rail is a narrow column, not a header row, so the pill goes full-width
+   and squares off to sit with the nav items rather than floating in them. */
+.rail-bottom .credit-meter {
+  width: 100%;
+  justify-content: flex-start;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+}
+
+.rail-bottom .credit-meter .credit-meter-figure {
+  flex: 1;
+}
+
+.rail-bottom .credit-meter .credit-meter-bar {
+  left: 12px;
+  right: 12px;
+  bottom: 5px;
+}
+
+/* Collapsed rail: the number would not fit, so only the mark remains and the
+   full balance stays reachable through the tooltip the button already carries. */
+.sidebar.collapsed .rail-bottom .credit-meter,
+.rail-collapsed .rail-bottom .credit-meter {
+  justify-content: center;
+  padding: 10px 0;
+}
+
+.sidebar.collapsed .rail-bottom .credit-meter .credit-meter-figure,
+.rail-collapsed .rail-bottom .credit-meter .credit-meter-figure {
+  display: none;
+}

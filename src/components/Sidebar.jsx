@@ -1,5 +1,6 @@
 import { useAuth } from '../contexts/AuthContext'
 import './Sidebar.css'
+import CreditMeter from './CreditMeter'
 
 const ICONS = {
   dashboard: (
@@ -120,6 +121,12 @@ function Sidebar({ onNavigate, currentPage, collapsed, onToggleCollapse }) {
       </nav>
 
       <div className="rail-bottom">
+        {/* The balance lives in the rail because the top bar it used to sit in
+            is gone. It has to be somewhere always-visible: a narrated passage
+            costs fifty times a fast turn, and a reader who cannot watch the
+            number move gets surprised by an empty balance mid-chapter. */}
+        <CreditMeter />
+
         <button
           type="button"
           className="sidebar-item rail-logout"

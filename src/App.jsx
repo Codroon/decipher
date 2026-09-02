@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import './App.css'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { BillingProvider } from './contexts/BillingContext'
 import Home from './components/Home'
 import Sidebar from './components/Sidebar'
 import StoryCreator from './components/StoryCreator'
@@ -186,9 +187,15 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <AppContent />
-      </Router>
+      {/* Inside AuthProvider: the balance is per-user, so it can only be
+          fetched once there is a user to fetch it for. Anything calling
+          useBilling() — the sidebar meter, Settings, the story pickers —
+          throws without this. */}
+      <BillingProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </BillingProvider>
     </AuthProvider>
   )
 }
