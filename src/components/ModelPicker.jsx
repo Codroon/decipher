@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { formatCredits } from '../services/billingService'
 import './ModelPicker.css'
 
@@ -55,8 +55,11 @@ const Check = () => (
 function ModelPicker({ models, value, onChange, describeModel, disabled = false }) {
   const [open, setOpen] = useState(false)
   const [activeId, setActiveId] = useState(value)
+  // Where the panel goes and how tall it may be, measured rather than assumed.
+  const [place, setPlace] = useState({ up: false, maxHeight: 384 })
   const rootRef = useRef(null)
   const listRef = useRef(null)
+  const triggerRef = useRef(null)
 
   const decorated = useMemo(
     () => models.map((m) => ({ ...m, ...describeModel(m) })),
@@ -93,6 +96,38 @@ function ModelPicker({ models, value, onChange, describeModel, disabled = false 
     return () => document.removeEventListener('mousedown', onDown)
   }, [open])
 
+  /**
+   * Fit the panel to the space that actually exists.
+   *
+   * The picker lives in a narrow right-hand rail, low on the page, so a fixed
+   * 384px panel anchored below the trigger runs straight off the bottom of the
+   * viewport — the last rows become unreachable without scrolling the page
+   * behind an open dropdown. Measure the gap above and below, open into
+   * whichever is larger, and cap the height to what is there.
+   */
+  useLayoutEffect(() => {
+    if (!open) return
+
+    const fit = () => {
+      const rect = triggerRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const GAP = 8
+      const MARGIN = 16
+      const below = window.innerHeight - rect.bottom - GAP - MARGIN
+      const above = rect.top - GAP - MARGIN
+      const up = below < 260 && above > below
+      setPlace({ up, maxHeight: Math.max(200, Math.min(384, up ? above : below)) })
+    }
+
+    fit()
+    window.addEventListener('resize', fit)
+    window.addEventListener('scroll', fit, true)
+    return () => {
+      window.removeEventListener('resize', fit)
+      window.removeEventListener('scroll', fit, true)
+    }
+  }, [open])
+
   // Land on the current model rather than at the top. Locked models sit above
   // the affordable ones (the list runs most to least expensive), so a free
   // reader would otherwise open the panel onto four rows they cannot pick.
@@ -100,7 +135,10 @@ function ModelPicker({ models, value, onChange, describeModel, disabled = false 
     if (!open) return
     setActiveId(value)
     const row = listRef.current?.querySelector('[data-active="true"]')
-    row?.scrollIntoView({ block: 'nearest' })
+    // 'center' rather than 'nearest' for the initial open: 'nearest' can leave
+    // the selected row flush against a clipped neighbour, which reads as a
+    // rendering fault rather than as a scrolled list.
+    row?.scrollIntoView({ block: 'center' })
   }, [open, value])
 
   const commit = (m) => {
@@ -153,24 +191,39 @@ function ModelPicker({ models, value, onChange, describeModel, disabled = false 
       <button
         type="button"
         className="mp-trigger"
+        ref={triggerRef}
         onClick={() => setOpen((v) => !v)}
         onKeyDown={onKeyDown}
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
       >
+        {/* The model name gets the full width of a narrow rail, with the tier
+            and price on a second line. Sharing one row with a price badge left
+            about 148px for the name, which truncated "Gemini 3.1 Flash Lite"
+            to "Gemini 3.1 Fla…" — the picker's own label unreadable. */}
         <span className="mp-trigger-main">
           <span className="mp-trigger-name">{selected?.label || 'Choose a model'}</span>
-          {selected?.tier && <span className="mp-trigger-tier">{TIER_LABELS[selected.tier]}</span>}
+          <span className="mp-trigger-meta">
+            {selected?.tier && <span className="mp-trigger-tier">{TIER_LABELS[selected.tier]}</span>}
+            {selected?.price != null && (
+              <span className="mp-trigger-price">{formatCredits(selected.price)} cr</span>
+            )}
+          </span>
         </span>
-        {selected?.price != null && (
-          <span className="mp-trigger-price">{formatCredits(selected.price)} cr</span>
-        )}
         <span className="mp-chev"><Chevron /></span>
       </button>
 
       {open && (
-        <div className="mp-panel" role="listbox" aria-label="Writing model" ref={listRef} tabIndex={-1} onKeyDown={onKeyDown}>
+        <div
+          className={`mp-panel ${place.up ? 'is-up' : ''}`}
+          style={{ maxHeight: `${place.maxHeight}px` }}
+          role="listbox"
+          aria-label="Writing model"
+          ref={listRef}
+          tabIndex={-1}
+          onKeyDown={onKeyDown}
+        >
           {groups.map((group) => (
             <div className="mp-group" key={group.tier}>
               <div className="mp-group-head">
