@@ -26,13 +26,6 @@ const TIER_LABELS = {
   budget: 'Budget',
 }
 
-const TIER_NOTES = {
-  flagship: 'Best prose. Save it for the scenes that matter.',
-  workhorse: 'The quality sweet spot.',
-  value: 'Strong writers, low cost.',
-  budget: 'Fastest, cheapest, built for volume.',
-}
-
 const Chevron = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="m6 9 6 6 6-6" />
@@ -230,7 +223,6 @@ function ModelPicker({ models, value, onChange, describeModel, disabled = false 
                 <span className="mp-group-name">{TIER_LABELS[group.tier]}</span>
                 {group.range && <span className="mp-group-range">{group.range}</span>}
               </div>
-              <p className="mp-group-note">{TIER_NOTES[group.tier]}</p>
 
               {group.items.map((m) => {
                 const isSelected = m.id === value
@@ -244,6 +236,13 @@ function ModelPicker({ models, value, onChange, describeModel, disabled = false 
                     aria-selected={isSelected}
                     aria-disabled={m.locked}
                     className={`mp-row ${isSelected ? 'is-selected' : ''} ${isActive ? 'is-active' : ''} ${m.locked ? 'is-locked' : ''}`}
+                    // The catalogue's blurb, kept as a hover hint rather than a
+                    // second line. It helps someone choosing between two
+                    // unfamiliar models, but eleven of them stacked turned the
+                    // panel into a wall.
+                    title={m.locked
+                      ? `${m.label} — ${m.unlock ? `${m.unlock.label} unlocks this model` : 'not on your plan'}`
+                      : m.blurb || m.label}
                     onMouseEnter={() => setActiveId(m.id)}
                     onClick={() => commit(m)}
                   >
@@ -251,20 +250,14 @@ function ModelPicker({ models, value, onChange, describeModel, disabled = false 
                       {m.locked ? <Lock /> : isSelected ? <Check /> : null}
                     </span>
 
-                    <span className="mp-row-body">
-                      <span className="mp-row-top">
-                        <span className="mp-row-name">{m.label || m.id}</span>
-                        {m.isDefault && <span className="mp-row-flag">Default</span>}
-                      </span>
-                      <span className="mp-row-note">
-                        {/* A locked row spends its one line of description on
-                            the way out of the lock, not on prose it cannot
-                            deliver. */}
-                        {m.locked
-                          ? m.unlock ? `${m.unlock.label} unlocks this model` : 'Not on your plan'
-                          : m.blurb}
-                      </span>
-                    </span>
+                    <span className="mp-row-name">{m.label || m.id}</span>
+
+                    {m.isDefault && <span className="mp-row-flag">Default</span>}
+
+                    {/* Locked rows carry the plan that opens them, not a
+                        sentence about it. At one line per model there is no
+                        room for prose, and "Studio" is the whole answer. */}
+                    {m.locked && m.unlock && <span className="mp-row-unlock">{m.unlock.label}</span>}
 
                     {m.price != null && (
                       <span className="mp-row-price">
