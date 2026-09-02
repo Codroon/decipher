@@ -3072,7 +3072,7 @@
 }
 .story-creator .chapter-head h2 { font-family: var(--font-display); font-weight: 700; font-size: 21px; letter-spacing: -0.01em; }
 .story-creator .chapter-head .upd { font-size: 12.5px; color: var(--ink-40); margin-top: 4px; }
-.story-creator .chapter-acts { display: flex; gap: 8px; flex-shrink: 0; }
+.story-creator .chapter-acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
 .story-creator .cact {
   width: 36px; height: 36px; border-radius: 10px; cursor: pointer; display: grid; place-items: center;
   color: var(--ink-55); background: rgba(255,255,255,0.05); border: 1px solid var(--hairline-soft); transition: all .2s;
@@ -3107,6 +3107,27 @@
   color: #fff; background: var(--grad); border-color: transparent;
   animation: ttsPulse 1.8s ease-in-out infinite;
 }
+
+/* Narration price / lock, sat beside the Listen control.
+   Narration is the one action that can cost fifty times a turn, so the
+   figure belongs at the play button rather than in settings (design §7).
+   It is prefixed "~" because the real charge is by character count. */
+.story-creator .cact-narr-price {
+  display: inline-flex; align-items: center; height: 36px; padding: 0 12px;
+  border-radius: 10px; flex-shrink: 0; white-space: nowrap; cursor: help;
+  font-family: var(--font-display); font-weight: 600; font-size: 11.5px; letter-spacing: 0.04em;
+  color: var(--gold); background: rgba(255,201,77,0.1); border: 1px solid rgba(255,201,77,0.24);
+}
+
+.story-creator .cact-narr-lock {
+  display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 13px;
+  border-radius: 10px; cursor: pointer; flex-shrink: 0; white-space: nowrap;
+  font-family: var(--font-display); font-weight: 600; font-size: 11.5px; letter-spacing: 0.04em;
+  color: #C79BFF; background: rgba(119,56,203,0.16); border: 1px solid var(--hairline);
+  transition: all .2s;
+}
+.story-creator .cact-narr-lock:hover { color: #fff; background: rgba(119,56,203,0.32); border-color: transparent; }
+.story-creator .cact-narr-lock svg { width: 14px; height: 14px; }
 
 .story-creator .narration-error {
   margin: 10px 0 0; padding: 9px 13px; border-radius: 9px;
@@ -3581,6 +3602,19 @@
 }
 .story-creator .sc-select select:focus { border-color: var(--grad-a); }
 .story-creator .sc-select select option { background: #160B26; color: #fff; }
+/* Named upgrade path under a locked model. A wall the reader can see is a
+   reason to upgrade; one that only says "no" is a dead end (design §7). */
+.story-creator .sc-lock-note {
+  display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 9px;
+  padding: 9px 12px; border-radius: 10px; cursor: pointer; text-align: left;
+  font-family: var(--font-display); font-weight: 600; font-size: 11.5px; letter-spacing: 0.02em;
+  color: #C79BFF; background: rgba(119,56,203,0.14); border: 1px solid var(--hairline);
+  transition: all .2s;
+}
+.story-creator .sc-lock-note:hover { color: #fff; background: rgba(119,56,203,0.3); }
+.story-creator .sc-lock-note svg { width: 13px; height: 13px; flex-shrink: 0; }
+.story-creator .sc-select select option:disabled { color: var(--ink-40); }
+
 .story-creator .sc-select .ch { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--ink-40); width: 16px; height: 16px; }
 
 /* stats */

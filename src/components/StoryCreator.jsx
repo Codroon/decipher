@@ -1,9 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import './StoryCreator.css'
 import * as storyService from '../services/storyService'
 import * as libraryService from '../services/libraryService'
 import ShareModal from './ShareModal'
+import CreditPrompt from './CreditPrompt'
+import { useBilling } from '../contexts/BillingContext'
+import { formatCredits, getPlans } from '../services/billingService'
+import { describeBillingError } from '../utils/billingErrors'
 import { NarrationSession, scriptRangeToChunk } from '../utils/chapterAudio'
 
 /** Split a story chunk into paragraphs (blank-line separated). */
@@ -166,6 +170,21 @@ const I = {
   ),
 }
 
+/**
+ * The length options, paired with the key the charge table prices them under.
+ *
+ * The two used to be written out separately — the labels here in the picker,
+ * the keys in the backend's `LENGTH_WEIGHTS` — and a turn at "Long" really does
+ * cost more than one at "Short". Keeping the pair together is what lets the
+ * price beside the model move when the length does, instead of quietly pricing
+ * everything as medium.
+ */
+const STORY_LENGTHS = [
+  { key: 'short', label: 'Short (1-2 paragraphs)' },
+  { key: 'medium', label: 'Medium (3-4 paragraphs)' },
+  { key: 'long', label: 'Long (5+ paragraphs)' },
+]
+
 const WORKSPACE_TABS = [
   { id: 'story', label: 'Story', icon: I.pen },
   { id: 'character', label: 'Character', icon: I.user },
@@ -175,6 +194,24 @@ const WORKSPACE_TABS = [
 
 function StoryCreator() {
   const { storyId } = useParams()
+  const navigate = useNavigate()
+  // Prices, entitlements and the balance, shared with every other picker in
+  // the app so the number here and the number charged are one lookup.
+  const {
+    billing,
+    charges,
+    priceOfTurn,
+    canUseModel,
+    narrationAllowed,
+    refresh: refreshBilling,
+  } = useBilling()
+  // The plan catalogue, used only to name the plan that unlocks something. A
+  // lock the reader can see is a reason to upgrade; a lock that just says "no"
+  // is a dead end (design §7).
+  const [planCatalogue, setPlanCatalogue] = useState([])
+  // The failed result of a charged action, when the reason was billing.
+  // CreditPrompt turns it into copy; anything else stays null.
+  const [billingError, setBillingError] = useState(null)
   const [activeTab, setActiveTab] = useState('story')
   const [creativityLevel, setCreativityLevel] = useState(80)
   const [storyLength, setStoryLength] = useState('Medium (3-4 paragraphs)')
@@ -225,11 +262,13 @@ function StoryCreator() {
   // storyLockEvents. Swaps the generic "loading" copy below for something
   // honest instead of leaving the UI silently stuck.
   const [retryingLock, setRetryingLock] = useState(false)
-  // Set only when every retry is exhausted and the story is still busy — the
-  // one failure this component surfaces inline (matching narrationError)
-  // instead of alert(), since it's expected to be transient and the reader
-  // just needs to wait a beat and try again.
-  const [storyBusyError, setStoryBusyError] = useState('')
+  // The failures this component surfaces inline (matching narrationError)
+  // rather than in an alert(), because the reader fixes them by doing
+  // something on this screen: a story still locked after every retry (wait a
+  // beat), and a length the chosen model does not offer (change one of the two
+  // dropdowns in the rail). An alert() would cover the very controls the
+  // message is telling them to use.
+  const [inlineActionError, setInlineActionError] = useState('')
 
   // Inline editing states (for clicking a single paragraph in the story)
   const [editingPara, setEditingPara] = useState(null) // { chunkIndex, paraIndex }
@@ -315,6 +354,99 @@ function StoryCreator() {
     loadModels()
   }, [storyId])
 
+  // The plan catalogue. Only ever read to answer "which plan unlocks this?",
+  // so a failure is silent — a missing plan name degrades a lock to "Locked",
+  // which is still honest, and must never block the story from loading.
+  useEffect(() => {
+    let alive = true
+    getPlans()
+      .then((result) => {
+        if (alive && result.success && Array.isArray(result.plans)) setPlanCatalogue(result.plans)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  // ── Prices and locks ──────────────────────────────────────────────────────
+
+  /** The charge-table key for whatever the length picker is showing. */
+  const lengthKey = useMemo(
+    () => STORY_LENGTHS.find((l) => l.label === storyLength)?.key || 'medium',
+    [storyLength]
+  )
+
+  /** Cheapest purchasable plan matching a predicate, or null. */
+  const cheapestPlan = useCallback(
+    (matches) => {
+      const options = planCatalogue.filter((p) => p.purchasable && matches(p))
+      if (!options.length) return null
+      return options.reduce((a, b) => ((a.priceUsd ?? Infinity) <= (b.priceUsd ?? Infinity) ? a : b))
+    },
+    [planCatalogue]
+  )
+
+  const planUnlockingTier = useCallback(
+    (tier) => cheapestPlan((p) => Array.isArray(p.tiers) && p.tiers.includes(tier)),
+    [cheapestPlan]
+  )
+
+  const planWithNarration = useMemo(
+    () => cheapestPlan((p) => p.narration === true),
+    [cheapestPlan]
+  )
+
+  /**
+   * Narration is locked only once we actually know the plan. `narrationAllowed`
+   * is false while billing is still in flight, and treating that as a lock
+   * would grey out the Listen button on every page load for people who have
+   * paid for it.
+   */
+  const narrationLocked = Boolean(billing) && !narrationAllowed
+  // Per-passage figure for an *average* passage — the real charge is by
+  // character count, so this is labelled as approximate wherever it is shown.
+  const narrationPrice = charges?.narrationPerMeanPassage ?? null
+
+  /** Price, lock state and unlocking plan for one catalogue entry. */
+  const describeModel = useCallback(
+    (m) => {
+      const allowed = m.tier ? canUseModel(m.tier) : null
+      return {
+        price: priceOfTurn(m.id, lengthKey),
+        // `canUseModel` returns null until the plan arrives; only an explicit
+        // false is a lock, so nothing is greyed out on a slow connection.
+        locked: allowed === false,
+        unlock: allowed === false ? planUnlockingTier(m.tier) : null,
+      }
+    },
+    [canUseModel, priceOfTurn, lengthKey, planUnlockingTier]
+  )
+
+  const selectedModel = useMemo(
+    () => availableModels.find((m) => m.id === model) || null,
+    [availableModels, model]
+  )
+  const selectedModelInfo = useMemo(
+    () => (selectedModel ? describeModel(selectedModel) : null),
+    [selectedModel, describeModel]
+  )
+
+  /**
+   * Lengths the selected model refuses, straight from the catalogue.
+   *
+   * The backend answers this combination with 400 LENGTH_UNSUPPORTED, so
+   * showing it as pickable is offering something that cannot be bought. It
+   * stays visible-but-disabled rather than hidden, for the same reason a
+   * locked model does: a wall you can see is an explanation, a missing row is
+   * a mystery. A length already chosen before the model changed survives as a
+   * disabled selection — failStoryAction catches the request that follows.
+   */
+  const unsupportedLengths = useMemo(
+    () => (Array.isArray(selectedModel?.unsupportedLengths) ? selectedModel.unsupportedLengths : []),
+    [selectedModel]
+  )
+
   // Predefined settings
   const settingOptions = [
     { id: 'magic', name: 'Land of Magic', img: '/recent-image-1-52dd4f.png' },
@@ -390,16 +522,29 @@ function StoryCreator() {
   const handleTabChange = (tabId) => setActiveTab(tabId)
 
   /**
-   * Story actions all share the same failure shape — `error`, plus `code`
-   * when the backend attached one. A STORY_BUSY here means storyService's
-   * own retry (see fetchWithLockRetry) already waited out the background
-   * summariser and gave up — that's still just "try again in a moment", so
-   * it gets the same inline treatment as narrationError rather than a modal
-   * the reader has to dismiss. Anything else keeps the existing alert().
+   * Story actions all share the same failure shape — `error`, plus `code` and
+   * `details` when the backend attached them.
+   *
+   * Two codes are answered on the page instead of in a modal. A STORY_BUSY
+   * means storyService's own retry (see fetchWithLockRetry) already waited out
+   * the background summariser and gave up — still just "try again in a
+   * moment". A LENGTH_UNSUPPORTED means the model refused the passage length
+   * (the catalogue's `unsupportedLengths`); the backend's message names both
+   * ways out, and both of them are dropdowns in the rail, so an alert() would
+   * sit on top of the fix. It is deliberately not a CreditPrompt: nothing was
+   * charged and describeBillingError returns null for it, which would render
+   * an empty modal.
    */
   const failStoryAction = (result, fallback) => {
-    if (result.code === 'STORY_BUSY') {
-      setStoryBusyError(result.error || fallback)
+    // A billing refusal is a decision, not an error: it gets the modal that
+    // names the price, the balance and the way forward (design §7), never an
+    // alert() the reader can only acknowledge.
+    if (describeBillingError(result)) {
+      setBillingError(result)
+      return
+    }
+    if (result.code === 'STORY_BUSY' || result.code === 'LENGTH_UNSUPPORTED') {
+      setInlineActionError(result.error || fallback)
     } else {
       alert(result.error || fallback)
     }
@@ -409,9 +554,12 @@ function StoryCreator() {
     if (!generatedStory?._id) return
 
     setActionLoading('regenerate')
-    setStoryBusyError('')
-    const result = await storyService.regenerateLastChunk(generatedStory._id, model)
+    setInlineActionError('')
+    const result = await storyService.regenerateLastChunk(generatedStory._id, model, lengthKey)
     setActionLoading(null)
+    // The turn has settled either way — a charge that stands, or a hold that
+    // was released. Re-read the balance so the number on screen isn't stale.
+    refreshBilling()
 
     if (result.success) {
       setGeneratedStory(result.story)
@@ -425,7 +573,7 @@ function StoryCreator() {
     if (!window.confirm('Undo the last passage? Only the most recent addition to the story will be removed — everything before it stays.')) return
     const lastChunk = generatedStory.MainStory[generatedStory.MainStory.length - 1]
     setActionLoading('editChunk')
-    setStoryBusyError('')
+    setInlineActionError('')
     const result = await storyService.editChunk(generatedStory._id, lastChunk.index, '')
     setActionLoading(null)
     if (result.success) {
@@ -620,6 +768,8 @@ function StoryCreator() {
   const toggleNarration = async (scope, ref) => {
     const el = audioElRef.current
     if (!el) return
+    // Don't spend a round trip discovering a lock the picker already shows.
+    if (narrationLocked) return
 
     // Pause/resume the target that is already loaded rather than regenerating.
     if (isNarrating(scope, ref)) {
@@ -649,6 +799,9 @@ function StoryCreator() {
         if (state === 'ended' || state === 'error') {
           clearHighlight()
           setNarrationTarget(null)
+          // Narration is billed per passage persisted, so what it actually
+          // cost is only known once the session stops.
+          refreshBilling()
         }
       },
       onAlignment: (alignment) => {
@@ -676,9 +829,10 @@ function StoryCreator() {
     if (!generatedStory?._id) return
 
     setActionLoading('continue')
-    setStoryBusyError('')
-    const result = await storyService.continueStory(generatedStory._id, model, userAction)
+    setInlineActionError('')
+    const result = await storyService.continueStory(generatedStory._id, model, userAction, lengthKey)
     setActionLoading(null)
+    refreshBilling()
 
     if (result.success) {
       if (result.interrupted) {
@@ -711,9 +865,10 @@ function StoryCreator() {
     const title = chapterTitleInput
     setChapterModalOpen(false)
     setActionLoading('chapter')
-    setStoryBusyError('')
+    setInlineActionError('')
     const result = await storyService.startChapter(generatedStory._id, title, model)
     setActionLoading(null)
+    refreshBilling()
 
     if (result.success) {
       setGeneratedStory(result.story)
@@ -743,13 +898,14 @@ function StoryCreator() {
     const questionId = clarificationData?.questionId || 'unknown'
 
     setClarificationLoading(true)
-    setStoryBusyError('')
+    setInlineActionError('')
     try {
       const result = await storyService.submitInquiryReply(
         generatedStory._id,
         questionId,
         clarificationAnswer.trim(),
-        model
+        model,
+        lengthKey
       )
 
       console.log('[Clarification] API result:', result)
@@ -767,6 +923,7 @@ function StoryCreator() {
       alert('Network error. Please try again.')
     } finally {
       setClarificationLoading(false)
+      refreshBilling()
     }
   }
 
@@ -777,9 +934,10 @@ function StoryCreator() {
     }
 
     setActionLoading('edit')
-    setStoryBusyError('')
-    const result = await storyService.editLastParagraph(generatedStory._id, aiInstruction.trim(), model)
+    setInlineActionError('')
+    const result = await storyService.editLastParagraph(generatedStory._id, aiInstruction.trim(), model, lengthKey)
     setActionLoading(null)
+    refreshBilling()
 
     if (result.success) {
       setGeneratedStory(result.story)
@@ -808,7 +966,7 @@ function StoryCreator() {
     const newContent = paras.filter(Boolean).join('\n\n')
 
     setActionLoading('editChunk')
-    setStoryBusyError('')
+    setInlineActionError('')
     const result = await storyService.editChunk(generatedStory._id, chunk.index, newContent)
     setActionLoading(null)
 
@@ -911,6 +1069,7 @@ function StoryCreator() {
     const result = await storyService.initializeStoryWithQuestions(finalSetting, character, characterName.trim(), model)
 
     setIsLoading(false)
+    refreshBilling()
 
     if (result.success) {
       setQuestions(result.questions)
@@ -920,7 +1079,8 @@ function StoryCreator() {
       setQuestionWizardActive(true)
       setIsCreating(false)
     } else {
-      setError(result.error)
+      if (describeBillingError(result)) setBillingError(result)
+      else setError(result.error)
     }
   }
 
@@ -950,14 +1110,16 @@ function StoryCreator() {
     setIsWeaving(true)
     setQuestionWizardActive(false)
 
-    const result = await storyService.submitAnswers(wizardStoryId, answers, model)
+    const result = await storyService.submitAnswers(wizardStoryId, answers, model, lengthKey)
 
     setIsWeaving(false)
+    refreshBilling()
 
     if (result.success) {
       setGeneratedStory(result.story)
     } else {
-      setError(result.error || 'Failed to awaken story')
+      if (describeBillingError(result)) setBillingError(result)
+      else setError(result.error || 'Failed to awaken story')
       setQuestionWizardActive(true) // Let them retry
     }
   }
@@ -1107,6 +1269,12 @@ function StoryCreator() {
               />
             </div>
 
+            {/* handleAwakenStory sends the reader back here on any failure that
+                isn't a billing refusal (those get the CreditPrompt below), but
+                until this line there was nowhere for that message to land — the
+                Awaken button simply appeared not to work. */}
+            {error && <p className="error-message">{error}</p>}
+
             {/* Navigation */}
             <div className="question-nav">
               <button
@@ -1147,6 +1315,7 @@ function StoryCreator() {
             </div>
           </div>
         </div>
+        <CreditPrompt error={billingError} onClose={() => setBillingError(null)} onRefreshBilling={refreshBilling} />
       </div>
     )
   }
@@ -1404,6 +1573,7 @@ function StoryCreator() {
             )}
           </div>
         </div>
+        <CreditPrompt error={billingError} onClose={() => setBillingError(null)} onRefreshBilling={refreshBilling} />
       </div>
     )
   }
@@ -1636,6 +1806,31 @@ function StoryCreator() {
                       </div>
                     </div>
                     <div className="chapter-acts">
+                      {/* The price sits next to the play control, not in
+                          settings: narration is the one action that can cost
+                          fifty times a turn, and someone who only learns that
+                          afterwards experiences the plan as small (§7). */}
+                      {narrationLocked ? (
+                        <button
+                          type="button"
+                          className="cact-narr-lock"
+                          onClick={() => navigate('/settings#plan')}
+                        >
+                          {I.speaker}
+                          {planWithNarration
+                            ? `${planWithNarration.label} adds narration`
+                            : 'Narration is a paid feature'}
+                        </button>
+                      ) : (
+                        narrationPrice != null && (
+                          <span
+                            className="cact-narr-price"
+                            title="Narration is charged on the passage's real character count, so the exact figure moves with its length. This is a typical passage."
+                          >
+                            ~{formatCredits(narrationPrice)} cr per passage
+                          </span>
+                        )
+                      )}
                       {(() => {
                         // The chapter button reflects playback only when the
                         // chapter is what's loaded — narrating a single passage
@@ -1646,9 +1841,9 @@ function StoryCreator() {
                           <button
                             type="button"
                             className={`cact-listen ${state === 'playing' ? 'on' : ''}`}
-                            title="Read this chapter aloud"
+                            title={narrationLocked ? 'Narration is not on your plan' : 'Read this chapter aloud'}
                             onClick={() => toggleNarration('chapter', viewingOrder)}
-                            disabled={!visibleChunks.length || (mine && narrationState === 'loading')}
+                            disabled={narrationLocked || !visibleChunks.length || (mine && narrationState === 'loading')}
                           >
                             {state === 'playing' ? I.pause : I.speaker}
                             {state === 'loading'
@@ -1678,9 +1873,9 @@ function StoryCreator() {
                       {narrationError}
                     </div>
                   )}
-                  {storyBusyError && (
+                  {inlineActionError && (
                     <div className="narration-error" role="alert">
-                      {storyBusyError}
+                      {inlineActionError}
                     </div>
                   )}
                   {/* Driven entirely by NarrationSession; never shown directly. */}
@@ -1707,9 +1902,13 @@ function StoryCreator() {
                             type="button"
                             className={`chunk-listen ${chunkState !== 'idle' ? 'on' : ''}`}
                             title={
-                              chunkState === 'playing'
-                                ? 'Pause this passage'
-                                : 'Read just this passage aloud'
+                              narrationLocked
+                                ? 'Narration is not on your plan'
+                                : chunkState === 'playing'
+                                  ? 'Pause this passage'
+                                  : narrationPrice != null
+                                    ? `Read just this passage aloud · about ${formatCredits(narrationPrice)} credits`
+                                    : 'Read just this passage aloud'
                             }
                             aria-label={
                               chunkState === 'playing'
@@ -1717,7 +1916,7 @@ function StoryCreator() {
                                 : 'Read just this passage aloud'
                             }
                             onClick={() => toggleNarration('chunk', chunk.index)}
-                            disabled={chunkPlaying && narrationState === 'loading'}
+                            disabled={narrationLocked || (chunkPlaying && narrationState === 'loading')}
                           >
                             {chunkState === 'loading' ? (
                               <span className="chunk-listen-spin" aria-hidden="true" />
@@ -1999,9 +2198,14 @@ function StoryCreator() {
                 <div className="ctrl-label">Story length</div>
                 <div className="sc-select">
                   <select value={storyLength} onChange={(e) => setStoryLength(e.target.value)}>
-                    <option>Short (1-2 paragraphs)</option>
-                    <option>Medium (3-4 paragraphs)</option>
-                    <option>Long (5+ paragraphs)</option>
+                    {STORY_LENGTHS.map((l) => {
+                      const offered = !unsupportedLengths.includes(l.key)
+                      return (
+                        <option key={l.key} value={l.label} disabled={!offered}>
+                          {l.label + (offered ? '' : ' — not offered by this model')}
+                        </option>
+                      )
+                    })}
                   </select>
                   <span className="ch">{I.chev}</span>
                 </div>
@@ -2019,24 +2223,56 @@ function StoryCreator() {
                 </div>
               </div>
               <div className="ctrl">
-                <div className="ctrl-label">Model</div>
+                <div className="ctrl-label">
+                  Model
+                  {/* The price of the *selected* model at the *selected*
+                      length, repeated out of the option list because a native
+                      select hides everything but the current row. Rendered
+                      only once the charge table has arrived — a "0 credits"
+                      while loading is a lie the reader would act on. */}
+                  {selectedModelInfo?.price != null && (
+                    <span className="v">{formatCredits(selectedModelInfo.price)} cr / passage</span>
+                  )}
+                </div>
                 <div className="sc-select">
                   <select value={model} onChange={(e) => setModel(e.target.value)}>
                     {availableModels.length > 0 ? (
-                      availableModels.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {(m.label || m.id)
-                            + (m.tier ? ` · ${m.tier}` : '')
-                            + (m.priceOut != null ? ` ($${m.priceOut}/1M out)` : '')
-                            + (m.isDefault ? ' — default' : '')}
-                        </option>
-                      ))
+                      availableModels.map((m) => {
+                        const { price, locked, unlock } = describeModel(m)
+                        return (
+                          // Locked models stay in the list and stay
+                          // unselectable: a wall you cannot see is confusing,
+                          // a wall you can see is a reason to upgrade (§7).
+                          <option key={m.id} value={m.id} disabled={locked}>
+                            {(m.label || m.id)
+                              + (price != null ? ` · ${formatCredits(price)} cr` : '')
+                              + (m.tier ? ` · ${m.tier}` : '')
+                              + (m.priceOut != null ? ` ($${m.priceOut}/1M out)` : '')
+                              + (m.isDefault ? ' — default' : '')
+                              + (locked ? (unlock ? ` — locked, ${unlock.label} unlocks it` : ' — locked') : '')}
+                          </option>
+                        )
+                      })
                     ) : (
                       <option value="google/gemini-3.1-flash-lite">Gemini 3.1 Flash Lite (Default)</option>
                     )}
                   </select>
                   <span className="ch">{I.chev}</span>
                 </div>
+                {selectedModelInfo?.locked && (
+                  <button
+                    type="button"
+                    className="sc-lock-note"
+                    onClick={() => navigate('/settings#plan')}
+                  >
+                    {I.spark}
+                    <span>
+                      {selectedModelInfo.unlock
+                        ? `${selectedModelInfo.unlock.label} unlocks this model`
+                        : 'This model is not on your plan'}
+                    </span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -2143,6 +2379,8 @@ function StoryCreator() {
           </div>
         </div>
       )}
+
+      <CreditPrompt error={billingError} onClose={() => setBillingError(null)} onRefreshBilling={refreshBilling} />
     </div>
   )
 }

@@ -3,6 +3,30 @@
 
 import { API_ENDPOINTS, getHeaders } from './server'
 
+// ── Failure shape ────────────────────────────────────────────────────────────
+// A failed call answers `{ success: false, status, error, code, details }`,
+// matching billingService. `code` and `details` are the whole difference
+// between a refusal a reader can act on and a dead end: the backend attaches
+// `{ required, balance, shortfall }` to a 402 and the unlocking plan to a 403,
+// and utils/billingErrors.js renders those numbers straight into the copy
+// ("This costs 18 credits and you have 5"). Forwarding `code` but dropping
+// `details` is worse than forwarding neither — it passes the check that opens
+// the credit modal and then renders `undefined` into the sentence.
+//
+// ── Passage length ───────────────────────────────────────────────────────────
+// Every call below that makes the model write a passage takes an optional
+// `length` ('short' | 'medium' | 'long') and puts it in the request body, where
+// the backend's extractPreferencesFromRequest reads it. It is not decoration:
+// the backend prices a turn by length (short 0.6x, long 1.75x) and falls back
+// to 'medium' for a body that omits it, so a client that keeps the reader's
+// choice to itself quotes one price in the picker and is charged another.
+// Optional and last in the signature so a call site that has not been converted
+// keeps behaving exactly as it did.
+//
+// A model may refuse a length outright — the catalogue's `unsupportedLengths`
+// — which comes back as 400 `LENGTH_UNSUPPORTED` and is not a billing refusal,
+// so it needs its own handling at the call site.
+
 // ── Story lock retry ─────────────────────────────────────────────────────────
 // The backend serializes writes to a story behind a per-story lock, and the
 // background summariser (which runs after roughly every third turn) holds
@@ -115,7 +139,10 @@ export const suggestCharacters = async (setting) => {
     }
     return {
       success: false,
-      error: data.message || 'Failed to suggest characters'
+      status: response.status,
+      error: data.message || 'Failed to suggest characters',
+      code: data.code || null,
+      details: data.details || null
     }
   } catch (error) {
     console.error('Suggest Characters Error:', error)
@@ -131,9 +158,10 @@ export const suggestCharacters = async (setting) => {
  * @param {string} setting - The story setting/world
  * @param {string} character - The character type/role
  * @param {string} characterName - The character's name
+ * @param {'short'|'medium'|'long'} [length] - Passage length the reader picked
  * @returns {Promise<Object>} Story creation result
  */
-export const createStory = async (setting, character, characterName) => {
+export const createStory = async (setting, character, characterName, length = 'medium') => {
   try {
     const response = await fetch(API_ENDPOINTS.STORY.CREATE, {
       method: 'POST',
@@ -141,7 +169,8 @@ export const createStory = async (setting, character, characterName) => {
       body: JSON.stringify({
         setting,
         character,
-        characterName
+        characterName,
+        length
       })
     })
 
@@ -156,7 +185,10 @@ export const createStory = async (setting, character, characterName) => {
     } else {
       return {
         success: false,
-        error: data.message || 'Failed to create story'
+        status: response.status,
+        error: data.message || 'Failed to create story',
+        code: data.code || null,
+        details: data.details || null
       }
     }
   } catch (error) {
@@ -171,15 +203,17 @@ export const createStory = async (setting, character, characterName) => {
 /**
  * Create a new story from a scenario
  * @param {string} scenarioId - The scenario ID
+ * @param {'short'|'medium'|'long'} [length] - Passage length the reader picked
  * @returns {Promise<Object>} Story creation result
  */
-export const createStoryFromScenario = async (scenarioId) => {
+export const createStoryFromScenario = async (scenarioId, length = 'medium') => {
   try {
     const response = await fetch(API_ENDPOINTS.STORY.CREATE, {
       method: 'POST',
       headers: getHeaders(true), // Include auth token
       body: JSON.stringify({
-        scenarioId
+        scenarioId,
+        length
       })
     })
 
@@ -194,7 +228,10 @@ export const createStoryFromScenario = async (scenarioId) => {
     } else {
       return {
         success: false,
-        error: data.message || 'Failed to create story from scenario'
+        status: response.status,
+        error: data.message || 'Failed to create story from scenario',
+        code: data.code || null,
+        details: data.details || null
       }
     }
   } catch (error) {
@@ -233,7 +270,10 @@ export const initializeStoryWithQuestions = async (setting, character, character
     } else {
       return {
         success: false,
-        error: data.message || 'Failed to initialize story'
+        status: response.status,
+        error: data.message || 'Failed to initialize story',
+        code: data.code || null,
+        details: data.details || null
       }
     }
   } catch (error) {
@@ -270,7 +310,10 @@ export const initializeStoryFromScenario = async (scenarioId, model) => {
     } else {
       return {
         success: false,
-        error: data.message || 'Failed to initialize story from scenario'
+        status: response.status,
+        error: data.message || 'Failed to initialize story from scenario',
+        code: data.code || null,
+        details: data.details || null
       }
     }
   } catch (error) {
@@ -287,14 +330,15 @@ export const initializeStoryFromScenario = async (scenarioId, model) => {
  * @param {string} storyId - The story ID
  * @param {string[]} answers - Array of 5 answer strings
  * @param {string} model - The LLM model to use
+ * @param {'short'|'medium'|'long'} [length] - Passage length the reader picked
  * @returns {Promise<Object>} Updated story
  */
-export const submitAnswers = async (storyId, answers, model) => {
+export const submitAnswers = async (storyId, answers, model, length = 'medium') => {
   try {
     const response = await fetchWithLockRetry(API_ENDPOINTS.STORY.SUBMIT_ANSWERS(storyId), {
       method: 'POST',
       headers: getHeaders(true),
-      body: JSON.stringify({ answers, model })
+      body: JSON.stringify({ answers, model, length })
     }, { storyId })
 
     const data = await response.json()
@@ -308,8 +352,10 @@ export const submitAnswers = async (storyId, answers, model) => {
     } else {
       return {
         success: false,
+        status: response.status,
         error: data.message || 'Failed to submit answers',
-        code: data.code
+        code: data.code || null,
+        details: data.details || null
       }
     }
   } catch (error) {
@@ -349,7 +395,10 @@ export const getAllStories = async () => {
     } else {
       return {
         success: false,
-        error: data.message || 'Failed to fetch stories'
+        status: response.status,
+        error: data.message || 'Failed to fetch stories',
+        code: data.code || null,
+        details: data.details || null
       }
     }
   } catch (error) {
@@ -389,7 +438,10 @@ export const getStoryById = async (storyId) => {
     } else {
       return {
         success: false,
-        error: data.message || 'Failed to fetch story'
+        status: response.status,
+        error: data.message || 'Failed to fetch story',
+        code: data.code || null,
+        details: data.details || null
       }
     }
   } catch (error) {
@@ -426,7 +478,10 @@ export const updateStory = async (storyId, updateData) => {
     } else {
       return {
         success: false,
-        error: data.message || 'Failed to update story'
+        status: response.status,
+        error: data.message || 'Failed to update story',
+        code: data.code || null,
+        details: data.details || null
       }
     }
   } catch (error) {
@@ -460,8 +515,10 @@ export const deleteStory = async (storyId) => {
     } else {
       return {
         success: false,
+        status: response.status,
         error: data.message || 'Failed to delete story',
-        code: data.code
+        code: data.code || null,
+        details: data.details || null
       }
     }
   } catch (error) {
@@ -477,14 +534,15 @@ export const deleteStory = async (storyId) => {
  * Regenerate last chunk of story
  * @param {string} storyId - The story ID
  * @param {string} model - The model to use (e.g., 'qwen3:8b')
+ * @param {'short'|'medium'|'long'} [length] - Passage length the reader picked
  * @returns {Promise<Object>} Regeneration result
  */
-export const regenerateLastChunk = async (storyId, model = 'google/gemini-3.1-flash-lite') => {
+export const regenerateLastChunk = async (storyId, model = 'google/gemini-3.1-flash-lite', length = 'medium') => {
   try {
     const response = await fetchWithLockRetry(API_ENDPOINTS.STORY.REGENERATE(storyId), {
       method: 'POST',
       headers: getHeaders(true),
-      body: JSON.stringify({ model })
+      body: JSON.stringify({ model, length })
     }, { storyId })
 
     const data = await response.json()
@@ -498,8 +556,10 @@ export const regenerateLastChunk = async (storyId, model = 'google/gemini-3.1-fl
     } else {
       return {
         success: false,
+        status: response.status,
         error: data.message || 'Failed to regenerate story chunk',
-        code: data.code
+        code: data.code || null,
+        details: data.details || null
       }
     }
   } catch (error) {
@@ -516,11 +576,12 @@ export const regenerateLastChunk = async (storyId, model = 'google/gemini-3.1-fl
  * @param {string} storyId - The story ID
  * @param {string} model - The model to use (e.g., 'qwen3:8b')
  * @param {string} userAction - Optional player action text
+ * @param {'short'|'medium'|'long'} [length] - Passage length the reader picked
  * @returns {Promise<Object>} Continue result
  */
-export const continueStory = async (storyId, model = 'google/gemini-3.1-flash-lite', userAction = '') => {
+export const continueStory = async (storyId, model = 'google/gemini-3.1-flash-lite', userAction = '', length = 'medium') => {
   try {
-    const body = { model }
+    const body = { model, length }
     if (userAction && userAction.trim()) {
       body.userAction = userAction.trim()
     }
@@ -563,8 +624,10 @@ export const continueStory = async (storyId, model = 'google/gemini-3.1-flash-li
     } else {
       return {
         success: false,
+        status: response.status,
         error: data.message || 'Failed to continue story',
-        code: data.code
+        code: data.code || null,
+        details: data.details || null
       }
     }
   } catch (error) {
@@ -582,15 +645,17 @@ export const continueStory = async (storyId, model = 'google/gemini-3.1-flash-li
  * @param {string} questionId - The Mongoose _id of the characterQuestion
  * @param {string} answer - The player's answer text
  * @param {string} model - The model to use
+ * @param {'short'|'medium'|'long'} [length] - Passage length the reader picked
  * @returns {Promise<Object>} Continue result with the new story chunk
  */
-export const submitInquiryReply = async (storyId, questionId, answer, model = 'google/gemini-3.1-flash-lite') => {
+export const submitInquiryReply = async (storyId, questionId, answer, model = 'google/gemini-3.1-flash-lite', length = 'medium') => {
   try {
     const response = await fetchWithLockRetry(API_ENDPOINTS.STORY.CONTINUE(storyId), {
       method: 'POST',
       headers: getHeaders(true),
       body: JSON.stringify({
         model,
+        length,
         inquiryReply: { questionId, answer }
       })
     }, { storyId })
@@ -606,8 +671,10 @@ export const submitInquiryReply = async (storyId, questionId, answer, model = 'g
     } else {
       return {
         success: false,
+        status: response.status,
         error: data.message || 'Failed to submit answer',
-        code: data.code
+        code: data.code || null,
+        details: data.details || null
       }
     }
   } catch (error) {
@@ -624,12 +691,13 @@ export const submitInquiryReply = async (storyId, questionId, answer, model = 'g
  * @param {string} storyId - The story ID
  * @param {string} minorEditInstruction - Instruction for editing
  * @param {string} model - The model to use (e.g., 'qwen3:8b')
+ * @param {'short'|'medium'|'long'} [length] - Passage length the reader picked
  * @returns {Promise<Object>} Edit result
  */
-export const editLastParagraph = async (storyId, minorEditInstruction, model = 'google/gemini-3.1-flash-lite') => {
+export const editLastParagraph = async (storyId, minorEditInstruction, model = 'google/gemini-3.1-flash-lite', length = 'medium') => {
   try {
     const url = API_ENDPOINTS.STORY.EDIT(storyId)
-    const payload = { minorEditInstruction, model }
+    const payload = { minorEditInstruction, model, length }
     console.log('Edit URL:', url)
     console.log('Edit payload:', payload)
 
@@ -652,13 +720,16 @@ export const editLastParagraph = async (storyId, minorEditInstruction, model = '
       } catch {
         return {
           success: false,
+          status: response.status,
           error: `Server error:  `
         }
       }
       return {
         success: false,
+        status: response.status,
         error: errorData.message || errorData.error || 'Failed to edit story',
-        code: errorData.code
+        code: errorData.code || null,
+        details: errorData.details || null
       }
     }
 
@@ -753,13 +824,16 @@ export const editChunk = async (storyId, chunkIndex, newContent) => {
       } catch {
         return {
           success: false,
+          status: response.status,
           error: `Server error:  `
         }
       }
       return {
         success: false,
+        status: response.status,
         error: errorData.message || errorData.error || 'Failed to edit chunk',
-        code: errorData.code
+        code: errorData.code || null,
+        details: errorData.details || null
       }
     }
 
@@ -838,7 +912,13 @@ export const setStoryVisibility = async (storyId, visibility, contentRating) => 
     if (response.ok) {
       return { success: true, message: data.message, story: data.story }
     }
-    return { success: false, error: data.message || 'Failed to update visibility' }
+    return {
+      success: false,
+      status: response.status,
+      error: data.message || 'Failed to update visibility',
+      code: data.code || null,
+      details: data.details || null
+    }
   } catch (error) {
     console.error('Set Story Visibility Error:', error)
     return { success: false, error: 'Network error. Please try again.' }
@@ -868,7 +948,13 @@ export const startChapter = async (storyId, title = '', model = 'google/gemini-3
     if (response.ok) {
       return { success: true, message: data.message, story: data.story }
     }
-    return { success: false, error: data.message || 'Failed to start a new chapter', code: data.code }
+    return {
+      success: false,
+      status: response.status,
+      error: data.message || 'Failed to start a new chapter',
+      code: data.code || null,
+      details: data.details || null
+    }
   } catch (error) {
     console.error('Start Chapter Error:', error)
     return { success: false, error: 'Network error. Please try again.' }
@@ -896,7 +982,10 @@ export const getModels = async () => {
     } else {
       return {
         success: false,
-        error: data.message || 'Failed to fetch models'
+        status: response.status,
+        error: data.message || 'Failed to fetch models',
+        code: data.code || null,
+        details: data.details || null
       }
     }
   } catch (error) {
