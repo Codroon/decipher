@@ -69,6 +69,29 @@ export const API_ENDPOINTS = {
     BASE: `${BASE_URL}/api/folders`,
     GET_ALL: `${BASE_URL}/api/folders`,
     BY_ID: (id) => `${BASE_URL}/api/folders/${id}`,
+  },
+  // Credits, plans and subscription management
+  BILLING: {
+    BASE: `${BASE_URL}/api/billing`,
+    // Balance, plan, entitlements and the full charge table in one call, so a
+    // picker can price every option it renders without a second round trip.
+    ME: `${BASE_URL}/api/billing/me`,
+    // Public catalogue for the pricing page — no auth needed.
+    PLANS: `${BASE_URL}/api/billing/plans`,
+    LEDGER: `${BASE_URL}/api/billing/ledger`,
+    CHECKOUT: `${BASE_URL}/api/billing/checkout`,
+    PORTAL: `${BASE_URL}/api/billing/portal`,
+    CANCEL: `${BASE_URL}/api/billing/cancel`,
+    RESUME: `${BASE_URL}/api/billing/resume`,
+    CHANGE_PLAN: `${BASE_URL}/api/billing/change-plan`,
+  },
+  // Invite codes. Redemption lives here and NOT under /api/billing: this route
+  // carries a per-user rate limiter sized for a guessing surface worth 300
+  // credits and permanent flagship access.
+  INVITES: {
+    BASE: `${BASE_URL}/api/invites`,
+    REDEEM: `${BASE_URL}/api/invites/redeem`,
+    BY_CODE: (code) => `${BASE_URL}/api/invites/${code}`,
   }
 }
 
