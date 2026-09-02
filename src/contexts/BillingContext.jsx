@@ -98,6 +98,34 @@ export const BillingProvider = ({ children }) => {
   }, [user, refresh])
 
   /**
+   * Keep the balance honest while the tab is open.
+   *
+   * Spending inside this tab already refreshes on its own, so this covers what
+   * that cannot see: a turn taken in a second tab, a renewal landing, a top-up
+   * bought on a phone. Without it the header can sit on a stale number for as
+   * long as someone leaves the page open, which is worst precisely when it
+   * matters — a reader who thinks they have credits and does not.
+   *
+   * Only while the document is visible, and only every 60s. A background tab
+   * polling a balance nobody is reading is pure server load, and the balance
+   * is re-fetched on focus anyway, so a hidden tab has nothing to miss.
+   */
+  useEffect(() => {
+    if (!user) return
+
+    const onFocus = () => { if (document.visibilityState === 'visible') refresh() }
+    const timer = setInterval(onFocus, 60_000)
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onFocus)
+
+    return () => {
+      clearInterval(timer)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onFocus)
+    }
+  }, [user, refresh])
+
+  /**
    * Fold a fresh balance into state without a round trip.
    *
    * Every charged endpoint could return the new balance, but the actions that

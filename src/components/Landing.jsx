@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { getPlans, formatCredits } from '../services/billingService'
 import { useNavigate } from 'react-router-dom'
 import './Landing.css'
 
@@ -384,6 +385,168 @@ function Worlds() {
   )
 }
 
+// ── Pricing ──────────────────────────────────────────────────────────────────
+//
+// The honest thing about a shared credit pool is also the confusing thing: the
+// same 1,000 credits is a thousand quick turns, or nineteen narrated ones. A
+// three-card checklist hides that, and a reader who discovers it after paying
+// feels misled — so the spend mix is the control here, and every number moves
+// with it. It is the one claim this section is built to make.
+//
+// Per-turn figures reproduce PRICING-PROPOSAL.md §4 within rounding: a fast
+// turn is 1 credit, a narrated passage adds ~50.
+const SPEND_MODES = [
+  { key: 'read', label: 'Reading', perTurn: 1, blurb: 'a turn on a fast model, nothing read aloud' },
+  { key: 'mixed', label: 'Some narration', perTurn: 13.5, blurb: 'one passage in four read aloud' },
+  { key: 'audio', label: 'Audio-first', perTurn: 51, blurb: 'every passage read aloud' },
+]
+
+// Plain names for the model classes the API returns as tier keys.
+const TIER_LABELS = {
+  budget: 'Fast models',
+  value: 'Everyday models',
+  workhorse: 'Premium models',
+  flagship: 'Flagship — Claude Fable 5, GPT-5.5',
+}
+
+// Shown only if the plans API cannot be reached. Mirrors services/billing/plans.js;
+// a guard test in the backend fails if the two drift, because wrong prices on a
+// pricing page are worse than no prices at all.
+const PLAN_FALLBACK = [
+  { key: 'free', label: 'Free', priceUsd: 0, monthlyCredits: 0, signupGrant: 200, tiers: ['budget'], narration: false, images: false, purchasable: false },
+  { key: 'casual', label: 'Casual', priceUsd: 10, annualUsd: 100, monthlyCredits: 1000, signupGrant: 0, tiers: ['budget', 'value'], narration: true, images: true, purchasable: true },
+  { key: 'author', label: 'Author', priceUsd: 16, annualUsd: 160, monthlyCredits: 1750, signupGrant: 0, tiers: ['budget', 'value', 'workhorse'], narration: true, images: true, purchasable: true },
+  { key: 'studio', label: 'Studio', priceUsd: 25, annualUsd: 250, monthlyCredits: 2750, signupGrant: 0, tiers: ['budget', 'value', 'workhorse', 'flagship'], narration: true, images: true, purchasable: true },
+]
+
+function Pricing({ onSignup }) {
+  const [plans, setPlans] = useState(PLAN_FALLBACK)
+  const [mode, setMode] = useState(SPEND_MODES[0])
+
+  // Prices come from the same table the biller charges from, so what a visitor
+  // is quoted and what they are charged cannot disagree.
+  useEffect(() => {
+    let cancelled = false
+    getPlans().then((result) => {
+      if (cancelled || !result.success || !Array.isArray(result.plans)) return
+      setPlans(result.plans)
+    })
+    return () => { cancelled = true }
+  }, [])
+
+  const ordered = ['free', 'casual', 'author', 'studio']
+    .map((key) => plans.find((p) => p.key === key))
+    .filter(Boolean)
+
+  return (
+    <section id="pricing" className="hp-section pricing-section">
+      <div className="hp-wrap">
+        <div className="section-copy centered reveal">
+          <span className="hp-eyebrow">{Icons.spark} Pricing</span>
+          <h2>One pool. Spend it your way.</h2>
+          <p>
+            A quick turn costs one credit. The strongest model costs eighteen. A
+            narrated passage costs fifty. You decide where it goes — and credits
+            you buy outright never expire.
+          </p>
+        </div>
+
+        <div className="spend-picker reveal" style={{ transitionDelay: '80ms' }}>
+          <span className="spend-picker-label" id="spend-picker-label">How do you play?</span>
+          <div className="spend-modes" role="group" aria-labelledby="spend-picker-label">
+            {SPEND_MODES.map((m) => (
+              <button
+                key={m.key}
+                type="button"
+                className={`spend-mode ${m.key === mode.key ? 'is-active' : ''}`}
+                aria-pressed={m.key === mode.key}
+                onClick={() => setMode(m)}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+          <p className="spend-mode-blurb">{mode.blurb}</p>
+        </div>
+
+        <div className="plan-grid">
+          {ordered.map((plan, index) => {
+            const credits = plan.monthlyCredits || plan.signupGrant || 0
+            // Narration is not on every plan, so the audio rows cannot be
+            // answered with a number — saying so is the upgrade path.
+            const narrationNeeded = mode.key !== 'read'
+            const unavailable = narrationNeeded && !plan.narration
+            const turns = unavailable ? null : Math.floor(credits / mode.perTurn)
+            const recurring = plan.monthlyCredits > 0
+
+            return (
+              <article
+                key={plan.key}
+                className={`plan-card reveal ${plan.key === 'author' ? 'is-featured' : ''}`}
+                style={{ transitionDelay: `${120 + index * 70}ms` }}
+              >
+                {plan.key === 'author' && <span className="plan-flag">Most chosen</span>}
+
+                <header className="plan-head">
+                  <h3>{plan.label}</h3>
+                  <p className="plan-price">
+                    {plan.priceUsd > 0 ? (
+                      <>
+                        <span className="plan-price-figure">${plan.priceUsd}</span>
+                        <span className="plan-price-unit">/month</span>
+                      </>
+                    ) : (
+                      <span className="plan-price-figure">Free</span>
+                    )}
+                  </p>
+                  <p className="plan-credits">
+                    {formatCredits(credits)} credits {recurring ? 'a month' : 'to start'}
+                  </p>
+                </header>
+
+                <div className="plan-yield" aria-live="polite">
+                  {unavailable ? (
+                    <>
+                      <span className="plan-yield-none">Narration is on paid plans</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="plan-yield-figure">{formatCredits(turns)}</span>
+                      <span className="plan-yield-unit">
+                        {recurring ? 'passages a month' : 'passages to start'}
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                <ul className="plan-includes">
+                  <li>{TIER_LABELS[plan.tiers[plan.tiers.length - 1]] || 'Fast models'}</li>
+                  <li>{plan.narration ? 'Narration in every voice' : 'No narration'}</li>
+                  <li>{plan.images ? 'Every image engine' : 'No image generation'}</li>
+                  {plan.annualUsd ? <li>${plan.annualUsd} a year — two months free</li> : null}
+                </ul>
+
+                <button
+                  type="button"
+                  className={`hp-btn ${plan.key === 'author' ? 'hp-btn-primary' : 'hp-btn-secondary'}`}
+                  onClick={onSignup}
+                >
+                  {plan.purchasable ? `Choose ${plan.label}` : 'Start free'}
+                </button>
+              </article>
+            )
+          })}
+        </div>
+
+        <p className="plan-footnote reveal">
+          No card to start. Credits you buy outright never expire, and monthly
+          credits roll over for a month.
+        </p>
+      </div>
+    </section>
+  )
+}
+
 function FinalCTA({ onSignup }) {
   return (
     <section className="final-cta-section">
@@ -448,6 +611,7 @@ function Landing() {
         <Showcase />
         <FeatureMosaic />
         <Worlds />
+        <Pricing onSignup={goSignup} />
         <FinalCTA onSignup={goSignup} />
       </main>
       <Footer onBrand={goTop} />

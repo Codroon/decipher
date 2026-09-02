@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { BillingProvider } from './contexts/BillingContext'
 import Home from './components/Home'
 import Sidebar from './components/Sidebar'
+import CreditMeter from './components/CreditMeter'
 import StoryCreator from './components/StoryCreator'
 import ScenarioCreator from './components/ScenarioCreator'
 import ImageStudio from './components/ImageStudio'
@@ -230,6 +231,12 @@ function AppContent() {
             </div>
           )}
           
+          {/* Credit balance, beside the avatar. In the header rather than in
+              settings because a narrated passage costs fifty times a fast turn
+              — someone who cannot see the number moving gets surprised by an
+              empty balance mid-chapter. */}
+          {isAuthenticated && <CreditMeter />}
+
           {/* Show user profile when logged in */}
           {isAuthenticated && (
             <div className="user-profile">
