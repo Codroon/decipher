@@ -1,4 +1,18 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useBilling } from '../contexts/BillingContext'
+import {
+  getPlans,
+  getLedger,
+  createCheckout,
+  openPortal,
+  cancelSubscription,
+  resumeSubscription,
+  changePlan,
+  redeemInvite,
+  formatCredits,
+  describeLedgerEntry,
+} from '../services/billingService'
+import { describeBillingError } from '../utils/billingErrors'
 import './Settings.css'
 
 const AVATAR = '/author-avatar-7942f7.png'
@@ -201,6 +215,57 @@ function SecHead({ icon, title, desc }) {
   )
 }
 
+// ── Billing helpers ───────────────────────────────────────────────────────
+// Nothing here invents a number. Prices, allowances, plan names and tier names
+// all arrive from GET /api/billing/plans and GET /api/billing/me; these only
+// decide how to say them.
+
+const fmtDate = (value) => {
+  if (!value) return null
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+const fmtShortDate = (value) => {
+  if (!value) return null
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+/** `$10` / `$10.50` — never a trailing `.00`. */
+const fmtUsd = (n) => {
+  const v = Number(n || 0)
+  return `$${Number.isInteger(v) ? v : v.toFixed(2)}`
+}
+
+/** Model classes come back as raw keys (`workhorse`); title-case for display. */
+const tierLabel = (t) => String(t || '').replace(/^./, (c) => c.toUpperCase())
+
+/** A refund has to read as a refund, not as a second charge with a plus sign. */
+const isRefund = (e) => e.kind === 'release' || e.kind === 'reap' || e.action === 'billing.refund'
+
+/** Whatever context the backend happened to attach to the row, if anything. */
+const ledgerHint = (e) => {
+  const m = e.meta || {}
+  return m.storyTitle || m.title || m.model || m.pack || m.planKey || null
+}
+
+function BillingNote({ tone = 'info', icon, title, body, detail, children }) {
+  return (
+    <div className={`set-note ${tone}`}>
+      {icon && <span className="ni">{icon}</span>}
+      <div className="nb">
+        <div className="nt">{title}</div>
+        {body && <div className="nd">{body}</div>}
+        {detail && <div className="nd">{detail}</div>}
+      </div>
+      {children && <div className="na">{children}</div>}
+    </div>
+  )
+}
+
 function Settings() {
   const [s, setS] = useState(loadSettings)
   const [active, setActive] = useState('account')
@@ -299,6 +364,183 @@ function Settings() {
 
   const fontStack = (FONTS.find((f) => f.id === s.font) || FONTS[0]).stack
 
+  // ── Billing ─────────────────────────────────────────────────────────────
+  const {
+    billing,
+    balance,
+    monthlyCredits,
+    purchasedCredits,
+    resetsAt,
+    plan,
+    subscription,
+    frozen,
+    isLoading: billingLoading,
+    error: billingError,
+    refresh: refreshBilling,
+  } = useBilling()
+
+  const [catalogue, setCatalogue] = useState(null)
+  const [catalogueError, setCatalogueError] = useState(null)
+  // Not named `interval` / `setInterval`: that would shadow the global timer.
+  const [cycle, setCycle] = useState('monthly')
+  const [ledger, setLedger] = useState([])
+  const [ledgerCursor, setLedgerCursor] = useState(null)
+  const [ledgerBusy, setLedgerBusy] = useState(false)
+  const [ledgerError, setLedgerError] = useState(null)
+  const [ledgerLoaded, setLedgerLoaded] = useState(false)
+  const [busy, setBusy] = useState(null)
+  const [billingNote, setBillingNote] = useState(null)
+  const [inviteCode, setInviteCode] = useState('')
+  const [inviteNote, setInviteNote] = useState(null)
+  const pickerRef = useRef(null)
+
+  useEffect(() => {
+    let alive = true
+    getPlans().then((r) => {
+      if (!alive) return
+      if (r.success) setCatalogue({ plans: r.plans || [], topups: r.topups || [] })
+      else setCatalogueError(r.error)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const loadLedger = useCallback(async (before = null) => {
+    setLedgerBusy(true)
+    setLedgerError(null)
+    const r = await getLedger({ limit: 20, before })
+    setLedgerBusy(false)
+    // Marked as attempted either way. If a failure left this false the effect
+    // below would see "not loaded, not busy" and retry in a tight loop.
+    setLedgerLoaded(true)
+    if (!r.success) {
+      setLedgerError(r.error)
+      return
+    }
+    const rows = r.entries || []
+    setLedger((prev) => (before ? [...prev, ...rows] : rows))
+    setLedgerCursor(r.nextBefore || null)
+  }, [])
+
+  // Only once there is an account to have a history — an unauthenticated fetch
+  // would just paint a 401 into the history card.
+  useEffect(() => {
+    if (billing && !ledgerLoaded && !ledgerBusy) loadLedger(null)
+  }, [billing, ledgerLoaded, ledgerBusy, loadLedger])
+
+  /**
+   * Run a billing call, and turn a refusal into copy rather than a dead end.
+   * `describeBillingError` owns the wording for the codes it knows so every
+   * surface says the same thing; anything else falls back to the message the
+   * backend sent.
+   */
+  const runBilling = async (key, fn, onDone) => {
+    setBusy(key)
+    setBillingNote(null)
+    const r = await fn()
+    setBusy(null)
+    if (!r.success) {
+      const refusal = describeBillingError(r)
+      setBillingNote(
+        refusal
+          ? { tone: 'warn', title: refusal.title, body: refusal.body, detail: refusal.detail }
+          : { tone: 'warn', title: "That didn't go through", body: r.error, detail: null }
+      )
+      return null
+    }
+    if (onDone) onDone(r)
+    return r
+  }
+
+  /** Stripe owns checkout and the portal; we only hand the browser the link. */
+  const leaveFor = (r) => {
+    if (r.url) {
+      window.location.assign(r.url)
+      return
+    }
+    setBillingNote({
+      tone: 'warn',
+      title: 'Stripe did not return a link',
+      body: 'Nothing has been charged. Try again in a moment.',
+      detail: null,
+    })
+  }
+
+  const goPortal = (key) => runBilling(key, openPortal, leaveFor)
+
+  const purchasablePlans = (catalogue?.plans || []).filter((p) => p.purchasable)
+  const topupPacks = catalogue?.topups || []
+  const currentPlanKey = plan?.planKey || null
+  const catalogueEntry = purchasablePlans.find((p) => p.key === currentPlanKey) || null
+  // /api/billing/me carries the plan's own monthly grant, so the progress bar
+  // has a denominator without a second request. The catalogue is the fallback
+  // only — reading it first would suppress the bar whenever that call fails,
+  // which is a blank meter for a reason the user cannot see.
+  const allowance = plan?.monthlyCredits ?? catalogueEntry?.monthlyCredits ?? 0
+  const rolloverCap = plan?.rolloverCap ?? billing?.balance?.rolloverCap ?? 0
+  const subStatus = subscription?.status || 'none'
+  const hasSubscription = ['active', 'past_due', 'unpaid'].includes(subStatus)
+  const monthlyPct = allowance > 0 ? Math.max(0, Math.min(100, (monthlyCredits / allowance) * 100)) : 0
+
+  const planPrice = (p) => (cycle === 'annual' && p.annualUsd != null ? p.annualUsd : p.priceUsd)
+  const planPer = (p) => (cycle === 'annual' && p.annualUsd != null ? '/year' : '/month')
+
+  const choosePlan = (p) => {
+    // Moving between plans is a subscription update; arriving at a first paid
+    // plan is a checkout. Sending an update for someone with no subscription
+    // would have nothing to update.
+    if (hasSubscription) {
+      return runBilling(`plan:${p.key}`, () => changePlan({ planKey: p.key, interval: cycle }), (r) => {
+        flash(r.message || 'Plan updated')
+        refreshBilling()
+        setLedgerLoaded(false)
+      })
+    }
+    return runBilling(`plan:${p.key}`, () => createCheckout({ planKey: p.key, interval: cycle }), leaveFor)
+  }
+
+  const buyTopup = (pack) =>
+    runBilling(`topup:${pack.key}`, () => createCheckout({ topupPack: pack.key }), leaveFor)
+
+  const doCancel = () =>
+    runBilling('cancel', cancelSubscription, (r) => {
+      flash(r.message || 'Your plan will not renew')
+      refreshBilling()
+    })
+
+  const doResume = () =>
+    runBilling('resume', resumeSubscription, (r) => {
+      flash(r.message || 'Your plan will renew as normal')
+      refreshBilling()
+    })
+
+  const doRedeem = async (e) => {
+    e.preventDefault()
+    const code = inviteCode.trim()
+    if (!code) return
+    setBusy('invite')
+    setInviteNote(null)
+    const r = await redeemInvite(code)
+    setBusy(null)
+    if (!r.success) {
+      // The backend distinguishes revoked / expired / exhausted / already
+      // redeemed, and the difference is the whole point — each one has a
+      // different next step for the reader.
+      setInviteNote({ ok: false, text: r.error })
+      return
+    }
+    setInviteNote({ ok: true, text: r.message || 'Invite redeemed' })
+    setInviteCode('')
+    refreshBilling()
+    setLedgerLoaded(false)
+  }
+
+  const billingReady = Boolean(billing)
+  // A balance that flickers to zero reads as "my credits are gone", so nothing
+  // numeric renders until there is a real payload behind it.
+  const billingBlocked = !billingReady && !billingLoading && billingError
+
   return (
     <div className="settings-page">
       <div className="set-wrap">
@@ -308,7 +550,7 @@ function Settings() {
             <div>
               <div className="nm">{s.name}</div>
               <div className="pl">
-                {S.crown} Casual plan
+                {S.crown} {plan?.label ? `${plan.label} plan` : 'Loading plan…'}
               </div>
             </div>
           </div>
@@ -409,53 +651,432 @@ function Settings() {
           </section>
 
           <section className="set-sec" id="plan" ref={reg('plan')}>
-            <SecHead icon={S.crown} title="Plan & Usage" desc="Your subscription and what's left this cycle." />
-            <div className="set-plan">
-              <div>
-                <div className="pt">
-                  Casual <span className="badge">Current</span>
-                </div>
-                <div className="pd">1,500 priority actions &amp; 50 images each month · renews Jul 1.</div>
-              </div>
-              <button type="button" className="btn btn-primary btn-md" style={{ whiteSpace: 'nowrap' }} onClick={() => flash('Pricing coming soon')}>
-                {S.crown} Upgrade plan
-              </button>
-            </div>
-            <div className="set-card" style={{ marginTop: 16 }}>
-              <div className="set-meters">
-                <div className="set-meter">
-                  <div className="mh">
-                    <span className="k">Priority actions</span>
-                    <span className="v">
-                      <b>960</b> / 1,500 left
-                    </span>
-                  </div>
-                  <div className="bar">
-                    <i style={{ width: '36%' }} />
-                  </div>
-                </div>
-                <div className="set-meter">
-                  <div className="mh">
-                    <span className="k">Image generations</span>
-                    <span className="v">
-                      <b>11</b> / 50 left
-                    </span>
-                  </div>
-                  <div className="bar">
-                    <i className="warn" style={{ width: '78%' }} />
-                  </div>
+            <SecHead icon={S.crown} title="Plan & Usage" desc="Your plan, your credits, and where every one of them went." />
+
+            {billingBlocked && (
+              <BillingNote
+                tone="warn"
+                icon={S.warn}
+                title="We couldn't load your billing"
+                body={billingError}
+                detail="Nothing has changed on your account."
+              >
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => refreshBilling()}>
+                  Try again
+                </button>
+              </BillingNote>
+            )}
+
+            {!billingReady && !billingBlocked && (
+              <div className="set-plan set-plan-skel">
+                <div>
+                  <div className="pt">Loading your plan…</div>
+                  <div className="pd">One moment while we fetch your balance.</div>
                 </div>
               </div>
+            )}
+
+            {billingReady && (
+              <>
+                <div className="set-plan">
+                  <div>
+                    <div className="pt">
+                      {plan.label} <span className="badge">Current</span>
+                    </div>
+                    <div className="pd">
+                      {plan.priceUsd > 0 ? `${fmtUsd(plan.priceUsd)} a month` : 'No monthly charge'}
+                      {allowance > 0 ? ` · ${formatCredits(allowance)} credits each month` : ''}
+                    </div>
+                    <div className="set-unlocks">
+                      <span className="ul">
+                        {S.check} {(plan.tiers || []).map(tierLabel).join(', ')} models
+                      </span>
+                      <span className={`ul ${plan.narration ? '' : 'off'}`}>
+                        {plan.narration ? S.check : S.warn} {plan.narration ? 'Narration included' : 'Narration not included'}
+                      </span>
+                      <span className={`ul ${plan.images ? '' : 'off'}`}>
+                        {plan.images ? S.check : S.warn} {plan.images ? 'Image generation' : 'No image generation'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="set-plan-acts">
+                    {subscription?.cancelAtPeriodEnd ? (
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-md"
+                        disabled={busy === 'resume'}
+                        onClick={doResume}
+                      >
+                        {S.crown} {busy === 'resume' ? 'Resuming…' : 'Resume plan'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-md"
+                        onClick={() => pickerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                        style={{ whiteSpace: 'nowrap' }}
+                      >
+                        {S.crown} {hasSubscription ? 'Change plan' : 'See plans'}
+                      </button>
+                    )}
+                    {hasSubscription && !subscription?.cancelAtPeriodEnd && (
+                      <button type="button" className="btn btn-ghost btn-sm" disabled={busy === 'cancel'} onClick={doCancel}>
+                        {busy === 'cancel' ? 'Cancelling…' : 'Cancel plan'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {subscription?.cancelAtPeriodEnd && (
+                  <BillingNote
+                    tone="warn"
+                    icon={S.warn}
+                    title="This plan will not renew"
+                    body={
+                      fmtDate(subscription.currentPeriodEnd)
+                        ? `You keep ${plan.label} and everything on it until ${fmtDate(subscription.currentPeriodEnd)}. After that the account moves to the free plan.`
+                        : `You keep ${plan.label} until the end of the period you have already paid for.`
+                    }
+                  >
+                    <button type="button" className="btn btn-primary btn-sm" disabled={busy === 'resume'} onClick={doResume}>
+                      {busy === 'resume' ? 'Resuming…' : 'Resume plan'}
+                    </button>
+                  </BillingNote>
+                )}
+
+                {subStatus === 'past_due' && (
+                  <BillingNote
+                    tone="warn"
+                    icon={S.warn}
+                    title="A payment didn't go through"
+                    body={
+                      fmtDate(subscription?.graceUntil)
+                        ? `Your plan keeps working until ${fmtDate(subscription.graceUntil)} while we retry the card. Updating it now avoids any interruption.`
+                        : 'Your plan keeps working while we retry the card. Updating it now avoids any interruption.'
+                    }
+                  >
+                    <button type="button" className="btn btn-primary btn-sm" disabled={busy === 'portal-dunning'} onClick={() => goPortal('portal-dunning')}>
+                      {busy === 'portal-dunning' ? 'Opening…' : 'Update payment'}
+                    </button>
+                  </BillingNote>
+                )}
+
+                {frozen && (
+                  <BillingNote
+                    tone="warn"
+                    icon={S.warn}
+                    title="Your account is on hold"
+                    body="A billing issue is being resolved. Your stories are unaffected — nothing has been deleted, and you can still read and export everything you've written."
+                    detail={frozen.reason || null}
+                  >
+                    <button type="button" className="btn btn-primary btn-sm" disabled={busy === 'portal-frozen'} onClick={() => goPortal('portal-frozen')}>
+                      {busy === 'portal-frozen' ? 'Opening…' : 'Manage billing'}
+                    </button>
+                  </BillingNote>
+                )}
+
+                {billingNote && (
+                  <BillingNote
+                    tone={billingNote.tone}
+                    icon={S.warn}
+                    title={billingNote.title}
+                    body={billingNote.body}
+                    detail={billingNote.detail}
+                  >
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setBillingNote(null)}>
+                      Dismiss
+                    </button>
+                  </BillingNote>
+                )}
+
+                {/* One pool, one number — then the two things it is made of. */}
+                <div className="set-card" style={{ marginTop: 16 }}>
+                  <div className="set-balance">
+                    <div className="bal-head">
+                      <div>
+                        <div className="bl">Credit balance</div>
+                        <div className="bv">
+                          {formatCredits(balance)} <span>credits</span>
+                        </div>
+                      </div>
+                      <div className="bal-note">
+                        One pool. Everything — stories, narration, images — draws from the same balance,
+                        and every action shows its price before you commit to it.
+                      </div>
+                    </div>
+
+                    {allowance > 0 && (
+                      <div className="set-meter">
+                        <div className="mh">
+                          <span className="k">Monthly credits left</span>
+                          <span className="v">
+                            <b>{formatCredits(monthlyCredits)}</b> / {formatCredits(allowance)}
+                          </span>
+                        </div>
+                        <div className="bar">
+                          <i className={monthlyPct < 20 ? 'warn' : ''} style={{ width: `${monthlyPct}%` }} />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="set-splits">
+                      <div className="set-split">
+                        <div className="sl">Monthly credits</div>
+                        <div className="sv">{formatCredits(monthlyCredits)}</div>
+                        <div className="sd">
+                          {fmtDate(resetsAt) ? `Resets ${fmtDate(resetsAt)}.` : 'This plan has no monthly refresh.'}
+                          {rolloverCap > 0
+                            ? ` Anything left rolls over, up to ${formatCredits(rolloverCap)} credits — beyond that it expires at the reset.`
+                            : ''}
+                        </div>
+                      </div>
+                      <div className="set-split">
+                        <div className="sl">Purchased credits</div>
+                        <div className="sv">{formatCredits(purchasedCredits)}</div>
+                        <div className="sd">
+                          Bought or granted. These never expire and are untouched by the monthly reset.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Plan picker */}
+            <div className="set-card" ref={pickerRef}>
+              <div className="set-row">
+                <div className="rt">
+                  <div className="rl">Plans</div>
+                  <div className="rd">
+                    An upgrade bills today and the new credits arrive with that invoice. A downgrade takes
+                    effect at the end of the period you have already paid for.
+                  </div>
+                </div>
+                <div className="rc">
+                  <div className="set-seg">
+                    {[
+                      ['monthly', 'Monthly'],
+                      ['annual', 'Yearly'],
+                    ].map(([id, l]) => (
+                      <button key={id} type="button" className={cycle === id ? 'on' : ''} onClick={() => setCycle(id)}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="set-row col">
+                {catalogueError && <div className="set-empty">{catalogueError}</div>}
+                {!catalogue && !catalogueError && <div className="set-empty">Loading plans…</div>}
+                {catalogue && purchasablePlans.length === 0 && !catalogueError && (
+                  <div className="set-empty">No plans are on sale right now.</div>
+                )}
+                {purchasablePlans.length > 0 && (
+                  <div className="set-plangrid">
+                    {purchasablePlans.map((p) => {
+                      const current = p.key === currentPlanKey
+                      const isUpgrade = (p.priceUsd ?? 0) > (plan?.priceUsd ?? 0)
+                      const key = `plan:${p.key}`
+                      return (
+                        <div key={p.key} className={`set-plancard ${current ? 'on' : ''}`}>
+                          <div className="ph">
+                            <span className="pn">{p.label}</span>
+                            {current && <span className="badge">Current</span>}
+                          </div>
+                          <div className="pp">
+                            {fmtUsd(planPrice(p))}
+                            <span>{planPer(p)}</span>
+                          </div>
+                          <div className="pc">{formatCredits(p.monthlyCredits)} credits a month</div>
+                          <ul className="pf">
+                            <li>
+                              {S.check} {(p.tiers || []).map(tierLabel).join(', ')} models
+                            </li>
+                            <li className={p.narration ? '' : 'off'}>
+                              {S.check} {p.narration ? 'Narration' : 'No narration'}
+                            </li>
+                            <li>
+                              {S.check} Rolls over up to {formatCredits(p.rolloverCap)}
+                            </li>
+                          </ul>
+                          <button
+                            type="button"
+                            className={`btn ${current ? 'btn-ghost' : 'btn-primary'} btn-sm`}
+                            disabled={current || busy === key || !billingReady}
+                            onClick={() => choosePlan(p)}
+                          >
+                            {busy === key
+                              ? 'Working…'
+                              : current
+                                ? 'Current plan'
+                                : !hasSubscription
+                                  ? `Choose ${p.label}`
+                                  : isUpgrade
+                                    ? 'Upgrade — bills today'
+                                    : 'Downgrade at period end'}
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* Top-ups */}
             <div className="set-card">
-              <Row title="Payment method" desc="Visa ending in 4242 · expires 08/27">
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => flash('Billing portal coming soon')}>
-                  Manage
+              <div className="set-row">
+                <div className="rt">
+                  <div className="rl">Top up credits</div>
+                  <div className="rd">
+                    A one-off pack for a heavy week. These credits never expire and sit alongside your
+                    monthly ones.
+                  </div>
+                </div>
+              </div>
+              <div className="set-row col">
+                {!catalogue && !catalogueError && <div className="set-empty">Loading packs…</div>}
+                {topupPacks.length > 0 && (
+                  <div className="set-topups">
+                    {topupPacks.map((pack) => {
+                      const key = `topup:${pack.key}`
+                      return (
+                        <button
+                          key={pack.key}
+                          type="button"
+                          className="set-topup"
+                          disabled={busy === key || !billingReady}
+                          onClick={() => buyTopup(pack)}
+                        >
+                          <span className="tc">
+                            {S.bolt} {formatCredits(pack.credits)}
+                          </span>
+                          <span className="tl">credits</span>
+                          <span className="tp">{busy === key ? 'Working…' : fmtUsd(pack.priceUsd)}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Invite code */}
+            <div className="set-card">
+              <div className="set-row">
+                <div className="rt">
+                  <div className="rl">Invite code</div>
+                  <div className="rd">Have a code? Redeem it for credits and whatever it unlocks.</div>
+                </div>
+                <div className="rc">
+                  <form className="set-invite" onSubmit={doRedeem}>
+                    <input
+                      className="set-input"
+                      value={inviteCode}
+                      onChange={(e) => setInviteCode(e.target.value)}
+                      placeholder="Enter code"
+                      aria-label="Invite code"
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                    <button type="submit" className="btn btn-primary btn-sm" disabled={busy === 'invite' || !inviteCode.trim()}>
+                      {busy === 'invite' ? 'Redeeming…' : 'Redeem'}
+                    </button>
+                  </form>
+                </div>
+              </div>
+              {inviteNote && (
+                <div className="set-row">
+                  <div className={`set-invite-note ${inviteNote.ok ? 'ok' : 'bad'}`}>
+                    {inviteNote.ok ? S.check : S.warn}
+                    <span>{inviteNote.text}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Credit history */}
+            <div className="set-card">
+              <div className="set-row">
+                <div className="rt">
+                  <div className="rl">Credit history</div>
+                  <div className="rd">
+                    Every charge and every refund, newest first. A refund is its own row so you can see it
+                    land.
+                  </div>
+                </div>
+                <div className="rc">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    disabled={ledgerBusy}
+                    onClick={() => {
+                      setLedgerCursor(null)
+                      loadLedger(null)
+                    }}
+                  >
+                    {ledgerBusy ? 'Loading…' : 'Refresh'}
+                  </button>
+                </div>
+              </div>
+              <div className="set-row col">
+                {ledgerError && <div className="set-empty">{ledgerError}</div>}
+                {!ledgerError && !ledgerLoaded && <div className="set-empty">Loading your history…</div>}
+                {!ledgerError && ledgerLoaded && ledger.length === 0 && (
+                  <div className="set-empty">Nothing here yet. Your first story will show up as a row.</div>
+                )}
+                {ledger.length > 0 && (
+                  <div className="set-ledger">
+                    {ledger.map((e, i) => {
+                      const d = describeLedgerEntry(e)
+                      const hint = ledgerHint(e)
+                      return (
+                        <div className="led-row" key={`${e.createdAt}-${i}`}>
+                          <div className="led-l">
+                            <div className="led-t">
+                              {d.label}
+                              {isRefund(e) && <span className="led-tag">Refunded</span>}
+                            </div>
+                            <div className="led-d">
+                              {fmtShortDate(e.createdAt)}
+                              {hint ? ` · ${hint}` : ''}
+                            </div>
+                          </div>
+                          <div className="led-r">
+                            <div className={`led-amt ${d.positive ? 'pos' : 'neg'}`}>{d.signed}</div>
+                            {typeof e.balanceAfter === 'number' && (
+                              <div className="led-bal">{formatCredits(e.balanceAfter)} left</div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+                {ledgerCursor && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm set-loadmore"
+                    disabled={ledgerBusy}
+                    onClick={() => loadLedger(ledgerCursor)}
+                  >
+                    {ledgerBusy ? 'Loading…' : 'Load more'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Stripe owns cards and invoices — nothing about them lives here. */}
+            <div className="set-card">
+              <Row title="Manage billing" desc="Payment method, address and cancellation, on Stripe's secure portal.">
+                <button type="button" className="btn btn-ghost btn-sm" disabled={busy === 'portal'} onClick={() => goPortal('portal')}>
+                  {busy === 'portal' ? 'Opening…' : 'Manage'}
                 </button>
               </Row>
-              <Row title="Billing history" desc="Download past invoices and receipts.">
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => flash('Preparing invoices…')}>
-                  {S.download} Invoices
+              <Row title="Invoices & receipts" desc="Download anything you've been charged for.">
+                <button type="button" className="btn btn-ghost btn-sm" disabled={busy === 'invoices'} onClick={() => goPortal('invoices')}>
+                  {S.download} {busy === 'invoices' ? 'Opening…' : 'Invoices'}
                 </button>
               </Row>
             </div>
