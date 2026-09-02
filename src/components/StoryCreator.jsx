@@ -6,6 +6,7 @@ import * as libraryService from '../services/libraryService'
 import ShareModal from './ShareModal'
 import CreditPrompt from './CreditPrompt'
 import { useBilling } from '../contexts/BillingContext'
+import ModelPicker from './ModelPicker'
 import { formatCredits, getPlans } from '../services/billingService'
 import { describeBillingError } from '../utils/billingErrors'
 import { NarrationSession, scriptRangeToChunk } from '../utils/chapterAudio'
@@ -2223,46 +2224,16 @@ function StoryCreator() {
                 </div>
               </div>
               <div className="ctrl">
-                <div className="ctrl-label">
-                  Model
-                  {/* The price of the *selected* model at the *selected*
-                      length, repeated out of the option list because a native
-                      select hides everything but the current row. Rendered
-                      only once the charge table has arrived — a "0 credits"
-                      while loading is a lie the reader would act on. */}
-                  {selectedModelInfo?.price != null && (
-                    <span className="v">{formatCredits(selectedModelInfo.price)} cr / passage</span>
-                  )}
-                </div>
-                <div className="sc-select">
-                  <select value={model} onChange={(e) => setModel(e.target.value)}>
-                    {availableModels.length > 0 ? (
-                      availableModels.map((m) => {
-                        const { price, locked, unlock } = describeModel(m)
-                        return (
-                          // Locked models stay in the list and stay
-                          // unselectable: a wall you cannot see is confusing,
-                          // a wall you can see is a reason to upgrade (§7).
-                          // Credits only. The provider's per-million-token rate
-                          // is what a turn costs *us*, not what the reader pays,
-                          // and showing both invites the obvious question of why
-                          // the two numbers disagree — the gap is the margin.
-                          // Credits are the only currency in this product.
-                          <option key={m.id} value={m.id} disabled={locked}>
-                            {(m.label || m.id)
-                              + (price != null ? ` · ${formatCredits(price)} cr` : '')
-                              + (m.tier ? ` · ${m.tier}` : '')
-                              + (m.isDefault ? ' — default' : '')
-                              + (locked ? (unlock ? ` — locked, ${unlock.label} unlocks it` : ' — locked') : '')}
-                          </option>
-                        )
-                      })
-                    ) : (
-                      <option value="google/gemini-3.1-flash-lite">Gemini 3.1 Flash Lite (Default)</option>
-                    )}
-                  </select>
-                  <span className="ch">{I.chev}</span>
-                </div>
+                {/* No price here any more: the picker's own trigger carries it,
+                    and its panel explains what the column means. Two live
+                    figures for one number is one too many. */}
+                <div className="ctrl-label">Model</div>
+                <ModelPicker
+                  models={availableModels}
+                  value={model}
+                  onChange={setModel}
+                  describeModel={describeModel}
+                />
                 {selectedModelInfo?.locked && (
                   <button
                     type="button"
