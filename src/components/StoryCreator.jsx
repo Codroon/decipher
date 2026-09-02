@@ -2243,11 +2243,15 @@ function StoryCreator() {
                           // Locked models stay in the list and stay
                           // unselectable: a wall you cannot see is confusing,
                           // a wall you can see is a reason to upgrade (§7).
+                          // Credits only. The provider's per-million-token rate
+                          // is what a turn costs *us*, not what the reader pays,
+                          // and showing both invites the obvious question of why
+                          // the two numbers disagree — the gap is the margin.
+                          // Credits are the only currency in this product.
                           <option key={m.id} value={m.id} disabled={locked}>
                             {(m.label || m.id)
                               + (price != null ? ` · ${formatCredits(price)} cr` : '')
                               + (m.tier ? ` · ${m.tier}` : '')
-                              + (m.priceOut != null ? ` ($${m.priceOut}/1M out)` : '')
                               + (m.isDefault ? ' — default' : '')
                               + (locked ? (unlock ? ` — locked, ${unlock.label} unlocks it` : ' — locked') : '')}
                           </option>
