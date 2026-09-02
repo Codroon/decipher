@@ -1469,6 +1469,13 @@
   border-color: rgba(220, 60, 60, 0.4);
 }
 
+/* This heading sits inside the card, not above it, so it needs the card's
+   own gutters — otherwise the icon rides the rounded border. */
+.set-danger .set-sechead {
+  margin-bottom: 0;
+  padding: 18px 22px 6px;
+}
+
 .set-danger .set-sechead .ic {
   background: linear-gradient(135deg, #c43d3d, #e85a5a);
   box-shadow: 0 6px 16px rgba(220, 60, 60, 0.4);

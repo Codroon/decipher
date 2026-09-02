@@ -1,3 +1,4 @@
+import { useAuth } from '../contexts/AuthContext'
 import './Sidebar.css'
 
 const ICONS = {
@@ -18,6 +19,12 @@ const ICONS = {
   ),
   'image-library': (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+  ),
+  admin: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l7 4v6c0 4-3 7-7 8-4-1-7-4-7-8V6l7-4z"/><path d="M9 12l2 2 4-4"/></svg>
+  ),
+  logout: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
   ),
   settings: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>
@@ -48,14 +55,24 @@ const ROUTE_TO_ID = {
   settings: 'settings',
 }
 
-function Sidebar({ isOpen, onClose, onNavigate, currentPage }) {
+// The rail is the only navigation now that the top bar is gone, so it never
+// hides entirely — `collapsed` narrows it to an icon strip that still carries
+// the toggle, the account block and Logout.
+function Sidebar({ onNavigate, currentPage, collapsed, onToggleCollapse }) {
+  const { isAdmin, logout } = useAuth()
   const activeId = ROUTE_TO_ID[currentPage] || ''
 
   const go = (route) => {
     onNavigate(route)
-    if (window.innerWidth <= 768) {
-      onClose()
+    // On phones the expanded rail sits over the page, so get it out of the way.
+    if (!collapsed && window.innerWidth <= 768) {
+      onToggleCollapse()
     }
+  }
+
+  const handleLogout = async () => {
+    await logout()
+    onNavigate('login')
   }
 
   const renderItem = (item) => (
@@ -70,23 +87,50 @@ function Sidebar({ isOpen, onClose, onNavigate, currentPage }) {
   )
 
   return (
-    <>
-      {isOpen && <div className="sidebar-overlay" onClick={onClose}></div>}
+    <aside className={`sidebar ${collapsed ? 'collapsed' : 'expanded'}`}>
+      <button
+        type="button"
+        className="rail-handle"
+        onClick={onToggleCollapse}
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-expanded={!collapsed}
+        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M15 18l-6-6 6-6" />
+        </svg>
+      </button>
 
-      <aside className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
-        <div className="rail-top" onClick={() => go('home')}>
-          <img className="brand-logo" src="/decipher-logo.png" alt="Decipher Engine" />
-          <span className="brand-name">Decipher Engine</span>
-        </div>
+      <div className="rail-top" onClick={() => go('home')}>
+        <img className="brand-logo" src="/decipher-logo.png" alt="Decipher Engine" />
+        <span className="brand-name">Decipher Engine</span>
+      </div>
 
-        <nav className="sidebar-nav">
-          <div className="rail-cap">Create</div>
-          {CREATE_ITEMS.map(renderItem)}
-          <div className="rail-cap">Studio</div>
-          {STUDIO_ITEMS.map(renderItem)}
-        </nav>
-      </aside>
-    </>
+      <nav className="sidebar-nav">
+        <div className="rail-cap">Create</div>
+        {CREATE_ITEMS.map(renderItem)}
+        <div className="rail-cap">Studio</div>
+        {STUDIO_ITEMS.map(renderItem)}
+        {isAdmin && (
+          <>
+            <div className="rail-cap">Admin</div>
+            {renderItem({ id: 'admin', label: 'Admin Panel', route: 'admin' })}
+          </>
+        )}
+      </nav>
+
+      <div className="rail-bottom">
+        <button
+          type="button"
+          className="sidebar-item rail-logout"
+          onClick={handleLogout}
+          title="Logout"
+        >
+          <span className="sidebar-icon">{ICONS.logout}</span>
+          <span className="sidebar-label">Logout</span>
+        </button>
+      </div>
+    </aside>
   )
 }
 

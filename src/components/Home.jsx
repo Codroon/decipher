@@ -329,7 +329,6 @@ function useDebounced(value, delay = 300) {
 
 function Home() {
   const navigate = useNavigate()
-  const [showBanner, setShowBanner] = useState(true)
   const [activeFeatured, setActiveFeatured] = useState(0)
   const [featuredPaused, setFeaturedPaused] = useState(false)
   const [userStories, setUserStories] = useState([])
@@ -526,27 +525,7 @@ function Home() {
   const EmptyShelf = ({ children }) => <div className="shelf-empty">{children}</div>
 
   return (
-    <div className={`home-page${showBanner ? ' has-banner' : ''}`}>
-      {/* Notification Banner */}
-      {showBanner && (
-        <div className="notification-banner">
-          <div className="banner-content">
-            <div className="banner-message">
-              <svg className="star-icon" width="30" height="30" viewBox="0 0 24 24" fill="gold">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-              </svg>
-              <span>New AI Models Available! Enhanced story generation and image creation tools now live.</span>
-            </div>
-            <button className="close-banner" onClick={() => setShowBanner(false)} aria-label="Dismiss announcement">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
-
+    <div className="home-page">
       {/* Hero Section — cinematic featured carousel */}
       <div className="home-hero">
         <div
