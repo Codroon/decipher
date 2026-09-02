@@ -325,6 +325,45 @@
   display: block;
 }
 
+/* The text column has to flex so the price chip and the radio dot keep
+   their place when an engine's name is long. */
+.is-model .is-model-txt {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Price per image, from GET /api/images/models — the same table the biller
+   charges from, so the number here and the number deducted are one lookup.
+   Absent entirely when the API gave no figure; never a placeholder zero. */
+.is-model .is-model-cr {
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border-radius: 100px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--gold);
+  background: rgba(255, 201, 77, 0.1);
+  border: 1px solid rgba(255, 201, 77, 0.22);
+}
+
+.is-model.on .is-model-cr {
+  color: #FFDA8A;
+  background: rgba(255, 201, 77, 0.16);
+  border-color: rgba(255, 201, 77, 0.34);
+}
+
+.is-models-empty {
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 12px;
+  color: var(--ink-40);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed var(--hairline-soft);
+}
+
 .is-model .dot {
   margin-left: auto;
   width: 18px;
@@ -415,6 +454,18 @@
 .is-count button:hover {
   color: #fff;
   border-color: var(--hairline);
+}
+
+/* Above the API's own per-request ceiling: a control the reader can see is
+   unavailable, rather than a 400 after they have already pressed Generate. */
+.is-count button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.is-count button:disabled:hover {
+  color: var(--ink-70);
+  border-color: var(--hairline-soft);
 }
 
 .is-count button.on {

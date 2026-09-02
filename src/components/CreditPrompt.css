@@ -1,0 +1,162 @@
+/* ============================================================
+   CreditPrompt — the modal a charged action gets refused into.
+   Deliberately the same panel as ConfirmDialog (see
+   ConfirmDialog.css): a refusal is a decision point, not an
+   error toast, so it wears the app's dialog rather than a
+   red banner. The accent is the one difference — this asks
+   for a choice, it does not warn about a deletion.
+   ============================================================ */
+.cp-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(6, 4, 12, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: cpFade 0.18s ease both;
+}
+
+.cp-panel {
+  position: relative;
+  width: 100%;
+  max-width: 428px;
+  padding: 30px 28px 24px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(30, 20, 48, 0.98), rgba(15, 11, 24, 0.99));
+  border: 1px solid var(--hairline, rgba(119, 56, 203, 0.35));
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.7);
+  animation: cpRise 0.24s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes cpFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes cpRise {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+.cp-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 18px;
+  border-radius: 13px;
+  color: var(--gold, #F4C25B);
+  background: rgba(244, 194, 91, 0.12);
+  border: 1px solid rgba(244, 194, 91, 0.3);
+}
+
+/* A locked feature is not a shortage — it reads in the brand accent, so
+   "upgrade" and "top up" do not look like the same problem. */
+.cp-panel.cp-plan .cp-mark {
+  color: #C79BFF;
+  background: rgba(119, 56, 203, 0.2);
+  border-color: rgba(119, 56, 203, 0.42);
+}
+
+.cp-panel.cp-replay .cp-mark {
+  color: #6EE7B7;
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(110, 231, 183, 0.3);
+}
+
+.cp-mark svg { width: 22px; height: 22px; }
+
+.cp-title {
+  font-family: var(--font-display, 'Poppins', sans-serif);
+  font-weight: 650;
+  font-size: 20px;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+  color: #fff;
+  margin: 0 0 10px;
+}
+
+.cp-body p {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13.5px;
+  font-weight: 450;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.62);
+  margin: 0;
+}
+
+.cp-body .cp-detail {
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.44);
+}
+
+.cp-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 26px;
+}
+
+.cp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-width: 104px;
+  padding: 12px 20px;
+  border-radius: 11px;
+  border: 1px solid transparent;
+  font-family: var(--font-display, 'Poppins', sans-serif);
+  font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.18s ease, box-shadow 0.2s ease, color 0.2s ease;
+}
+
+.cp-btn:focus-visible {
+  outline: 2px solid var(--grad-b, #4D70FF);
+  outline-offset: 2px;
+}
+
+.cp-btn-quiet {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.cp-btn-quiet:hover {
+  background: rgba(255, 255, 255, 0.11);
+  color: #fff;
+}
+
+.cp-btn-go {
+  background: var(--grad, linear-gradient(100deg, #7738CB, #4D70FF));
+  color: #fff;
+  box-shadow: 0 10px 26px rgba(119, 56, 203, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.cp-btn-go:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 34px rgba(119, 56, 203, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.26);
+}
+
+@media (max-width: 480px) {
+  .cp-panel { padding: 26px 20px 20px; }
+  .cp-actions { flex-direction: column-reverse; }
+  .cp-btn { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-backdrop,
+  .cp-panel { animation: none; }
+  .cp-btn { transition: none; }
+  .cp-btn-go:hover { transform: none; }
+}

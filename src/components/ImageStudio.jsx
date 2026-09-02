@@ -1,8 +1,12 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { apiPost, API_ENDPOINTS, BASE_URL, getHeaders } from '../services/server'
+import { apiGet, apiPost, API_ENDPOINTS, BASE_URL, getHeaders } from '../services/server'
 import { imageLibraryStore } from '../utils/imageLibraryStore'
 import SecureImage from './SecureImage'
+import CreditPrompt from './CreditPrompt'
+import { useBilling } from '../contexts/BillingContext'
+import { formatCredits } from '../services/billingService'
+import { describeBillingError } from '../utils/billingErrors'
 import './ImageStudio.css'
 
 const G = {
@@ -94,15 +98,32 @@ const STYLES = [
   { id: 'cartoon', label: 'Cartoon', img: '/cartoon-art-style.png' },
 ]
 
-const MODELS = [
-  { id: 'flux-schnell', apiId: 'flux-schnell', name: 'FLUX schnell', desc: 'Fast · low cost', badge: 'S' },
-  { id: 'flux-dev', apiId: 'flux-dev', name: 'FLUX.1 dev', desc: 'Balanced quality', badge: 'D' },
-  { id: 'flux-2-pro', apiId: 'flux-2-pro', name: 'FLUX.2 pro', desc: 'Newest flagship', badge: 'F2' },
-  { id: 'seedream-4', apiId: 'seedream-4', name: 'Seedream 4', desc: 'Cinematic · moody', badge: 'Sd' },
-  { id: 'recraft-v3', apiId: 'recraft-v3', name: 'Recraft V3', desc: 'Vector · graphic', badge: 'R' },
-  { id: 'flux-pro-ultra', apiId: 'flux-pro-ultra', name: 'FLUX 1.1 pro ultra', desc: 'Premium · 2K', badge: 'U' },
-  { id: 'nano-banana', apiId: 'nano-banana', name: 'Nano Banana', desc: 'Character consistency', badge: 'N' },
-]
+/**
+ * Presentation only — a blurb and a two-letter badge per engine.
+ *
+ * The engine *list*, its labels and its prices come from
+ * GET /api/images/models, whose `credits` is derived from the same table the
+ * biller charges from. This map is a lookup by id with a graceful fallback,
+ * never a second copy of the catalogue: a second list is exactly how an engine
+ * ends up priced wrong, or missing from the picker entirely.
+ */
+const MODEL_ART = {
+  'flux-schnell': { desc: 'Fast · low cost', badge: 'S' },
+  'flux-dev': { desc: 'Balanced quality', badge: 'D' },
+  'flux-2-pro': { desc: 'Newest flagship', badge: 'F2' },
+  'seedream-4': { desc: 'Cinematic · moody', badge: 'Sd' },
+  'recraft-v3': { desc: 'Vector · graphic', badge: 'R' },
+  'flux-pro-ultra': { desc: 'Premium · 2K', badge: 'U' },
+  'nano-banana': { desc: 'Character consistency', badge: 'N' },
+}
+
+const artFor = (m) => ({
+  desc: MODEL_ART[m.id]?.desc || '',
+  badge: MODEL_ART[m.id]?.badge || (m.label || m.id).slice(0, 2).toUpperCase(),
+})
+
+/** How many images one button offers. Trimmed to the API's own ceiling. */
+const COUNT_CHOICES = [1, 2, 4]
 
 const RATIOS = [
   { id: 'square', label: 'Square', dims: '1024²', aspect: '1 / 1', w: 30, h: 30 },
@@ -132,10 +153,15 @@ function imageUrl(record) {
 }
 
 function ImageStudio() {
+  const { refresh: refreshBilling } = useBilling()
   const [prompt, setPrompt] = useState('')
   const [subject, setSubject] = useState(null)
   const [style, setStyle] = useState('fantasy')
-  const [model, setModel] = useState('flux-schnell')
+  // Empty until the catalogue arrives — there is no engine to name before the
+  // API says which ones exist, and no price to quote for one.
+  const [model, setModel] = useState('')
+  const [models, setModels] = useState([])
+  const [maxPerRequest, setMaxPerRequest] = useState(null)
   const [ratio, setRatio] = useState('square')
   const [count, setCount] = useState(1)
   const [folders, setFolders] = useState([])
@@ -144,18 +170,53 @@ function ImageStudio() {
   const [results, setResults] = useState([])
   const [lightbox, setLightbox] = useState(null)
   const [error, setError] = useState('')
+  // The generate response, when it was refused for a billing reason.
+  const [billingError, setBillingError] = useState(null)
   const [toast, setToast] = useState('')
   const canvasRef = useRef(null)
 
   const ratioObj = RATIOS.find((r) => r.id === ratio) || RATIOS[0]
   const styleObj = STYLES.find((s) => s.id === style) || STYLES[0]
-  const modelObj = MODELS.find((m) => m.id === model) || MODELS[0]
+  const modelObj = useMemo(() => models.find((m) => m.id === model) || null, [models, model])
+  // Credits for one image on the selected engine, straight from the API. Null
+  // while the catalogue is in flight — a "0 credits" during the fetch is a
+  // price the reader would act on and then be charged past.
+  const unitPrice = typeof modelObj?.credits === 'number' ? modelObj.credits : null
+  const batchPrice = unitPrice != null ? unitPrice * count : null
 
   useEffect(() => {
     if (!toast) return undefined
     const t = setTimeout(() => setToast(''), 2400)
     return () => clearTimeout(t)
   }, [toast])
+
+  /**
+   * The engine catalogue, with the price the biller will actually charge.
+   *
+   * Fetched rather than kept in the client, because a price the picker owns is
+   * a price that can drift from the one deducted (CREDIT-SYSTEM-DESIGN.md §7).
+   * `maxPerRequest` comes back with it so the quantity control can bound itself
+   * instead of discovering the ceiling as a 400.
+   */
+  useEffect(() => {
+    let alive = true
+    apiGet(API_ENDPOINTS.IMAGES.MODELS, true)
+      .then((data) => {
+        if (!alive || !Array.isArray(data?.models)) return
+        setModels(data.models)
+        if (typeof data.maxPerRequest === 'number') setMaxPerRequest(data.maxPerRequest)
+        setModel((current) => current || data.models[0]?.id || '')
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  // Never leave a selection sitting above a ceiling the API will reject.
+  useEffect(() => {
+    if (maxPerRequest != null && count > maxPerRequest) setCount(maxPerRequest)
+  }, [maxPerRequest, count])
 
   // Load the user's folders so generations can optionally be filed into one.
   useEffect(() => {
@@ -201,7 +262,7 @@ function ImageStudio() {
       {
         prompt: promptText,
         artStyle: style,
-        model: modelObj.apiId,
+        model,
         width,
         height,
         ...(folderId ? { folderId } : {}),
@@ -210,12 +271,23 @@ function ImageStudio() {
     )
 
     if (response?.image) return response.image
-    throw new Error(response?.message || response?.error || 'Generation failed')
+    // apiPost hands back the parsed body whatever the status, so a refusal's
+    // `code` and `details` are here — and they are the whole difference
+    // between "something went wrong" and a price the reader can act on. Carry
+    // them on the error rather than collapsing it to a message string.
+    const failure = new Error(response?.message || response?.error || 'Generation failed')
+    const refusal = {
+      code: response?.code,
+      details: response?.details,
+      error: response?.message || response?.error,
+    }
+    if (describeBillingError(refusal)) failure.billing = refusal
+    throw failure
   }
 
   const handleGenerate = async () => {
     const promptText = buildPrompt()
-    if (!promptText || generating) return
+    if (!promptText || generating || !model) return
 
     setGenerating(true)
     setError('')
@@ -231,14 +303,21 @@ function ImageStudio() {
       }
     } catch (err) {
       console.error('Image generation failed:', err)
-      if (out.length > 0) {
-        setResults(out)
+      if (out.length > 0) setResults(out)
+      // A billing refusal gets the modal that names the price and the way
+      // forward; anything else stays the inline error it always was.
+      if (err.billing) {
+        setBillingError(err.billing)
+      } else if (out.length > 0) {
         setError(err.message || 'Some images failed to generate.')
       } else {
         setError(err.message || 'Failed to generate image. Please try again.')
       }
     } finally {
       setGenerating(false)
+      // Images charge on the row being written, so the balance has moved by
+      // the time this settles — however it settled.
+      refreshBilling()
     }
   }
 
@@ -338,23 +417,38 @@ function ImageStudio() {
             </div>
 
             <div className="is-block">
-              <div className="is-label">Model</div>
+              <div className="is-label">
+                Model
+                {unitPrice != null && (
+                  <span className="hint">{formatCredits(unitPrice)} cr / image</span>
+                )}
+              </div>
               <div className="is-models">
-                {MODELS.map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    className={`is-model ${model === m.id ? 'on' : ''}`}
-                    onClick={() => setModel(m.id)}
-                  >
-                    <span className="badge">{m.badge}</span>
-                    <span>
-                      <span className="mt">{m.name}</span>
-                      <span className="md">{m.desc}</span>
-                    </span>
-                    <span className="dot" />
-                  </button>
-                ))}
+                {models.map((m) => {
+                  const art = artFor(m)
+                  const credits = typeof m.credits === 'number' ? m.credits : null
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      className={`is-model ${model === m.id ? 'on' : ''}`}
+                      onClick={() => setModel(m.id)}
+                    >
+                      <span className="badge">{art.badge}</span>
+                      <span className="is-model-txt">
+                        <span className="mt">{m.label || m.id}</span>
+                        {art.desc && <span className="md">{art.desc}</span>}
+                      </span>
+                      {/* Rendered only when the API supplied a number; an
+                          engine with no price shows none rather than a zero. */}
+                      {credits != null && (
+                        <span className="is-model-cr">{formatCredits(credits)} cr</span>
+                      )}
+                      <span className="dot" />
+                    </button>
+                  )
+                })}
+                {models.length === 0 && <div className="is-models-empty">Loading engines…</div>}
               </div>
             </div>
 
@@ -377,13 +471,28 @@ function ImageStudio() {
             </div>
 
             <div className="is-block">
-              <div className="is-label">Images</div>
+              <div className="is-label">
+                Images
+                {maxPerRequest != null && <span className="hint">up to {maxPerRequest} per request</span>}
+              </div>
               <div className="is-count">
-                {[1, 2, 4].map((n) => (
-                  <button key={n} type="button" className={count === n ? 'on' : ''} onClick={() => setCount(n)}>
-                    {n}
-                  </button>
-                ))}
+                {COUNT_CHOICES.map((n) => {
+                  // Bounded by the API's own ceiling, so the reader meets a
+                  // disabled button rather than a 400 after the fact.
+                  const over = maxPerRequest != null && n > maxPerRequest
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      className={count === n ? 'on' : ''}
+                      onClick={() => setCount(n)}
+                      disabled={over}
+                      title={over ? `The most this API generates in one request is ${maxPerRequest}` : undefined}
+                    >
+                      {n}
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
@@ -410,13 +519,20 @@ function ImageStudio() {
               type="button"
               className="btn btn-primary btn-md"
               onClick={handleGenerate}
-              disabled={!prompt.trim() || generating}
+              disabled={!prompt.trim() || generating || !model}
               style={{ gap: 8 }}
             >
               {G.spark} {generating ? 'Generating…' : 'Generate'}
             </button>
             <div className="is-cost">
-              {G.bolt} {count} {count === 1 ? 'credit' : 'credits'} · {count} {count === 1 ? 'image' : 'images'}
+              {/* The total for what is actually about to be generated, on the
+                  engine actually selected. Nothing at all until the catalogue
+                  has answered — a placeholder price is worse than none. */}
+              {G.bolt}
+              {batchPrice != null && (
+                <span>{formatCredits(batchPrice)} {batchPrice === 1 ? 'credit' : 'credits'} · </span>
+              )}
+              <span>{count} {count === 1 ? 'image' : 'images'}</span>
             </div>
             {error && <div className="is-gen-error">{error}</div>}
           </div>
@@ -534,6 +650,8 @@ function ImageStudio() {
       )}
 
       {toast && <div className="is-toast">{toast}</div>}
+
+      <CreditPrompt error={billingError} onClose={() => setBillingError(null)} onRefreshBilling={refreshBilling} />
     </div>
   )
 }

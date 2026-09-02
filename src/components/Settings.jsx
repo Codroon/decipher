@@ -337,6 +337,25 @@ function Settings() {
     }
   }
 
+  // Honour a #section in the URL on arrival.
+  //
+  // Every billing refusal elsewhere in the app routes here as /settings#plan —
+  // that is the whole point of a refusal naming its upgrade path. Under the SPA
+  // router the browser never performs a native fragment jump, so without this
+  // the user lands at the top of a long settings page and has to go find the
+  // thing they were just sent to, which reads as a broken link.
+  //
+  // One frame's delay, because the sections register their refs during the same
+  // commit this runs in — scrolling immediately would find secRefs empty.
+  useEffect(() => {
+    const id = window.location.hash.replace('#', '')
+    if (!id) return
+    const raf = requestAnimationFrame(() => go(id))
+    return () => cancelAnimationFrame(raf)
+    // Mount only: a later hash change is handled by the nav itself.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const flash = (msg) => {
     setToast(msg)
     setTimeout(() => setToast(null), 2400)
