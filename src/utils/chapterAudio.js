@@ -158,7 +158,10 @@ export class NarrationSession {
    * @param {HTMLAudioElement} opts.audioEl
    * @param {(state: 'loading'|'playing'|'paused'|'ended'|'error') => void} [opts.onState]
    * @param {(alignment: Alignment) => void} [opts.onAlignment] fired as timings arrive
-   * @param {(message: string) => void} [opts.onError]
+   * @param {(message: string, error?: Error & { code?: string, details?: object }) => void} [opts.onError]
+   *        The second argument carries the backend's refusal code and details
+   *        when there is one — a 402 mid-narration needs its numbers to be
+   *        actionable rather than just red.
    */
   constructor({ storyId, scope, ref, audioEl, onState, onAlignment, onError }) {
     this.storyId = storyId
@@ -203,7 +206,10 @@ export class NarrationSession {
     } catch (error) {
       if (this.stopped) return
       this.onState('error')
-      this.onError(error?.message || 'Narration failed')
+      // Second argument is additive: existing callers take only the message and
+      // are unaffected, while a caller that wants to render a proper refusal
+      // can read `code`/`details` off the error.
+      this.onError(error?.message || 'Narration failed', error || null)
     }
   }
 
@@ -241,13 +247,25 @@ export class NarrationSession {
     })
     if (!response.ok || !response.body) {
       let message = 'Narration failed'
+      let payload = null
       try {
-        const body = await response.json()
-        if (body?.message) message = body.message
+        payload = await response.json()
+        if (payload?.message) message = payload.message
       } catch {
         /* non-JSON error body */
       }
-      throw new Error(message)
+      // Carry the refusal through rather than flattening it to a string.
+      //
+      // Narration is the most expensive action in the product, so it is the
+      // most likely to be refused for credits — and a 402 arrives with
+      // { required, balance, shortfall } that the UI needs to offer a top-up
+      // instead of a dead end. `new Error(message)` discarded all of it, so a
+      // credit refusal here looked identical to the provider being down.
+      const error = new Error(message)
+      error.status = response.status
+      error.code = payload?.code || null
+      error.details = payload?.details || null
+      throw error
     }
 
     const reader = response.body.getReader()
