@@ -239,6 +239,40 @@ function StoryCreator() {
   const [error, setError] = useState('')
   const [generatedStory, setGeneratedStory] = useState(null)
 
+  // The backend updates a story's memory (Codex entries, chapter titles and
+  // summaries) in the background after it answers a turn, so the turn's own
+  // response carries the memory from before that passage. Re-read the story
+  // shortly after each new or changed passage and merge in only those fields,
+  // leaving the passages and any newer local state alone.
+  const memoryKey = generatedStory?._id
+    ? `${generatedStory._id}:${generatedStory.MainStory?.length || 0}:${(generatedStory.MainStory?.at(-1)?.content || '').length}`
+    : null
+  useEffect(() => {
+    if (!memoryKey) return undefined
+    const storyId = memoryKey.split(':')[0]
+    let cancelled = false
+    const refresh = async () => {
+      const result = await storyService.getStoryById(storyId)
+      if (cancelled || !result?.success || !result.story) return
+      const fresh = result.story
+      setGeneratedStory((prev) => (prev && prev._id === fresh._id
+        ? {
+            ...prev,
+            characters: fresh.characters,
+            locations: fresh.locations,
+            creatures: fresh.creatures,
+            items: fresh.items,
+            storyChapters: fresh.storyChapters,
+          }
+        : prev))
+    }
+    const timers = [4000, 12000].map((ms) => setTimeout(refresh, ms))
+    return () => {
+      cancelled = true
+      timers.forEach(clearTimeout)
+    }
+  }, [memoryKey])
+
   const actionInputRef = useRef(null)
 
   // Story action states
