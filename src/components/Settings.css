@@ -294,6 +294,13 @@
   gap: 10px;
 }
 
+.set-acct-val {
+  font-size: 14px;
+  color: var(--ink-70);
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
 .sw {
   width: 48px;
   height: 28px;

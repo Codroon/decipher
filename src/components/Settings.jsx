@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useBilling } from '../contexts/BillingContext'
+import { useAuth } from '../contexts/AuthContext'
+import { getModels } from '../services/storyService'
 import {
   getPlans,
   getLedger,
@@ -13,6 +15,14 @@ import {
   describeLedgerEntry,
 } from '../services/billingService'
 import { describeBillingError } from '../utils/billingErrors'
+import {
+  CONTENT_RATINGS,
+  STORY_LENGTHS,
+  TONES,
+  loadStoryPrefs,
+  resolveModelId,
+  saveStoryPrefs,
+} from '../utils/storyPrefs'
 import './Settings.css'
 
 const AVATAR = '/author-avatar-7942f7.png'
@@ -50,6 +60,12 @@ const S = {
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
     </svg>
   ),
+  pen: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+    </svg>
+  ),
   bolt: (
     <svg viewBox="0 0 24 24" fill="currentColor">
       <path d="M13 2L3 14h7l-1 8 10-12h-7z" />
@@ -59,51 +75,9 @@ const S = {
 
 const SECTIONS = [
   { id: 'account', label: 'Account', icon: S.user },
+  { id: 'story', label: 'Story defaults', icon: S.pen },
   { id: 'plan', label: 'Plan & Usage', icon: S.crown },
 ]
-
-const DEFAULTS = {
-  name: 'Aria Vale',
-  username: 'ariawrites',
-  email: 'aria@decipher.app',
-  tagline: 'Spinning worlds out of starlight and stubbornness.',
-  model: 'Decipher 32B',
-  creativity: 65,
-  tone: 'Mysterious',
-  length: 'Medium (3–4 paragraphs)',
-  rating: 'Teen',
-  autoContinue: false,
-  rememberChars: true,
-  narrate: false,
-  voice: 'sable',
-  rate: 100,
-  imgStyle: 'Fantasy',
-  imgModel: 'Decipher Vivid',
-  ratio: 'Portrait',
-  imgCount: 4,
-  safeImg: true,
-  font: 'Spectral',
-  textSize: 18,
-  lineH: 175,
-  paper: 'dark',
-  nDigest: true,
-  nFeatures: true,
-  nReplies: true,
-  nMarketing: false,
-  trainOptOut: false,
-}
-
-function loadSettings() {
-  try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('decipher_settings') || '{}') }
-  } catch {
-    return { ...DEFAULTS }
-  }
-}
-
-function Toggle({ on, onClick }) {
-  return <button type="button" className={`sw ${on ? 'on' : ''}`} onClick={onClick} role="switch" aria-checked={on} />
-}
 
 function Row({ title, desc, children }) {
   return (
@@ -161,13 +135,36 @@ const ledgerHint = (e) => {
 /** Model classes come back as raw keys (`workhorse`); title-case for display. */
 const tierLabel = (t) => String(t || '').replace(/^./, (c) => c.toUpperCase())
 
+function Sel({ value, onChange, options, label }) {
+  return (
+    <div className="set-selwrap">
+      <select value={value} onChange={(e) => onChange(e.target.value)} aria-label={label}>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <span className="ch">{S.chev}</span>
+    </div>
+  )
+}
+
 function Settings() {
-  const [s, setS] = useState(loadSettings)
+  const { user } = useAuth()
+  // Story defaults: the starting values of the story screen's controls. One
+  // module owns the storage key and the validation (utils/storyPrefs), so
+  // what is saved here is exactly what the story screen reads back.
+  const [s, setS] = useState(loadStoryPrefs)
+  const [storyModels, setStoryModels] = useState([])
+  const [modelsError, setModelsError] = useState(null)
   const [active, setActive] = useState('account')
-  const [confirmDel, setConfirmDel] = useState(false)
   const [toast, setToast] = useState(null)
   const [savedFlash, setSavedFlash] = useState(false)
   const firstRun = useRef(true)
+  // Set when the page itself corrects a value (a saved model the catalogue no
+  // longer offers), so the "Saved" flash only ever answers a reader's change.
+  const silentSave = useRef(false)
   const secRefs = useRef({})
   const contentRef = useRef(null)
 
@@ -179,9 +176,10 @@ function Settings() {
   }
 
   useEffect(() => {
-    localStorage.setItem('decipher_settings', JSON.stringify(s))
-    if (firstRun.current) {
+    saveStoryPrefs(s)
+    if (firstRun.current || silentSave.current) {
       firstRun.current = false
+      silentSave.current = false
       return undefined
     }
     setSavedFlash(true)
@@ -241,6 +239,30 @@ function Settings() {
     if (el) secRefs.current[id] = el
   }
 
+  // The model list is the live catalogue, the same one the story screen's
+  // picker reads — never a hard-coded label. A saved id the catalogue no
+  // longer offers shows (and is saved) as the catalogue default.
+  useEffect(() => {
+    let alive = true
+    getModels().then((r) => {
+      if (!alive) return
+      if (r.success && Array.isArray(r.models) && r.models.length) {
+        setStoryModels(r.models)
+        setS((prev) => {
+          const id = resolveModelId(prev.model, r.models)
+          if (id === prev.model) return prev
+          silentSave.current = true
+          return { ...prev, model: id }
+        })
+      } else {
+        setModelsError(r.error || 'Could not load the model list')
+      }
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+
   // ── Billing ─────────────────────────────────────────────────────────────
   const {
     billing,
@@ -254,6 +276,7 @@ function Settings() {
     isLoading: billingLoading,
     error: billingError,
     refresh: refreshBilling,
+    canUseModel,
   } = useBilling()
 
   const [catalogue, setCatalogue] = useState(null)
@@ -423,12 +446,14 @@ function Settings() {
       <div className="set-wrap">
         <div className="set-index">
           <div className="set-id-card">
-            <img src={AVATAR} alt="" />
+            <img src={user?.avatar || AVATAR} alt="" />
             <div>
-              <div className="nm">{s.name}</div>
-              <div className="pl">
-                {S.crown} Casual plan
-              </div>
+              <div className="nm">{user?.name || 'Your account'}</div>
+              {plan?.label && (
+                <div className="pl">
+                  {S.crown} {plan.label} plan
+                </div>
+              )}
             </div>
           </div>
           {SECTIONS.map((sec) => (
@@ -456,74 +481,90 @@ function Settings() {
           </div>
 
           <section className="set-sec" id="account" ref={reg('account')}>
-            <SecHead icon={S.user} title="Account" desc="Your author identity across Decipher." />
+            {/* Read-only on purpose: the backend has no profile-update route
+                yet, and an editable field that saves nowhere is a lie. */}
+            <SecHead icon={S.user} title="Account" desc="The account you're signed in with." />
             <div className="set-card">
-              <div className="set-row col">
-                <div className="set-avatar">
-                  <img src={AVATAR} alt="" />
-                  <div className="av-info">
-                    <div className="av-t">Profile photo</div>
-                    <div className="av-d">PNG or JPG, at least 256×256px.</div>
-                    <div className="row">
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => flash('Upload coming soon')}>
-                        Change
-                      </button>
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => flash('Photo removed')}>
-                        Remove
-                      </button>
-                    </div>
-                  </div>
+              <Row title="Name">
+                <span className="set-acct-val">{user?.name || 'Not set'}</span>
+              </Row>
+              <Row title="Email">
+                <span className="set-acct-val">{user?.email || 'Not set'}</span>
+              </Row>
+            </div>
+          </section>
+
+          <section className="set-sec" id="story" ref={reg('story')}>
+            <SecHead
+              icon={S.pen}
+              title="Story defaults"
+              desc="Where the story screen's controls start. Changes made there apply to that session only."
+            />
+            <div className="set-card">
+              <div className="set-row">
+                <div className="rt">
+                  <div className="rl">Creativity</div>
+                  <div className="rd">Lower stays grounded; higher takes bigger swings.</div>
                 </div>
-              </div>
-              <div className="set-row col">
-                <div className="set-grid2">
-                  <div>
-                    <label className="set-flabel" htmlFor="set-name">
-                      Display name
-                    </label>
-                    <input id="set-name" className="set-input" value={s.name} onChange={(e) => set('name', e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="set-flabel" htmlFor="set-username">
-                      Username
-                    </label>
+                <div className="rc">
+                  <div className="set-slider-row">
                     <input
-                      id="set-username"
-                      className="set-input"
-                      value={s.username}
-                      onChange={(e) => set('username', e.target.value)}
+                      className="set-slider"
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={s.creativity}
+                      aria-label="Default creativity"
+                      onChange={(e) => set('creativity', Number(e.target.value))}
                     />
+                    <span className="set-slider-val">{s.creativity}</span>
                   </div>
                 </div>
               </div>
-              <div className="set-row col">
-                <div>
-                  <label className="set-flabel" htmlFor="set-email">
-                    Email
-                  </label>
-                  <input
-                    id="set-email"
-                    className="set-input"
-                    type="email"
-                    value={s.email}
-                    onChange={(e) => set('email', e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="set-row col">
-                <div>
-                  <label className="set-flabel" htmlFor="set-tagline">
-                    Author tagline
-                  </label>
-                  <textarea
-                    id="set-tagline"
-                    className="set-input area"
-                    value={s.tagline}
-                    onChange={(e) => set('tagline', e.target.value)}
-                    placeholder="A line that sums up your stories…"
-                  />
-                </div>
-              </div>
+              <Row title="Tone" desc="The mood a new story starts in.">
+                <Sel
+                  label="Default tone"
+                  value={s.tone}
+                  onChange={(v) => set('tone', v)}
+                  options={TONES.map((t) => ({ value: t, label: t }))}
+                />
+              </Row>
+              <Row title="Passage length" desc="Longer passages cost more credits per turn.">
+                <Sel
+                  label="Default passage length"
+                  value={s.length}
+                  onChange={(v) => set('length', v)}
+                  options={STORY_LENGTHS.map((l) => ({ value: l.key, label: l.label }))}
+                />
+              </Row>
+              <Row
+                title="Model"
+                desc={modelsError ? `${modelsError}. The story screen will use the default model.` : 'The writing model a new story starts with.'}
+              >
+                <Sel
+                  label="Default model"
+                  value={s.model || ''}
+                  onChange={(v) => set('model', v)}
+                  options={
+                    storyModels.length
+                      ? storyModels.map((m) => ({
+                          value: m.id,
+                          // Same lock rule as the story screen: only an explicit
+                          // false (plan known, tier excluded) is a lock.
+                          label: `${m.label || m.id}${m.tier && canUseModel(m.tier) === false ? ' — not on your plan' : ''}`,
+                        }))
+                      : [{ value: s.model || '', label: modelsError ? 'Default model' : 'Loading…' }]
+                  }
+                />
+              </Row>
+              <Row title="Content rating" desc="Pre-selected when you first share a story that has no rating yet.">
+                <Sel
+                  label="Default content rating"
+                  value={s.rating}
+                  onChange={(v) => set('rating', v)}
+                  options={CONTENT_RATINGS}
+                />
+              </Row>
             </div>
           </section>
 
@@ -959,48 +1000,9 @@ function Settings() {
             </div>
           </section>
 
-          <section className="set-sec">
-            <div className="set-card set-danger">
-              <SecHead icon={S.warn} title="Danger zone" />
-              <Row title="Delete account" desc="Permanently erase your account and everything in it. This cannot be undone.">
-                <button type="button" className="btn btn-danger btn-sm" onClick={() => setConfirmDel(true)}>
-                  Delete account
-                </button>
-              </Row>
-            </div>
-          </section>
-
           </div>
         </div>
       </div>
-
-      {confirmDel && (
-        <div className="set-modal-ov" onClick={() => setConfirmDel(false)}>
-          <div className="set-modal" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-            <div className="mi">{S.warn}</div>
-            <h3>Delete your account?</h3>
-            <p>
-              Every story, character, scenario and image you&apos;ve made will be permanently removed. This action
-              can&apos;t be reversed.
-            </p>
-            <div className="foot">
-              <button type="button" className="btn btn-ghost btn-md" onClick={() => setConfirmDel(false)}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-danger btn-md"
-                onClick={() => {
-                  setConfirmDel(false)
-                  flash('Account deletion is disabled in this demo')
-                }}
-              >
-                Delete forever
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {toast && (
         <div className="set-toast">

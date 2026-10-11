@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { setStoryVisibility } from '../services/storyService'
 import { updateScenario } from '../services/scenarioService'
+import { CONTENT_RATINGS as RATINGS, loadStoryPrefs } from '../utils/storyPrefs'
 import './ReportModal.css'
 
 const VIS_OPTIONS = [
@@ -9,12 +10,6 @@ const VIS_OPTIONS = [
   { value: 'published', label: 'Public', hint: 'Listed in community discovery for everyone.' },
 ]
 
-const RATINGS = [
-  { value: 'unrated', label: 'Unrated' },
-  { value: 'everyone', label: 'Everyone' },
-  { value: 'teen', label: 'Teen' },
-  { value: 'mature', label: 'Mature' },
-]
 
 /**
  * Owner-facing sharing dialog for a story or scenario.
@@ -28,7 +23,14 @@ const RATINGS = [
  */
 function ShareModal({ resourceType, resource, onClose, onUpdated }) {
   const [visibility, setVisibility] = useState(resource?.visibility || 'private')
-  const [contentRating, setContentRating] = useState(resource?.contentRating || 'unrated')
+  // A resource that has never been rated starts from the reader's default
+  // rating in Settings; one that has keeps its own. Either way it is only a
+  // pre-selection — nothing is sent until the reader saves.
+  const [contentRating, setContentRating] = useState(() =>
+    resource?.contentRating && resource.contentRating !== 'unrated'
+      ? resource.contentRating
+      : loadStoryPrefs().rating
+  )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
