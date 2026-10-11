@@ -1,7 +1,8 @@
 // Story Service
 // This file contains all story-related API calls
 
-import { API_ENDPOINTS, getHeaders } from './server'
+import { API_ENDPOINTS, getHeaders } from './server.js'
+import { LENGTH_KEYS, TONES, PREF_DEFAULTS, normalizeLength, normalizeTone } from '../utils/storyPrefs.js'
 
 // ── Failure shape ────────────────────────────────────────────────────────────
 // A failed call answers `{ success: false, status, error, code, details }`,
@@ -14,18 +15,52 @@ import { API_ENDPOINTS, getHeaders } from './server'
 // the credit modal and then renders `undefined` into the sentence.
 //
 // ── Passage length ───────────────────────────────────────────────────────────
-// Every call below that makes the model write a passage takes an optional
-// `length` ('short' | 'medium' | 'long') and puts it in the request body, where
+// Every call below that makes the model write a passage carries a `length`
+// ('short' | 'medium' | 'long', inside its `controls`) in the request body, where
 // the backend's extractPreferencesFromRequest reads it. It is not decoration:
 // the backend prices a turn by length (short 0.6x, long 1.75x) and falls back
 // to 'medium' for a body that omits it, so a client that keeps the reader's
 // choice to itself quotes one price in the picker and is charged another.
-// Optional and last in the signature so a call site that has not been converted
-// keeps behaving exactly as it did.
 //
 // A model may refuse a length outright — the catalogue's `unsupportedLengths`
 // — which comes back as 400 `LENGTH_UNSUPPORTED` and is not a billing refusal,
 // so it needs its own handling at the call site.
+//
+// ── Story controls ───────────────────────────────────────────────────────────
+// Length is one of four controls the reader sets on the story screen, and all
+// four travel together on every call that writes or rewrites a passage:
+// `{ model, length, tone, creativity }`, built by buildStoryPayload below. The
+// backend reads them in extractPreferencesFromRequest; a missing one silently
+// falls back to its default (creativity 5, Adventurous, medium, default
+// model), which is how the Creativity slider and Tone picker used to do
+// nothing at all. `creativity` here is the API scale, 0–10 — the 0–100 slider
+// is converted by utils/storyPrefs.toApiCreativity before it gets here.
+
+const API_CREATIVITY_DEFAULT = Math.round(PREF_DEFAULTS.creativity / 10)
+
+/**
+ * The control fields every story-writing request carries. Validates rather
+ * than trusts: an out-of-range or missing value becomes the backend's own
+ * default explicitly, so what is sent is always what will be used.
+ *
+ * @param {{model?:string, length?:string, tone?:string, creativity?:number}} [controls]
+ * @returns {{model?:string, length:'short'|'medium'|'long', tone:string, creativity:number}}
+ */
+export function buildStoryPayload(controls = {}) {
+  const c = controls || {}
+  const n = Number(c.creativity)
+  const payload = {
+    length: LENGTH_KEYS.includes(c.length) ? c.length : normalizeLength(c.length),
+    tone: TONES.includes(c.tone) ? c.tone : normalizeTone(c.tone),
+    creativity: c.creativity !== undefined && c.creativity !== null && c.creativity !== '' && Number.isFinite(n)
+      ? Math.min(10, Math.max(0, Math.round(n)))
+      : API_CREATIVITY_DEFAULT,
+  }
+  // No model means "the catalogue default" — the backend resolves that, so an
+  // absent id is left absent rather than guessed at here.
+  if (typeof c.model === 'string' && c.model.trim()) payload.model = c.model.trim()
+  return payload
+}
 
 // ── Story lock retry ─────────────────────────────────────────────────────────
 // The backend serializes writes to a story behind a per-story lock, and the
@@ -158,10 +193,10 @@ export const suggestCharacters = async (setting) => {
  * @param {string} setting - The story setting/world
  * @param {string} character - The character type/role
  * @param {string} characterName - The character's name
- * @param {'short'|'medium'|'long'} [length] - Passage length the reader picked
+ * @param {{model?:string, length?:string, tone?:string, creativity?:number}} [controls] - Story controls (see buildStoryPayload)
  * @returns {Promise<Object>} Story creation result
  */
-export const createStory = async (setting, character, characterName, length = 'medium') => {
+export const createStory = async (setting, character, characterName, controls = {}) => {
   try {
     const response = await fetch(API_ENDPOINTS.STORY.CREATE, {
       method: 'POST',
@@ -170,7 +205,7 @@ export const createStory = async (setting, character, characterName, length = 'm
         setting,
         character,
         characterName,
-        length
+        ...buildStoryPayload(controls)
       })
     })
 
@@ -203,17 +238,17 @@ export const createStory = async (setting, character, characterName, length = 'm
 /**
  * Create a new story from a scenario
  * @param {string} scenarioId - The scenario ID
- * @param {'short'|'medium'|'long'} [length] - Passage length the reader picked
+ * @param {{model?:string, length?:string, tone?:string, creativity?:number}} [controls] - Story controls (see buildStoryPayload)
  * @returns {Promise<Object>} Story creation result
  */
-export const createStoryFromScenario = async (scenarioId, length = 'medium') => {
+export const createStoryFromScenario = async (scenarioId, controls = {}) => {
   try {
     const response = await fetch(API_ENDPOINTS.STORY.CREATE, {
       method: 'POST',
       headers: getHeaders(true), // Include auth token
       body: JSON.stringify({
         scenarioId,
-        length
+        ...buildStoryPayload(controls)
       })
     })
 
@@ -248,15 +283,15 @@ export const createStoryFromScenario = async (scenarioId, length = 'medium') => 
  * @param {string} setting - The story setting/world
  * @param {string} character - The character type/role
  * @param {string} characterName - The character's name
- * @param {string} model - The LLM model to use
+ * @param {{model?:string, length?:string, tone?:string, creativity?:number}} [controls] - Story controls (see buildStoryPayload)
  * @returns {Promise<Object>} { storyId, questions }
  */
-export const initializeStoryWithQuestions = async (setting, character, characterName, model) => {
+export const initializeStoryWithQuestions = async (setting, character, characterName, controls = {}) => {
   try {
     const response = await fetch(API_ENDPOINTS.STORY.INITIALIZE, {
       method: 'POST',
       headers: getHeaders(true),
-      body: JSON.stringify({ setting, character, characterName, model })
+      body: JSON.stringify({ setting, character, characterName, ...buildStoryPayload(controls) })
     })
 
     const data = await response.json()
@@ -288,15 +323,15 @@ export const initializeStoryWithQuestions = async (setting, character, character
 /**
  * Initialize a story from a scenario with character-building questions
  * @param {string} scenarioId - The scenario ID
- * @param {string} model - The LLM model to use
+ * @param {{model?:string, length?:string, tone?:string, creativity?:number}} [controls] - Story controls (see buildStoryPayload)
  * @returns {Promise<Object>} { storyId, questions }
  */
-export const initializeStoryFromScenario = async (scenarioId, model) => {
+export const initializeStoryFromScenario = async (scenarioId, controls = {}) => {
   try {
     const response = await fetch(API_ENDPOINTS.STORY.INITIALIZE, {
       method: 'POST',
       headers: getHeaders(true),
-      body: JSON.stringify({ scenarioId, model })
+      body: JSON.stringify({ scenarioId, ...buildStoryPayload(controls) })
     })
 
     const data = await response.json()
@@ -329,16 +364,15 @@ export const initializeStoryFromScenario = async (scenarioId, model) => {
  * Submit answers to character questions and awaken the story
  * @param {string} storyId - The story ID
  * @param {string[]} answers - Array of 5 answer strings
- * @param {string} model - The LLM model to use
- * @param {'short'|'medium'|'long'} [length] - Passage length the reader picked
+ * @param {{model?:string, length?:string, tone?:string, creativity?:number}} [controls] - Story controls (see buildStoryPayload)
  * @returns {Promise<Object>} Updated story
  */
-export const submitAnswers = async (storyId, answers, model, length = 'medium') => {
+export const submitAnswers = async (storyId, answers, controls = {}) => {
   try {
     const response = await fetchWithLockRetry(API_ENDPOINTS.STORY.SUBMIT_ANSWERS(storyId), {
       method: 'POST',
       headers: getHeaders(true),
-      body: JSON.stringify({ answers, model, length })
+      body: JSON.stringify({ answers, ...buildStoryPayload(controls) })
     }, { storyId })
 
     const data = await response.json()
@@ -533,16 +567,15 @@ export const deleteStory = async (storyId) => {
 /**
  * Regenerate last chunk of story
  * @param {string} storyId - The story ID
- * @param {string} model - The model to use (e.g., 'qwen3:8b')
- * @param {'short'|'medium'|'long'} [length] - Passage length the reader picked
+ * @param {{model?:string, length?:string, tone?:string, creativity?:number}} [controls] - Story controls (see buildStoryPayload)
  * @returns {Promise<Object>} Regeneration result
  */
-export const regenerateLastChunk = async (storyId, model = 'google/gemini-3.1-flash-lite', length = 'medium') => {
+export const regenerateLastChunk = async (storyId, controls = {}) => {
   try {
     const response = await fetchWithLockRetry(API_ENDPOINTS.STORY.REGENERATE(storyId), {
       method: 'POST',
       headers: getHeaders(true),
-      body: JSON.stringify({ model, length })
+      body: JSON.stringify(buildStoryPayload(controls))
     }, { storyId })
 
     const data = await response.json()
@@ -574,14 +607,13 @@ export const regenerateLastChunk = async (storyId, model = 'google/gemini-3.1-fl
 /**
  * Continue the story
  * @param {string} storyId - The story ID
- * @param {string} model - The model to use (e.g., 'qwen3:8b')
  * @param {string} userAction - Optional player action text
- * @param {'short'|'medium'|'long'} [length] - Passage length the reader picked
+ * @param {{model?:string, length?:string, tone?:string, creativity?:number}} [controls] - Story controls (see buildStoryPayload)
  * @returns {Promise<Object>} Continue result
  */
-export const continueStory = async (storyId, model = 'google/gemini-3.1-flash-lite', userAction = '', length = 'medium') => {
+export const continueStory = async (storyId, userAction = '', controls = {}) => {
   try {
-    const body = { model, length }
+    const body = buildStoryPayload(controls)
     if (userAction && userAction.trim()) {
       body.userAction = userAction.trim()
     }
@@ -644,18 +676,16 @@ export const continueStory = async (storyId, model = 'google/gemini-3.1-flash-li
  * @param {string} storyId - The story ID
  * @param {string} questionId - The Mongoose _id of the characterQuestion
  * @param {string} answer - The player's answer text
- * @param {string} model - The model to use
- * @param {'short'|'medium'|'long'} [length] - Passage length the reader picked
+ * @param {{model?:string, length?:string, tone?:string, creativity?:number}} [controls] - Story controls (see buildStoryPayload)
  * @returns {Promise<Object>} Continue result with the new story chunk
  */
-export const submitInquiryReply = async (storyId, questionId, answer, model = 'google/gemini-3.1-flash-lite', length = 'medium') => {
+export const submitInquiryReply = async (storyId, questionId, answer, controls = {}) => {
   try {
     const response = await fetchWithLockRetry(API_ENDPOINTS.STORY.CONTINUE(storyId), {
       method: 'POST',
       headers: getHeaders(true),
       body: JSON.stringify({
-        model,
-        length,
+        ...buildStoryPayload(controls),
         inquiryReply: { questionId, answer }
       })
     }, { storyId })
@@ -690,14 +720,13 @@ export const submitInquiryReply = async (storyId, questionId, answer, model = 'g
  * Edit last paragraph of story
  * @param {string} storyId - The story ID
  * @param {string} minorEditInstruction - Instruction for editing
- * @param {string} model - The model to use (e.g., 'qwen3:8b')
- * @param {'short'|'medium'|'long'} [length] - Passage length the reader picked
+ * @param {{model?:string, length?:string, tone?:string, creativity?:number}} [controls] - Story controls (see buildStoryPayload)
  * @returns {Promise<Object>} Edit result
  */
-export const editLastParagraph = async (storyId, minorEditInstruction, model = 'google/gemini-3.1-flash-lite', length = 'medium') => {
+export const editLastParagraph = async (storyId, minorEditInstruction, controls = {}) => {
   try {
     const url = API_ENDPOINTS.STORY.EDIT(storyId)
-    const payload = { minorEditInstruction, model, length }
+    const payload = { minorEditInstruction, ...buildStoryPayload(controls) }
     console.log('Edit URL:', url)
     console.log('Edit payload:', payload)
 
@@ -930,11 +959,11 @@ export const setStoryVisibility = async (storyId, visibility, contentRating) => 
  * writing head; the next continuation opens the new chapter with a fresh scene.
  * @param {string} storyId
  * @param {string} [title] Optional chapter title; the AI predicts one when blank.
- * @param {string} [model]
+ * @param {{model?:string, length?:string, tone?:string, creativity?:number}} [controls] - Story controls (see buildStoryPayload)
  */
-export const startChapter = async (storyId, title = '', model = 'google/gemini-3.1-flash-lite') => {
+export const startChapter = async (storyId, title = '', controls = {}) => {
   try {
-    const body = { model }
+    const body = buildStoryPayload(controls)
     if (title && title.trim()) body.title = title.trim()
 
     const response = await fetchWithLockRetry(API_ENDPOINTS.STORY.NEW_CHAPTER(storyId), {

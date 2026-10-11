@@ -10,6 +10,7 @@ import ModelPicker from './ModelPicker'
 import { formatCredits, getPlans } from '../services/billingService'
 import { describeBillingError } from '../utils/billingErrors'
 import { NarrationSession, scriptRangeToChunk } from '../utils/chapterAudio'
+import { STORY_LENGTHS, TONES, lengthLabel, lengthKeyFromLabel, loadStoryPrefs, resolveModelId, toApiCreativity } from '../utils/storyPrefs'
 
 /** Split a story chunk into paragraphs (blank-line separated). */
 function splitParagraphs(content) {
@@ -171,20 +172,8 @@ const I = {
   ),
 }
 
-/**
- * The length options, paired with the key the charge table prices them under.
- *
- * The two used to be written out separately — the labels here in the picker,
- * the keys in the backend's `LENGTH_WEIGHTS` — and a turn at "Long" really does
- * cost more than one at "Short". Keeping the pair together is what lets the
- * price beside the model move when the length does, instead of quietly pricing
- * everything as medium.
- */
-const STORY_LENGTHS = [
-  { key: 'short', label: 'Short (1-2 paragraphs)' },
-  { key: 'medium', label: 'Medium (3-4 paragraphs)' },
-  { key: 'long', label: 'Long (5+ paragraphs)' },
-]
+// STORY_LENGTHS (label ↔ charge-table key) lives in utils/storyPrefs so the
+// Settings page and this picker can never disagree about what a length is.
 
 const WORKSPACE_TABS = [
   { id: 'story', label: 'Story', icon: I.pen },
@@ -214,10 +203,15 @@ function StoryCreator() {
   // CreditPrompt turns it into copy; anything else stays null.
   const [billingError, setBillingError] = useState(null)
   const [activeTab, setActiveTab] = useState('story')
-  const [creativityLevel, setCreativityLevel] = useState(80)
-  const [storyLength, setStoryLength] = useState('Medium (3-4 paragraphs)')
-  const [tone, setTone] = useState('Mysterious')
-  const [model, setModel] = useState('google/gemini-3.1-flash-lite')
+  // The reader's Settings are where the controls *start*; changing them here
+  // applies to this session only and is not written back. Read once per mount.
+  const [startPrefs] = useState(loadStoryPrefs)
+  const [creativityLevel, setCreativityLevel] = useState(startPrefs.creativity)
+  const [storyLength, setStoryLength] = useState(() => lengthLabel(startPrefs.length))
+  const [tone, setTone] = useState(startPrefs.tone)
+  // Empty until the catalogue loads; the backend resolves a missing model to
+  // its default, so nothing sent before then is a guessed id.
+  const [model, setModel] = useState('')
   const [availableModels, setAvailableModels] = useState([])
 
   // Report modal
@@ -345,15 +339,16 @@ function StoryCreator() {
       if (result.success && result.models && result.models.length > 0) {
         setAvailableModels(result.models)
 
-        // Select the catalog's default model (flagged isDefault) on first load.
-        const preferred = result.models.find(m => m.isDefault) || result.models[0]
-        if (preferred) setModel(preferred.id)
+        // Start from the model chosen in Settings while the catalogue still
+        // offers it; otherwise the catalogue's default (flagged isDefault).
+        const preferred = resolveModelId(startPrefs.model, result.models)
+        if (preferred) setModel(preferred)
       }
     }
 
     loadStory()
     loadModels()
-  }, [storyId])
+  }, [storyId, startPrefs.model])
 
   // The plan catalogue. Only ever read to answer "which plan unlocks this?",
   // so a failure is silent — a missing plan name degrades a lock to "Locked",
@@ -373,10 +368,10 @@ function StoryCreator() {
   // ── Prices and locks ──────────────────────────────────────────────────────
 
   /** The charge-table key for whatever the length picker is showing. */
-  const lengthKey = useMemo(
-    () => STORY_LENGTHS.find((l) => l.label === storyLength)?.key || 'medium',
-    [storyLength]
-  )
+  const lengthKey = useMemo(() => lengthKeyFromLabel(storyLength), [storyLength])
+
+  /** The slider is 0–100; the API takes 0–10. Sent on every story call. */
+  const creativity = toApiCreativity(creativityLevel)
 
   /** Cheapest purchasable plan matching a predicate, or null. */
   const cheapestPlan = useCallback(
@@ -556,7 +551,7 @@ function StoryCreator() {
 
     setActionLoading('regenerate')
     setInlineActionError('')
-    const result = await storyService.regenerateLastChunk(generatedStory._id, model, lengthKey)
+    const result = await storyService.regenerateLastChunk(generatedStory._id, { model, length: lengthKey, tone, creativity })
     setActionLoading(null)
     // The turn has settled either way — a charge that stands, or a hold that
     // was released. Re-read the balance so the number on screen isn't stale.
@@ -831,7 +826,7 @@ function StoryCreator() {
 
     setActionLoading('continue')
     setInlineActionError('')
-    const result = await storyService.continueStory(generatedStory._id, model, userAction, lengthKey)
+    const result = await storyService.continueStory(generatedStory._id, userAction, { model, length: lengthKey, tone, creativity })
     setActionLoading(null)
     refreshBilling()
 
@@ -867,7 +862,7 @@ function StoryCreator() {
     setChapterModalOpen(false)
     setActionLoading('chapter')
     setInlineActionError('')
-    const result = await storyService.startChapter(generatedStory._id, title, model)
+    const result = await storyService.startChapter(generatedStory._id, title, { model, length: lengthKey, tone, creativity })
     setActionLoading(null)
     refreshBilling()
 
@@ -905,8 +900,7 @@ function StoryCreator() {
         generatedStory._id,
         questionId,
         clarificationAnswer.trim(),
-        model,
-        lengthKey
+        { model, length: lengthKey, tone, creativity }
       )
 
       console.log('[Clarification] API result:', result)
@@ -936,7 +930,7 @@ function StoryCreator() {
 
     setActionLoading('edit')
     setInlineActionError('')
-    const result = await storyService.editLastParagraph(generatedStory._id, aiInstruction.trim(), model, lengthKey)
+    const result = await storyService.editLastParagraph(generatedStory._id, aiInstruction.trim(), { model, length: lengthKey, tone, creativity })
     setActionLoading(null)
     refreshBilling()
 
@@ -1067,7 +1061,7 @@ function StoryCreator() {
     setError('')
 
     const finalSetting = setting === 'custom' ? customSetting : setting
-    const result = await storyService.initializeStoryWithQuestions(finalSetting, character, characterName.trim(), model)
+    const result = await storyService.initializeStoryWithQuestions(finalSetting, character, characterName.trim(), { model, length: lengthKey, tone, creativity })
 
     setIsLoading(false)
     refreshBilling()
@@ -1111,7 +1105,7 @@ function StoryCreator() {
     setIsWeaving(true)
     setQuestionWizardActive(false)
 
-    const result = await storyService.submitAnswers(wizardStoryId, answers, model, lengthKey)
+    const result = await storyService.submitAnswers(wizardStoryId, answers, { model, length: lengthKey, tone, creativity })
 
     setIsWeaving(false)
     refreshBilling()
@@ -2215,10 +2209,9 @@ function StoryCreator() {
                 <div className="ctrl-label">Tone</div>
                 <div className="sc-select">
                   <select value={tone} onChange={(e) => setTone(e.target.value)}>
-                    <option>Mysterious</option>
-                    <option>Adventurous</option>
-                    <option>Dark</option>
-                    <option>Lighthearted</option>
+                    {TONES.map((t) => (
+                      <option key={t}>{t}</option>
+                    ))}
                   </select>
                   <span className="ch">{I.chev}</span>
                 </div>

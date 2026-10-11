@@ -4,6 +4,7 @@ import './ScenarioCreator.css'
 import * as scenarioService from '../services/scenarioService'
 import * as libraryService from '../services/libraryService'
 import { initializeStoryFromScenario } from '../services/storyService'
+import { storyControlsFromPrefs } from '../utils/storyPrefs'
 import ReportModal from './ReportModal'
 
 const I = {
@@ -571,7 +572,7 @@ function ScenarioCreator() {
     setIsCreatingStory(true)
     setError('')
     setSuccess('')
-    const result = await initializeStoryFromScenario(scenarioId)
+    const result = await initializeStoryFromScenario(scenarioId, storyControlsFromPrefs())
     setIsCreatingStory(false)
     if (result.success) {
       setSuccess('Story initialized! Redirecting to character interview...')

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getPublicScenario } from '../services/publicService'
 import { initializeStoryFromScenario } from '../services/storyService'
+import { storyControlsFromPrefs } from '../utils/storyPrefs'
 import ReportModal from './ReportModal'
 import './Discover.css'
 
@@ -54,7 +55,7 @@ function PublicScenario() {
     }
     setPlaying(true)
     setError('')
-    const result = await initializeStoryFromScenario(id)
+    const result = await initializeStoryFromScenario(id, storyControlsFromPrefs())
     setPlaying(false)
     if (result.success && result.storyId) {
       navigate(`/story-creator/${result.storyId}`)

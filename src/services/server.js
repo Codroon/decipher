@@ -2,7 +2,9 @@
 // This file centralizes all backend API configuration
 
 // Get API base URL from environment variable or use default
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001'
+// `?.` so the module also loads under plain Node (node --test), where
+// import.meta.env does not exist; Vite still substitutes it in the bundle.
+const BASE_URL = import.meta.env?.VITE_API_URL || 'http://localhost:5001'
 
 // API endpoints organized by domain
 export const API_ENDPOINTS = {
